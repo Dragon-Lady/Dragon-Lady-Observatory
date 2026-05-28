@@ -19,20 +19,10 @@ import requests
 CACHE_DIR = Path(__file__).parents[2] / 'data' / 'cache' / 'celestrak'
 CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
-# CelesTrak GP (General Perturbations) catalog — JSON format, all active objects
-_GP_URL = 'https://celestrak.org/SOCRATES/query.php'
-_SATCAT_JSON = 'https://celestrak.org/satcat/satcat.json'
-_ACTIVE_JSON = 'https://celestrak.org/satcat/satcat.json?STATUS=+'
-
-# Simpler, confirmed working: named TLE group feeds in JSON
-_GROUP_URLS = {
-    'active':   'https://celestrak.org/SOCRATES/query.php?FORMAT=JSON',
-    # Stable named groups used for bootstrap
-    'stations': 'https://celestrak.org/satcat/satcat.json?NAME=ISS',
-}
-
-# The GP catalog endpoint — confirmed JSON format
-_GP_CATALOG = 'https://celestrak.org/satcat/satcat.json'
+# CelesTrak GP (General Perturbations) catalog — confirmed working JSON endpoint.
+# Returns full GP elements: NORAD_CAT_ID, OBJECT_NAME, OBJECT_TYPE, EPOCH,
+# MEAN_MOTION, ECCENTRICITY, INCLINATION, TLE_LINE1, TLE_LINE2, etc.
+_GP_CATALOG = 'https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=json'
 
 _SESSION = requests.Session()
 _SESSION.headers.update({'User-Agent': 'DragonEye-StarsEdition/1.0'})

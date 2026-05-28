@@ -23,15 +23,28 @@ def from_ll2_launch(launch: dict, sources: list[dict]) -> dict:
     rocket      = launch.get('rocket', {}) or {}
     config      = rocket.get('configuration', {}) or {}
     vehicle     = config.get('name', 'Unknown Vehicle')
-    provider    = config.get('manufacturer', {}) or {}
-    provider_name = (provider.get('name', '') if isinstance(provider, dict)
-                     else launch.get('launch_service_provider', {}).get('name', 'Unknown')) or 'Unknown'
 
+    # LL2 puts the operator in launch_service_provider, not rocket.configuration.manufacturer
+    lsp         = launch.get('launch_service_provider', {}) or {}
+    provider_name = lsp.get('name', '') or 'Unknown'
+
+    # Pad coords live directly on pad (strings), not nested under location
     pad         = launch.get('pad', {}) or {}
     site        = pad.get('name', '')
-    location    = pad.get('location', {}) or {}
-    lat         = float(location.get('latitude_deg', 0) or 0)
-    lon         = float(location.get('longitude_deg', 0) or 0)
+    try:
+        lat = float(pad.get('latitude') or 0)
+        lon = float(pad.get('longitude') or 0)
+    except (TypeError, ValueError):
+        lat, lon = 0.0, 0.0
+
+    # Fall back to pad.location if direct fields are absent
+    if lat == 0.0 and lon == 0.0:
+        loc_obj = pad.get('location', {}) or {}
+        try:
+            lat = float(loc_obj.get('latitude_deg') or loc_obj.get('latitude') or 0)
+            lon = float(loc_obj.get('longitude_deg') or loc_obj.get('longitude') or 0)
+        except (TypeError, ValueError):
+            lat, lon = 0.0, 0.0
 
     record_id   = f'launch-{_slug(name)[:60]}'
     retrieved_at = sources[0]['retrieved_at'] if sources else _now_iso()
