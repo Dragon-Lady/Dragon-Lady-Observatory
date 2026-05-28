@@ -22,6 +22,10 @@ data/cache/
 data/snapshots/
 *.tle
 
+# generated at runtime by poll.py — regenerable, never commit
+data/records/*.json
+data/catalog/*.json
+
 # logs / OS
 *.log
 .DS_Store

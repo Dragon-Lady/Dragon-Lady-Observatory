@@ -31,6 +31,7 @@ from engine.freshness import may_promote
 from engine.tier import assign_tier
 from engine.watchlist import is_watchlisted
 from engine.store.writer import write_record, load_record
+from engine.store.catalog import write_tle_bundle, is_notable
 
 
 def _now_iso() -> str:
@@ -86,14 +87,32 @@ def run_pass():
     ct_catalog = celestrak.fetch_gp_catalog()
     print(f'  CelesTrak: {len(ct_catalog)} objects')
 
+    # (a) Emit TLE bundle for globe — fetch TLE text format (has tle1/tle2 lines)
+    tle_records = celestrak.fetch_tle_records()
+    if tle_records:
+        bundle_path = write_tle_bundle(tle_records)
+        print(f'  TLE bundle -> {bundle_path} ({len(tle_records)} objects)')
+
+    # (b) Build corroboration map + write records for notable objects
     ct_by_norad: dict[int, dict] = {}
 
     for gp in ct_catalog:
         try:
             rec = norm_orbital.from_gp(gp, ct_source)
-            ct_by_norad[rec['location']['norad_id']] = rec
+            norad = rec['location']['norad_id']
+            ct_by_norad[norad] = rec
+
+            # Write records for watchlisted + notable objects (not the whole catalog)
+            wl = is_watchlisted(rec)
+            if wl or is_notable(norad):
+                rec['watchlist'] = wl
+                rec['tier'] = assign_tier([], watchlist_hit=wl)
+                write_record(rec)
+                written += 1
         except Exception:
             continue
+
+    print(f'  Notable/watchlisted orbital records written: {written}')
 
     # ── 4. Orbital — Space-Track (primary, needs .env creds) ─────────────────
     print('[poll] fetching Space-Track GP catalog...')

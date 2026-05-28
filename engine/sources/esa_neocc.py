@@ -1,19 +1,14 @@
 """
-esa_neocc.py — ESA NEOCC (Near Earth Object Coordination Centre) poller.
+esa_neocc.py — ESA NEOCC / MPC NEO poller.
 
-STATUS: API shape pending confirmation. See DATA_SOURCES.md note.
+STATUS: ESA NEOCC PSDB download endpoints (neo.ssa.esa.int/PSDB-portlet/download)
+return 200 with empty body — they require a browser session / JS rendering.
+No unauthenticated REST JSON API confirmed as of 2026-05-28.
 
-ESA NEOCC portal: https://neo.ssa.esa.int/
-The REST API structure needs verification against their live docs before
-the fetch URLs are finalized. Using MPC (Minor Planet Center) as the
-working fallback until confirmed.
-
-TODO Rocky: visit https://neo.ssa.esa.int/ -> API / Developer docs tab,
-confirm endpoint paths for:
-  - Close approach list (current + upcoming)
-  - Risk list (Palermo + Torino scale)
-  - Object orbit parameters by designation
-Then update _CA_URL, _RISK_URL below and remove this TODO block.
+CONFIRMED FALLBACK: Minor Planet Center (MPC) close approach HTML page.
+MPC is Harvard-based, not NASA. Data is real and current.
+Parsing the CloseApp HTML is the working path until ESA NEOCC publishes
+a proper unauthenticated REST endpoint or provides API docs.
 """
 
 import json
