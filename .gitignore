@@ -1,0 +1,29 @@
+# secrets / credentials — NEVER commit (Space-Track login, API keys, tokens)
+.env
+.env.*
+config/*.local.json
+config/secrets*.json
+*.key
+
+# python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+
+# node / viewer
+node_modules/
+dist/
+.astro/
+
+# data caches — catalogs/TLEs/snapshots are fetched at runtime, not committed
+data/cache/
+data/snapshots/
+*.tle
+
+# logs / OS
+*.log
+.DS_Store
+Thumbs.db
+desktop.ini

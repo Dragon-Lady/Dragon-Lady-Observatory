@@ -1,0 +1,150 @@
+[
+  {
+    "schema_version": 1,
+    "id": "orbital-25544-iss",
+    "domain": "orbital",
+    "type": "satellite",
+    "names": ["ISS (ZARYA)", "25544", "1998-067A"],
+    "description": "International Space Station. Auto-record; baseline catalog object.",
+    "topics": ["leo", "crewed", "baseline"],
+    "sources": [{ "name": "space-track", "url": "https://www.space-track.org/", "retrieved_at": "2026-05-28T20:00:00Z" }],
+    "freshness": { "last_update": "2026-05-28T18:00:00Z", "staleness_risk": "low" },
+    "related_ids": [],
+    "location": { "norad_id": 25544, "intl_designator": "1998-067A", "elset": { "epoch": "2026-05-28T12:00:00Z", "mean_motion": 15.49, "ecc": 0.0006, "inc": 51.64 }, "apogee_km": 421, "perigee_km": 417, "regime": "LEO" },
+    "tier": "T3",
+    "watchlist": false,
+    "anomalies": []
+  },
+  {
+    "schema_version": 1,
+    "id": "orbital-90211-maneuver",
+    "domain": "orbital",
+    "type": "satellite",
+    "names": ["UNKNOWN-90211", "90211"],
+    "description": "Catalogued payload showing an unmodeled orbit change. Auto-record.",
+    "topics": ["leo", "maneuver"],
+    "sources": [
+      { "name": "space-track", "url": "https://www.space-track.org/", "retrieved_at": "2026-05-28T20:00:00Z" },
+      { "name": "celestrak", "url": "https://celestrak.org/", "retrieved_at": "2026-05-28T19:50:00Z" }
+    ],
+    "freshness": { "last_update": "2026-05-28T19:50:00Z", "staleness_risk": "low" },
+    "related_ids": [],
+    "location": { "norad_id": 90211, "intl_designator": "2025-099B", "elset": { "epoch": "2026-05-28T16:00:00Z", "mean_motion": 14.21, "ecc": 0.0021, "inc": 53.0 }, "apogee_km": 612, "perigee_km": 590, "regime": "LEO" },
+    "tier": "T2",
+    "watchlist": false,
+    "anomalies": [
+      {
+        "kind": "maneuver",
+        "confidence": 0.78,
+        "evidence": [
+          { "reason": "perigee raised ~22 km between consecutive elsets", "metric": "delta_v", "value": 0.018, "source_ref": "space-track", "observed_at": "2026-05-28T16:00:00Z" },
+          { "reason": "CelesTrak elset corroborates the change (not a stale-TLE artifact)", "metric": "delta_v", "value": 0.017, "source_ref": "celestrak", "observed_at": "2026-05-28T15:40:00Z" }
+        ],
+        "delta": { "delta_v_kms": 0.018 },
+        "state": "active",
+        "first_flagged": "2026-05-28T16:10:00Z",
+        "last_updated": "2026-05-28T19:50:00Z"
+      }
+    ]
+  },
+  {
+    "schema_version": 1,
+    "id": "orbital-conj-90211-37820",
+    "domain": "orbital",
+    "type": "conjunction",
+    "names": ["Conjunction 90211 × 37820"],
+    "description": "Predicted close approach between two catalogued objects. Auto-record.",
+    "topics": ["conjunction", "leo"],
+    "sources": [{ "name": "space-track", "url": "https://www.space-track.org/", "retrieved_at": "2026-05-28T20:00:00Z" }],
+    "freshness": { "last_update": "2026-05-28T20:00:00Z", "staleness_risk": "low" },
+    "related_ids": ["orbital-90211-maneuver"],
+    "location": { "tca": "2026-05-29T03:14:00Z", "miss_distance_km": 0.42, "relative_velocity_kms": 11.3, "regime": "LEO" },
+    "tier": "T1",
+    "watchlist": false,
+    "anomalies": [
+      {
+        "kind": "conjunction_high_pc",
+        "confidence": 0.9,
+        "evidence": [
+          { "reason": "miss distance 420 m, Pc above screening threshold", "metric": "miss_distance", "value": 0.42, "source_ref": "space-track", "observed_at": "2026-05-28T20:00:00Z" }
+        ],
+        "delta": { "miss_distance_km": 0.42, "probability_of_collision": 0.0012 },
+        "state": "active",
+        "first_flagged": "2026-05-28T20:00:00Z",
+        "last_updated": "2026-05-28T20:00:00Z"
+      }
+    ]
+  },
+  {
+    "schema_version": 1,
+    "id": "neo-2024-ab-close",
+    "domain": "neo",
+    "type": "asteroid",
+    "names": ["2024 AB"],
+    "description": "Near-Earth asteroid with an upcoming close approach. Auto-record.",
+    "topics": ["neo", "close_approach", "apollo"],
+    "sources": [{ "name": "esa-neocc", "url": "https://neo.ssa.esa.int/", "retrieved_at": "2026-05-28T20:00:00Z" }],
+    "freshness": { "last_update": "2026-05-28T20:00:00Z", "staleness_risk": "low" },
+    "related_ids": [],
+    "location": { "designation": "2024 AB", "orbit": { "a_au": 1.46, "e": 0.38, "i_deg": 9.2, "epoch": "2026-05-28T00:00:00Z" }, "moid_au": 0.011, "is_pha": true },
+    "tier": "T2",
+    "watchlist": false,
+    "anomalies": [
+      {
+        "kind": "neo_close_approach",
+        "confidence": 0.85,
+        "evidence": [
+          { "reason": "close approach at 3.1 lunar distances; flagged PHA", "metric": "miss_distance", "value": 3.1, "source_ref": "esa-neocc", "observed_at": "2026-05-28T20:00:00Z" }
+        ],
+        "delta": { "miss_distance_ld": 3.1, "ca_time": "2026-06-02T09:40:00Z" },
+        "state": "active",
+        "first_flagged": "2026-05-28T20:00:00Z",
+        "last_updated": "2026-05-28T20:00:00Z"
+      }
+    ]
+  },
+  {
+    "schema_version": 1,
+    "id": "spacewx-flare-x12-20260528",
+    "domain": "space_weather",
+    "type": "flare",
+    "names": ["X1.2 flare — AR3697"],
+    "description": "Solar flare detected by GOES. Auto-record.",
+    "topics": ["space_weather", "flare", "x_class"],
+    "sources": [{ "name": "noaa-swpc", "url": "https://services.swpc.noaa.gov/", "retrieved_at": "2026-05-28T20:00:00Z" }],
+    "freshness": { "last_update": "2026-05-28T20:00:00Z", "staleness_risk": "low" },
+    "related_ids": [],
+    "location": { "region": "AR3697", "intensity": "X1.2", "onset": "2026-05-28T17:22:00Z", "peak": "2026-05-28T17:41:00Z" },
+    "tier": "T1",
+    "watchlist": false,
+    "anomalies": [
+      {
+        "kind": "space_weather_severe",
+        "confidence": 0.99,
+        "evidence": [
+          { "reason": "X-class flare; radio blackout potential", "metric": "flux", "value": 1.2, "source_ref": "noaa-swpc", "observed_at": "2026-05-28T17:41:00Z" }
+        ],
+        "delta": { "flux_change": "C-to-X over 19 min" },
+        "state": "active",
+        "first_flagged": "2026-05-28T17:25:00Z",
+        "last_updated": "2026-05-28T20:00:00Z"
+      }
+    ]
+  },
+  {
+    "schema_version": 1,
+    "id": "launch-falcon9-starlink-g12-7",
+    "domain": "launch_reentry",
+    "type": "launch",
+    "names": ["Falcon 9 — Starlink Group 12-7"],
+    "description": "Scheduled orbital launch. Auto-record.",
+    "topics": ["launch", "leo", "nominal"],
+    "sources": [{ "name": "launch-library-2", "url": "https://thespacedevs.com/", "retrieved_at": "2026-05-28T20:00:00Z" }],
+    "freshness": { "last_update": "2026-05-28T20:00:00Z", "staleness_risk": "low" },
+    "related_ids": [],
+    "location": { "provider": "SpaceX", "vehicle": "Falcon 9", "site": "Cape Canaveral SLC-40", "lat": 28.56, "lon": -80.57, "window_start": "2026-05-29T06:12:00Z", "window_end": "2026-05-29T10:12:00Z", "status": "Go" },
+    "tier": "T3",
+    "watchlist": false,
+    "anomalies": []
+  }
+]

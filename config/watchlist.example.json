@@ -1,0 +1,9 @@
+{
+  "_comment": "Copy to watchlist.json (gitignored). Anchor on STATIC identity (norad_id / intl_designator / neo designation), never ephemeral state. Watchlisted subjects get elevated polling and auto-escalate one tier on a hit.",
+  "schema_version": 1,
+  "entries": [
+    { "label": "ISS", "match": { "norad_id": 25544 }, "note": "example: pinned by stable catalog id" },
+    { "label": "example GEO asset", "match": { "intl_designator": "2020-000A" }, "note": "pin by international designator" },
+    { "label": "example PHA", "match": { "neo_designation": "2024 AB", "domain": "neo" }, "note": "near-Earth object of interest" }
+  ]
+}
