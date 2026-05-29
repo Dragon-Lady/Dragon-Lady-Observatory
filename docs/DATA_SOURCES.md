@@ -1,15 +1,15 @@
 # Stars Edition — Data Sources
 
 Non-NASA, free, primary + fallback per domain — the same discipline as Dragon
-Eye's ADSBX-primary / OpenSky-fallback. Confirmed by Rocky's source evaluation
-(2026-05-28).
+Eye's ADSBX-primary / OpenSky-fallback. Source evaluation completed
+2026-05-28.
 
 | Domain | Primary | Fallback / bootstrap | Auth |
 |---|---|---|---|
 | **Orbital** (catalog, elsets, conjunctions, decay) | **Space-Track.org** (USSF 18 SDS — authoritative; the source others mirror) | **CelesTrak** (clean TLE mirror) | Space-Track: free registration · CelesTrak: none |
 | **Launches / reentries** | **Launch Library 2** (The Space Devs) | — | none; optional free key raises limits |
 | **Space weather** | **NOAA SWPC** | — | none |
-| **Near-Earth objects** | **ESA NEOCC** *(pending Rocky's API confirm)* | Minor Planet Center | none / TBD |
+| **Near-Earth objects** | **ESA NEOCC** *(pending API confirmation)* | Minor Planet Center | none / TBD |
 
 ## Notes
 

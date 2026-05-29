@@ -10,7 +10,7 @@
     "sources": [{ "name": "space-track", "url": "https://www.space-track.org/", "retrieved_at": "2026-05-28T20:00:00Z" }],
     "freshness": { "last_update": "2026-05-28T18:00:00Z", "staleness_risk": "low" },
     "related_ids": [],
-    "location": { "norad_id": 25544, "intl_designator": "1998-067A", "elset": { "epoch": "2026-05-28T12:00:00Z", "mean_motion": 15.49, "ecc": 0.0006, "inc": 51.64 }, "apogee_km": 421, "perigee_km": 417, "regime": "LEO" },
+    "location": { "norad_id": 25544, "intl_designator": "1998-067A", "elset": { "epoch": "2026-05-28T12:00:00Z", "tle1": "1 25544U 98067A   26149.50000000  .00006400  00000-0  11835-3 0  9993", "tle2": "2 25544  51.6400 320.1000 0006000 110.2000 249.9000 15.49000000501234", "mean_motion": 15.49, "ecc": 0.0006, "inc": 51.64 }, "apogee_km": 421, "perigee_km": 417, "regime": "LEO" },
     "tier": "T3",
     "watchlist": false,
     "anomalies": []
@@ -29,7 +29,7 @@
     ],
     "freshness": { "last_update": "2026-05-28T19:50:00Z", "staleness_risk": "low" },
     "related_ids": [],
-    "location": { "norad_id": 90211, "intl_designator": "2025-099B", "elset": { "epoch": "2026-05-28T16:00:00Z", "mean_motion": 14.21, "ecc": 0.0021, "inc": 53.0 }, "apogee_km": 612, "perigee_km": 590, "regime": "LEO" },
+    "location": { "norad_id": 90211, "intl_designator": "2025-099B", "elset": { "epoch": "2026-05-28T16:00:00Z", "tle1": "1 90211U 25099B   26149.66666667  .00021000  00000-0  31500-3 0  9990", "tle2": "2 90211  53.0000 142.6000 0021000 188.4000 171.6000 14.21000000123456", "mean_motion": 14.21, "ecc": 0.0021, "inc": 53.0 }, "apogee_km": 612, "perigee_km": 590, "regime": "LEO" },
     "tier": "T2",
     "watchlist": false,
     "anomalies": [
@@ -58,7 +58,7 @@
     "sources": [{ "name": "space-track", "url": "https://www.space-track.org/", "retrieved_at": "2026-05-28T20:00:00Z" }],
     "freshness": { "last_update": "2026-05-28T20:00:00Z", "staleness_risk": "low" },
     "related_ids": ["orbital-90211-maneuver"],
-    "location": { "tca": "2026-05-29T03:14:00Z", "miss_distance_km": 0.42, "relative_velocity_kms": 11.3, "regime": "LEO" },
+    "location": { "tca": "2026-05-29T03:14:00Z", "miss_distance_km": 0.42, "pc": 0.0012, "relative_velocity_kms": 11.3, "regime": "LEO", "alert_class": "alert", "objects": [ { "norad_id": 90211, "name": "UNKNOWN-90211", "tle1": "1 90211U 25099B   26149.66666667  .00021000  00000-0  31500-3 0  9990", "tle2": "2 90211  53.0000 142.6000 0021000 188.4000 171.6000 14.21000000123456" }, { "norad_id": 25544, "name": "ISS (ZARYA)", "tle1": "1 25544U 98067A   26149.50000000  .00006400  00000-0  11835-3 0  9993", "tle2": "2 25544  51.6400 320.1000 0006000 110.2000 249.9000 15.49000000501234" } ] },
     "tier": "T1",
     "watchlist": false,
     "anomalies": [
@@ -69,6 +69,32 @@
           { "reason": "miss distance 420 m, Pc above screening threshold", "metric": "miss_distance", "value": 0.42, "source_ref": "space-track", "observed_at": "2026-05-28T20:00:00Z" }
         ],
         "delta": { "miss_distance_km": 0.42, "probability_of_collision": 0.0012 },
+        "state": "active",
+        "first_flagged": "2026-05-28T20:00:00Z",
+        "last_updated": "2026-05-28T20:00:00Z"
+      }
+    ]
+  },
+  {
+    "schema_version": 1,
+    "id": "orbital-conj-debris-closepass",
+    "domain": "orbital",
+    "type": "conjunction",
+    "names": ["DEBRIS A x DEBRIS B"],
+    "description": "Debris-debris close pass. A real near-miss, but no operational asset and no actor. Auto-record.",
+    "topics": ["conjunction", "leo", "debris"],
+    "sources": [{ "name": "space-track", "url": "https://www.space-track.org/", "retrieved_at": "2026-05-28T20:00:00Z" }],
+    "freshness": { "last_update": "2026-05-28T20:00:00Z", "staleness_risk": "low" },
+    "related_ids": [],
+    "location": { "tca": "2026-05-29T05:00:00Z", "miss_distance_km": 0.045, "relative_velocity_kms": 14.0, "regime": "LEO", "alert_class": "close_pass", "objects": [ { "norad_id": 19751, "name": "DEBRIS A", "tle1": "1 19751U 89001C   26148.23145851 -.00000062  00000+0  00000+0 0  9998", "tle2": "2 19751  64.9347  72.8776 0023340 217.6127 274.1275  2.13156052290940" }, { "norad_id": 20026, "name": "DEBRIS B", "tle1": "1 20026U 89039C   26148.34030464 -.00000067  00000+0  00000+0 0  9996", "tle2": "2 20026  64.9478 311.2189 0020626 212.5987 156.8385  2.13204667288088" } ] },
+    "tier": "T1",
+    "watchlist": false,
+    "anomalies": [
+      {
+        "kind": "close_pass",
+        "confidence": 0.95,
+        "evidence": [ { "reason": "debris-debris miss 45 m; no operational asset involved", "metric": "miss_distance", "value": 0.045, "source_ref": "space-track", "observed_at": "2026-05-28T20:00:00Z" } ],
+        "delta": { "miss_distance_km": 0.045 },
         "state": "active",
         "first_flagged": "2026-05-28T20:00:00Z",
         "last_updated": "2026-05-28T20:00:00Z"

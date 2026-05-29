@@ -1,4 +1,4 @@
-# engine/ — ingest + anomaly detection (Rocky + Ice Man lane)
+# engine/ — ingest + anomaly detection
 
 Python. The running process that turns live data into tiered, evidence-bearing
 records the viewer reads.

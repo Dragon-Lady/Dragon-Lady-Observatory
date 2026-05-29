@@ -1,0 +1,329 @@
+---
+import '@/styles/global.css';
+import { orbitalMarkers, conjunctionMarkers, stats } from '@/lib/store';
+const s = stats();
+const base = import.meta.env.BASE_URL;
+const catalogUrl = (base.endsWith('/') ? base : base + '/') + 'catalog/tle.json';
+const markers = orbitalMarkers();
+const conjunctions = conjunctionMarkers();        // sorted: alert-first, tightest-first
+const alertCount = conjunctions.filter((c) => c.alertClass === 'alert').length;
+const closeCount = conjunctions.length - alertCount;
+const PANEL_MAX = 14;   // rows listed in the side panel
+const GLOBE_MAX = 80;   // glowing markers plotted on the globe (keeps it smooth)
+const panelList = conjunctions.slice(0, PANEL_MAX);
+const globeConj = conjunctions.slice(0, GLOBE_MAX);
+---
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#05070d" />
+  <title>The Globe · Stars Edition</title>
+  <style>
+    .flyrow:hover { background:#1a2233; }
+    .flyrow.flyrow--active { background:#241019; box-shadow:inset 2px 0 0 #ff5470; }
+  </style>
+</head>
+<body style="margin:0;background:#05070d;overflow:hidden;">
+  <div id="globe" style="position:fixed;inset:0;"></div>
+
+  <div style="position:fixed;top:14px;left:14px;z-index:10;background:#0f1420cc;backdrop-filter:blur(8px);border:1px solid #232c40;border-radius:12px;padding:14px 16px;max-width:300px;">
+    <div style="display:flex;align-items:baseline;gap:8px;">
+      <span style="font-size:16px;font-weight:600;color:#e9edf5;">Stars Edition</span>
+      <a href={base} style="color:#6fd3e2;font-size:13px;text-decoration:none;">← console</a>
+    </div>
+    <p style="margin:6px 0 0;color:#aab4c7;font-size:13px;line-height:1.5;">
+      <span id="count">…</span> real objects, propagated live to where they are
+      <em>right now</em>, over filled countries + US states so you can place them.
+      Drag to spin, scroll to zoom. <span style="color:#ff5470;">●</span> ISS.
+    </p>
+    <p style="margin:8px 0 0;color:#8893a8;font-size:12px;">
+      {s.anomalies} anomalies in the console. Orbital anomalies with elsets plot here as tier-colored markers.
+    </p>
+  </div>
+
+  <div style="position:fixed;top:14px;right:14px;z-index:10;width:300px;max-width:calc(100vw - 28px);background:#0f1420f2;backdrop-filter:blur(8px);border:1px solid #36415a;border-radius:12px;padding:12px 14px;max-height:72vh;overflow:auto;">
+    <div style="font-size:13px;font-weight:600;color:#e9edf5;margin-bottom:2px;">Flagged now</div>
+    {conjunctions.length > 0 && (
+      <div style="font-size:11px;color:#8893a8;margin-bottom:6px;line-height:1.45;">
+        {conjunctions.length} close approaches ·
+        <span style="color:#ff5470;"> {alertCount} active</span> ·
+        <span style="color:#aab4c7;"> {closeCount} debris</span>
+        <div style="color:#6fd3e2;margin-top:3px;">tap a row to fly there →</div>
+      </div>
+    )}
+    {panelList.map((c) => (
+      <div class="flyrow" data-fly={c.id} style="display:flex;gap:8px;align-items:flex-start;padding:7px 6px;margin:0 -6px;border-top:1px solid #1b2430;cursor:pointer;border-radius:6px;">
+        <span style={`flex:0 0 auto;width:9px;height:9px;border-radius:9999px;margin-top:4px;background:${c.alertClass === 'alert' ? '#ff5470' : 'rgba(255,84,112,0.5)'};`}></span>
+        <div style="font-size:12px;line-height:1.45;">
+          <div style={`font-weight:600;color:${c.alertClass === 'alert' ? '#ff5470' : '#aab4c7'};`}>{c.alertClass === 'alert' ? 'Active Pass' : 'Debris Pass'}</div>
+          <div style="color:#cdd5e3;">{c.objects.map((o) => o.name).join(' × ')}</div>
+          <div style="color:#8893a8;">{c.miss_distance_km != null ? `${c.miss_distance_km} km miss` : ''}{c.tca ? ` · TCA ${c.tca}` : ''}</div>
+        </div>
+      </div>
+    ))}
+    {conjunctions.length > PANEL_MAX && (
+      <div style="font-size:11px;color:#8893a8;padding:7px 0 2px;border-top:1px solid #1b2430;">
+        + {conjunctions.length - PANEL_MAX} more close approaches{conjunctions.length > GLOBE_MAX ? ` · globe plots the ${GLOBE_MAX} most significant` : ''}
+      </div>
+    )}
+    {markers.map((m) => (
+      <div class="flyrow" data-fly={m.id} style="display:flex;gap:8px;align-items:flex-start;padding:7px 6px;margin:0 -6px;border-top:1px solid #1b2430;cursor:pointer;border-radius:6px;">
+        <span style={`flex:0 0 auto;width:9px;height:9px;border-radius:9999px;margin-top:4px;background:${m.tier === 'T1' ? '#ff5470' : m.tier === 'T2' ? '#ffc247' : '#9fb0c9'};`}></span>
+        <div style="font-size:12px;line-height:1.45;">
+          <div style="font-weight:600;color:#e9edf5;">{m.tier} · {m.name}</div>
+          <div style="color:#8893a8;">{m.anomalyKinds.join(', ')}</div>
+        </div>
+      </div>
+    ))}
+    {conjunctions.length === 0 && markers.length === 0 && (<div style="font-size:12px;color:#8893a8;">Nothing flagged right now.</div>)}
+    {conjunctions.length > 0 && (
+      <div style="font-size:11px;color:#6b7790;margin-top:9px;padding-top:8px;border-top:1px solid #1b2430;line-height:1.5;font-style:italic;">
+        A conjunction is when two objects in orbit come close. Most are harmless — we highlight the ones involving active satellites, because those matter more from the ground.
+      </div>
+    )}
+  </div>
+
+  <div id="loading" style="position:fixed;inset:0;display:flex;align-items:center;justify-content:center;color:#8893a8;font-family:system-ui;z-index:5;">
+    Loading the catalog &amp; propagating orbits…
+  </div>
+
+  <div id="info" style="position:fixed;bottom:14px;left:14px;z-index:10;max-width:360px;background:#0f1420f2;backdrop-filter:blur(8px);border:1px solid #36415a;border-radius:10px;padding:11px 13px;font-size:13px;line-height:1.5;color:#cdd5e3;display:none;">
+    <button id="info-x" style="float:right;background:none;border:none;color:#8893a8;cursor:pointer;font-size:14px;">×</button>
+    <span id="info-text"></span>
+  </div>
+
+  <script is:inline define:vars={{ catalogUrl, markers, conjunctions: globeConj }}>
+    function load(src){return new Promise((res,rej)=>{const s=document.createElement('script');s.src=src;s.onload=res;s.onerror=rej;document.head.appendChild(s);});}
+    const EARTH_R = 6371;
+    const esc = (s) => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+    let catalog = [];
+    const anomalyCatalog = Array.isArray(markers) ? markers : [];
+    const conjunctionCatalog = Array.isArray(conjunctions) ? conjunctions : [];
+
+    function tierColor(tier){
+      if (tier === 'T1') return '#ff5470';
+      if (tier === 'T2') return '#ffc247';
+      return '#9fb0c9';
+    }
+
+    // current propagated position+label of every flagged marker, keyed by record
+    // id — lets a panel-row click fly the globe to where the dot actually is now.
+    const posById = {};
+    function indexPositions(arr){ for (const d of arr) if (d && d.id) posById[d.id] = d; }
+
+    function propagate(when){
+      const gmst = satellite.gstime(when);
+      const pts = [];
+      for (const t of catalog){
+        try {
+          const rec = satellite.twoline2satrec(t.tle1, t.tle2);
+          const pv = satellite.propagate(rec, when);
+          if(!pv || !pv.position) continue;
+          const gd = satellite.eciToGeodetic(pv.position, gmst);
+          const lat = satellite.degreesLat(gd.latitude), lng = satellite.degreesLong(gd.longitude);
+          if(Number.isNaN(lat)||Number.isNaN(lng)) continue;
+          pts.push({ lat, lng, alt: Math.max(0, gd.height)/EARTH_R, name: t.name, iss: t.norad_id===25544 });
+        } catch(e){}
+      }
+      return pts;
+    }
+
+    function propagateMarkers(when){
+      const gmst = satellite.gstime(when);
+      const pts = [];
+      for (const t of anomalyCatalog){
+        try {
+          const rec = satellite.twoline2satrec(t.tle1, t.tle2);
+          const pv = satellite.propagate(rec, when);
+          if(!pv || !pv.position) continue;
+          const gd = satellite.eciToGeodetic(pv.position, gmst);
+          const lat = satellite.degreesLat(gd.latitude), lng = satellite.degreesLong(gd.longitude);
+          if(Number.isNaN(lat)||Number.isNaN(lng)) continue;
+          pts.push({
+            id: t.id,
+            lat,
+            lng,
+            alt: Math.max(0, gd.height)/EARTH_R,
+            name: t.name,
+            tier: t.tier,
+            color: tierColor(t.tier),
+            label: `${t.tier} · ${t.name} · ${t.anomalyKinds.join(', ')}`,
+          });
+        } catch(e){}
+      }
+      return pts;
+    }
+
+    // A conjunction is point-like at globe scale → ONE tier-styled marker at its
+    // location. bright = ALERT (payload at risk); dim = close pass (debris near-miss).
+    // Label names both objects + miss + TCA (the two-object detail lives on zoom/detail).
+    function propagateConjunctions(when){
+      const gmst = satellite.gstime(when);
+      const markers = [];
+      for (const c of conjunctionCatalog){
+        const o = (c.objects || [])[0];
+        if (!o || !o.tle1 || !o.tle2) continue;
+        try {
+          const rec = satellite.twoline2satrec(o.tle1, o.tle2);
+          const pv = satellite.propagate(rec, when);
+          if(!pv || !pv.position) continue;
+          const gd = satellite.eciToGeodetic(pv.position, gmst);
+          const lat = satellite.degreesLat(gd.latitude), lng = satellite.degreesLong(gd.longitude);
+          if(Number.isNaN(lat)||Number.isNaN(lng)) continue;
+          // Plain-language readout: a calm human sentence, with the raw
+          // numbers kept as a small dim line for anyone who wants them.
+          const isAlert = c.alertClass === 'alert';
+          const RED = '#ff5470';
+          const objs = c.objects || [];
+          const nA = (objs[0] && objs[0].name) || 'Object A';
+          const nB = (objs[1] && objs[1].name) || 'Object B';
+          const missTxt = (c.miss_distance_km != null) ? `${c.miss_distance_km} km` : 'an unknown distance';
+          const when = c.tca ? new Date(c.tca).toUTCString().replace(/:00 GMT$/, ' UTC') : '';
+          const headline = isAlert ? 'Active Pass' : 'Debris Pass';
+          const sentence = isAlert
+            ? `${nA} is passing within ${missTxt} of ${nB}${when ? ' at ' + when : ''}.`
+            : `${nA} and ${nB} will pass within ${missTxt}${when ? ' at ' + when : ''}.`;
+          const raw = [
+            (c.miss_distance_km != null) ? `${c.miss_distance_km} km miss` : '',
+            (c.pc != null) ? `Pc ${Number(c.pc).toExponential(1)}` : '',
+            c.tca ? `TCA ${c.tca}` : '',
+          ].filter(Boolean).join(' · ');
+          const hColor = isAlert ? RED : '#aab4c7';
+          markers.push({
+            id: c.id,
+            lat, lng, alt: Math.max(0, gd.height)/EARTH_R,
+            color: isAlert ? RED : 'rgba(255,84,112,0.45)',
+            size: isAlert ? 15 : 9,
+            glow: isAlert ? `0 0 22px ${RED}` : `0 0 10px rgba(255,84,112,0.4)`,
+            ring: isAlert ? '2px solid rgba(255,255,255,0.9)' : '1px solid rgba(255,255,255,0.45)',
+            label: `${headline} — ${sentence}`,
+            html: `<div style="font-weight:700;color:${hColor};margin-bottom:3px;">${esc(headline)}</div>`
+                + `<div style="color:#e9edf5;">${esc(sentence)}</div>`
+                + (raw ? `<div style="color:#8893a8;font-size:11px;margin-top:4px;">${esc(raw)}</div>` : ''),
+          });
+        } catch(e){}
+      }
+      return markers;
+    }
+
+    (async () => {
+      try {
+        await load('https://cdn.jsdelivr.net/npm/satellite.js@5.0.0/dist/satellite.min.js');
+        await load('https://cdn.jsdelivr.net/npm/globe.gl');
+        catalog = await (await fetch(catalogUrl)).json();
+
+        let pts = propagate(new Date());
+        let hot = propagateMarkers(new Date());
+        let conj = propagateConjunctions(new Date());
+        indexPositions([...hot, ...conj]);
+        document.getElementById('count').textContent = pts.length.toLocaleString();
+
+        const world = Globe()(document.getElementById('globe'))
+          .globeImageUrl('https://unpkg.com/three-globe/example/img/earth-night.jpg')
+          .bumpImageUrl('https://unpkg.com/three-globe/example/img/earth-topology.png')
+          .backgroundImageUrl('https://unpkg.com/three-globe/example/img/night-sky.png')
+          .pointsData(pts)
+          .pointLat('lat').pointLng('lng').pointAltitude('alt')
+          .pointColor(d => d.iss ? '#ff5470' : '#dce6f7')   /* cool silver-white — reads as objects, not blue land */
+          .pointRadius(d => d.iss ? 0.6 : 0.16)
+          .pointLabel(d => d.iss ? `${d.name} — crewed` : d.name)
+          .pointsMerge(true)
+          .htmlElementsData([...hot, ...conj])
+          .htmlLat('lat')
+          .htmlLng('lng')
+          .htmlAltitude('alt')
+          .htmlElement(d => {
+            const el = document.createElement('div');
+            const sz = d.size || 10;
+            el.style.width = sz + 'px';
+            el.style.height = sz + 'px';
+            el.style.borderRadius = '9999px';
+            el.style.background = d.color;
+            el.style.boxShadow = d.glow || `0 0 16px ${d.color}`;
+            el.style.border = d.ring || '2px solid rgba(255,255,255,0.8)';
+            el.style.cursor = 'pointer';
+            el.title = d.label;
+            el.addEventListener('click', (ev) => {
+              ev.stopPropagation();
+              const t = document.getElementById('info-text');
+              if (d.html) t.innerHTML = d.html; else t.textContent = d.label;
+              document.getElementById('info').style.display = 'block';
+            });
+            return el;
+          });
+
+        world.controls().autoRotate = true;
+        world.controls().autoRotateSpeed = 0.07;   // slow, contemplative drift
+        // pause the spin whenever the pointer is over the globe, so you can
+        // hover/click a marker for intel; resume when you move away
+        const globeEl = document.getElementById('globe');
+        globeEl.addEventListener('pointerenter', () => { world.controls().autoRotate = false; });
+        globeEl.addEventListener('pointerdown',  () => { world.controls().autoRotate = false; });
+        globeEl.addEventListener('pointerleave', () => { world.controls().autoRotate = true; });
+        world.pointOfView({ altitude: 2.8 });
+        document.getElementById('loading').remove();
+
+        // Filled land layers so you can pinpoint *where* a dot is — filled
+        // countries worldwide + US state outlines on top. Land lifts out of the
+        // ocean dark; borders/coastlines read clearly. Fails quiet if offline.
+        const COUNTRIES = 'https://cdn.jsdelivr.net/gh/martynafford/natural-earth-geojson@master/110m/cultural/ne_110m_admin_0_countries.json';
+        const US_STATES = 'https://cdn.jsdelivr.net/gh/PublicaMundi/MappingAPI@master/data/geojson/us-states.json';
+        Promise.allSettled([
+          fetch(COUNTRIES).then(r => r.json()),
+          fetch(US_STATES).then(r => r.json()),
+        ]).then(([c, s]) => {
+          const feats = [];
+          if (c.status === 'fulfilled' && c.value?.features)
+            for (const f of c.value.features) feats.push(Object.assign({}, f, { _kind: 'country' }));
+          if (s.status === 'fulfilled' && s.value?.features)
+            for (const f of s.value.features) feats.push(Object.assign({}, f, { _kind: 'state' }));
+          if (!feats.length) return;
+          world
+            .polygonsData(feats)
+            .polygonCapColor(f => f._kind === 'state' ? 'rgba(0,0,0,0)' : 'rgba(46,74,112,0.30)')
+            .polygonSideColor(() => 'rgba(0,0,0,0)')
+            .polygonStrokeColor(f => f._kind === 'state'
+              ? 'rgba(150,195,240,0.35)'      // faint state lines
+              : 'rgba(165,205,245,0.65)')     // brighter coastlines / country borders
+            .polygonAltitude(f => f._kind === 'state' ? 0.0075 : 0.007)
+            .polygonsTransitionDuration(0);
+        });
+        document.getElementById('info-x').addEventListener('click', () => { document.getElementById('info').style.display = 'none'; });
+
+        // Panel row click -> fly the globe to that dot's live position + show its data.
+        function flyTo(id, rowEl){
+          const d = posById[id];
+          const info = document.getElementById('info'), txt = document.getElementById('info-text');
+          if (!d){
+            txt.textContent = 'That object is below the horizon / not currently propagatable — try again in a moment.';
+            info.style.display = 'block';
+            return;
+          }
+          world.controls().autoRotate = false;          // hold still so it doesn't drift off
+          world.pointOfView({ lat: d.lat, lng: d.lng, altitude: 1.4 }, 1200);
+          if (d.html) txt.innerHTML = d.html; else txt.textContent = d.label || id;
+          info.style.display = 'block';
+          document.querySelectorAll('.flyrow--active').forEach(e => e.classList.remove('flyrow--active'));
+          if (rowEl) rowEl.classList.add('flyrow--active');
+        }
+        document.querySelectorAll('.flyrow').forEach(row => {
+          row.addEventListener('click', () => flyTo(row.getAttribute('data-fly'), row));
+        });
+
+        // keep the swarm current — re-propagate every 10s (gentle for 15k)
+        setInterval(() => {
+          const now = new Date();
+          world.pointsData(propagate(now));
+          const m = propagateMarkers(now), cj = propagateConjunctions(now);
+          indexPositions([...m, ...cj]);
+          world.htmlElementsData([...m, ...cj]);
+        }, 10000);
+      } catch(e) {
+        document.getElementById('loading').textContent = 'Globe needs network for globe.gl + Earth textures.';
+      }
+    })();
+  </script>
+</body>
+</html>

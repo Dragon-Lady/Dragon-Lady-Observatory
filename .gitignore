@@ -5,6 +5,17 @@ config/*.local.json
 config/secrets*.json
 *.key
 
+# ── PRIVATE FAMILY / OPERATOR LAYER — never commit, ever (defense-in-depth) ──
+# Operator notes, the hunt, anything for the family and not the world.
+# This is the wall: even a stray `git add .` cannot sweep these up.
+private/
+**/private/
+*.private.*
+*-private.*
+*.local.*
+operator_*.md
+hunt_*.md
+
 # python
 __pycache__/
 *.py[cod]
@@ -14,12 +25,17 @@ venv/
 
 # node / viewer
 node_modules/
+viewer/node_modules/
 dist/
+viewer/dist/
 .astro/
+viewer/.astro/
+viewer/public/catalog/
 
 # data caches — catalogs/TLEs/snapshots are fetched at runtime, not committed
 data/cache/
 data/snapshots/
+data/.*/
 *.tle
 
 # generated at runtime by poll.py — regenerable, never commit

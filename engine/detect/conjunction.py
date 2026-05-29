@@ -13,7 +13,7 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
 
 
-# James's final tiering spec (calibrated conservative payload gate):
+# Final tiering spec (calibrated conservative payload gate):
 # T1: miss < 1km  OR  active payload involved with miss < 2km
 # T2: debris x debris with elevated Pc (>= 1e-5) and miss >= 1km
 # T3/skip: everything else -- not emitted
@@ -106,7 +106,7 @@ def from_cdm(cdm: dict, sources: list[dict],
     either_active = (type1 in _ACTIVE_TYPES) or (type2 in _ACTIVE_TYPES)
     both_debris = type1 == 'debris' and type2 == 'debris'
 
-    # James's final spec, final conservative payload gate:
+    # Final conservative payload gate:
     # T1: miss < 1km OR payload-involved and miss < 2km
     # T2: debris x debris, elevated Pc, miss >= 1km
     # else: not emitted

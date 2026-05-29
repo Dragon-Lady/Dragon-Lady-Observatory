@@ -1,0 +1,29 @@
+---
+import type { StarRecord } from '@/types';
+import { primaryName } from '@/types';
+import { tierClass, tierDot, DOMAIN_LABEL, placeLabel, topAnomalyKind } from '@/lib/display';
+interface Props { record: StarRecord; }
+const { record: r } = Astro.props;
+const base = import.meta.env.BASE_URL;
+const anomalyKind = topAnomalyKind(r);
+---
+<a
+  href={`${base}record/${r.id}`}
+  data-domain={r.domain}
+  data-tier={r.tier}
+  class="record-card group flex flex-col gap-2 rounded-lg border border-void-800 bg-void-900 p-4 transition hover:border-void-600 hover:bg-void-850 hover:!no-underline"
+>
+  <div class="flex items-center justify-between gap-2">
+    <span class="flex items-center gap-1.5 text-xs font-medium">
+      <span class={`inline-block h-2 w-2 rounded-full ${tierDot(r.tier)}`}></span>
+      <span class={tierClass(r.tier)}>{r.tier}</span>
+    </span>
+    <span class="text-xs text-mist-400">{DOMAIN_LABEL[r.domain]}</span>
+  </div>
+  <h3 class="font-medium leading-snug !text-mist-100 group-hover:!text-signal-400">{primaryName(r)}</h3>
+  <p class="text-xs text-mist-400">{placeLabel(r)}</p>
+  {anomalyKind && (
+    <p class={`mt-auto pt-1 text-xs font-medium ${tierClass(r.tier)}`}>⚠ {anomalyKind}</p>
+  )}
+  {r.watchlist && <span class="text-[11px] text-signal-400">★ watched</span>}
+</a>

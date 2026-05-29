@@ -1,0 +1,91 @@
+---
+import Base from '@/layouts/Base.astro';
+import RecordCard from '@/components/RecordCard.astro';
+import { allRecords, stats, domainsPresent, loadCatalog } from '@/lib/store';
+import { DOMAIN_LABEL } from '@/lib/display';
+import type { Domain } from '@/types';
+
+const records = allRecords();
+const s = stats();
+const present = domainsPresent();
+const allDomains: Domain[] = ['orbital', 'neo', 'space_weather', 'launch_reentry'];
+const base = import.meta.env.BASE_URL;
+const catalogCount = loadCatalog().length; // backdrop catalog — the "explore" escape hatch
+---
+<Base title="Stars Edition">
+  <!-- celestial hero -->
+  <section class="sky -mx-4 mb-6 rounded-none border-b border-void-800 px-4 py-10 sm:rounded-xl sm:border">
+    <div class="relative z-10 max-w-2xl">
+      <h1 class="text-2xl font-semibold tracking-tight text-mist-100 sm:text-3xl">The sky, watched.</h1>
+      <p class="mt-2 text-mist-300">
+        Satellites and debris overhead, near-Earth objects passing by, space weather, and
+        launches — one calm surface, anomalies surfaced and explained, the source one tap away.
+      </p>
+      <div class="mt-4 flex flex-wrap gap-4 text-sm">
+        <span class="text-mist-200"><strong class="text-mist-100">{s.total}</strong> tracked</span>
+        <span class="tier-t1"><strong>{s.t1}</strong> at T1</span>
+        <span class="text-mist-200"><strong class="text-mist-100">{s.anomalies}</strong> anomalies</span>
+        <span class="text-mist-400">{s.domains}/4 domains live</span>
+      </div>
+      <a href={base + 'globe'} class="mt-5 inline-flex items-center gap-2 rounded-md bg-signal-400 px-4 py-2 text-sm font-semibold !text-void-950 hover:!no-underline hover:bg-signal-300">
+        🌍 Open the globe →
+      </a>
+    </div>
+  </section>
+
+  <!-- layer toggles + tier legend -->
+  <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+    <div class="flex flex-wrap items-center gap-2">
+      <button class="layer-btn active rounded-full border border-signal-400 bg-void-800 px-3 py-1 text-sm !text-mist-100" data-layer="all">All</button>
+      {allDomains.map((d) => (
+        <button
+          class="layer-btn rounded-full border border-void-700 bg-void-900 px-3 py-1 text-sm text-mist-300 disabled:opacity-40"
+          data-layer={d}
+          disabled={!present.includes(d)}
+          title={present.includes(d) ? '' : 'no data yet'}
+        >{DOMAIN_LABEL[d]}</button>
+      ))}
+    </div>
+    <div class="flex items-center gap-3 text-xs text-mist-400" title="Why most things aren't red: tier is set by real risk, not noise.">
+      <span class="flex items-center gap-1"><span class="inline-block h-2 w-2 rounded-full dot-t1"></span>T1 priority</span>
+      <span class="flex items-center gap-1"><span class="inline-block h-2 w-2 rounded-full dot-t2"></span>T2 notable</span>
+      <span class="flex items-center gap-1"><span class="inline-block h-2 w-2 rounded-full dot-t3"></span>T3 background</span>
+    </div>
+  </div>
+
+  <!-- browse-catalog hatch: always present so the console never feels dead -->
+  <a href={base + 'catalog'} class="mb-4 flex items-center justify-between rounded-lg border border-void-800 bg-void-900 px-4 py-3 text-sm hover:border-void-600 hover:!no-underline">
+    <span class="!text-mist-200">🛰 Browse the full catalog — <strong class="text-mist-100">{catalogCount.toLocaleString()}</strong> objects overhead</span>
+    <span class="text-signal-400">search →</span>
+  </a>
+
+  {records.length === 0 ? (
+    <div class="rounded-lg border border-dashed border-void-700 p-8 text-center">
+      <p class="text-mist-300">The sky's quiet — no anomalies flagged right now.</p>
+      <p class="mt-1 text-sm text-mist-400">That's the good kind of quiet. Browse the catalog above, or <a href={base + 'globe'}>open the globe</a> to watch what's overhead.</p>
+    </div>
+  ) : (
+    <div id="grid" class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      {records.map((r) => <RecordCard record={r} />)}
+    </div>
+  )}
+
+  <script is:inline>
+    const btns = document.querySelectorAll('.layer-btn');
+    const cards = document.querySelectorAll('.record-card');
+    btns.forEach((b) => b.addEventListener('click', () => {
+      const layer = b.dataset.layer;
+      btns.forEach((x) => {
+        const on = x === b;
+        x.classList.toggle('active', on);
+        x.classList.toggle('border-signal-400', on);
+        x.classList.toggle('!text-mist-100', on);
+        x.classList.toggle('border-void-700', !on);
+        x.classList.toggle('text-mist-300', !on);
+      });
+      cards.forEach((c) => {
+        c.style.display = (layer === 'all' || c.dataset.domain === layer) ? '' : 'none';
+      });
+    }));
+  </script>
+</Base>

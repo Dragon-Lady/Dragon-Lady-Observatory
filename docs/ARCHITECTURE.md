@@ -1,7 +1,7 @@
 # Stars Edition — Architecture
 
-Distilled from the Oracle ⇄ James consensus (2026-05-28). This is the build plan;
-the wiring fills it in.
+Distilled from the project design consensus (2026-05-28). This is the build
+plan; the wiring fills it in.
 
 ## Posture
 
@@ -79,10 +79,10 @@ discipline as Dragon Eye's ADSBX/OpenSky.
 
 ## Lanes
 
-- **engine/** — pollers, normalizers, detectors, tiering: Rocky + Ice Man.
-- **viewer/** — globe/sky UI + cards: Oracle.
-- **schema/** — the contract: Oracle + James (locked).
-- **security/clearance** — Goldwing, before any public push.
+- **engine/** — pollers, normalizers, detectors, tiering.
+- **viewer/** — globe/sky UI + cards.
+- **schema/** — the locked producer/consumer contract.
+- **security/clearance** — required before any public push.
 
 ## Phase 2+ (logged, not v1)
 

@@ -1,0 +1,39 @@
+---
+import '@/styles/global.css';
+interface Props { title: string; description?: string; }
+const { title, description = 'A beautiful way to explore space from home — orbital, near-Earth, space weather, and launches, with anomaly detection that surfaces what does not belong.' } = Astro.props;
+const base = import.meta.env.BASE_URL;
+const fullTitle = title === 'Stars Edition' ? 'Dragon Eye · Stars Edition' : `${title} · Stars Edition`;
+---
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#05070d" />
+    <title>{fullTitle}</title>
+    <meta name="description" content={description} />
+  </head>
+  <body class="flex min-h-[100dvh] flex-col">
+    <header class="border-b border-void-800 bg-void-900/80 backdrop-blur sticky top-0 z-20">
+      <div class="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
+        <a href={base} class="flex items-baseline gap-2 !text-mist-100 hover:!no-underline">
+          <span class="text-lg font-semibold tracking-tight">Dragon Eye</span>
+          <span class="text-signal-400 text-sm font-medium">Stars Edition</span>
+        </a>
+        <nav class="flex items-center gap-4 text-sm">
+          <a href={base} class="!text-mist-300 hover:!text-signal-400">Sky</a>
+          <a href={base + 'watchlist'} class="!text-mist-300 hover:!text-signal-400">Watched</a>
+          <a href={base + 'about'} class="!text-mist-300 hover:!text-signal-400">About</a>
+        </nav>
+      </div>
+    </header>
+    <main class="mx-auto w-full max-w-6xl flex-1 px-4 py-6"><slot /></main>
+    <footer class="border-t border-void-800 bg-void-900 text-sm text-mist-400">
+      <div class="mx-auto max-w-6xl px-4 py-5 space-y-1">
+        <p>Observation and advisory only. Stars Edition surfaces public space-domain data and flags anomalies; it does not act.</p>
+        <p>Sources: Space-Track · CelesTrak · Launch Library 2 · NOAA SWPC · ESA NEOCC. Provenance shown on every record.</p>
+      </div>
+    </footer>
+  </body>
+</html>

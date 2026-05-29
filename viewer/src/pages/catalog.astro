@@ -1,0 +1,51 @@
+---
+import Base from '@/layouts/Base.astro';
+import { loadCatalog } from '@/lib/store';
+const count = loadCatalog().length;
+const base = import.meta.env.BASE_URL;
+const catalogUrl = (base.endsWith('/') ? base : base + '/') + 'catalog/tle.json';
+---
+<Base title="Catalog">
+  <nav class="mb-4 text-sm text-mist-400"><a href={base}>Sky</a> / Catalog</nav>
+  <h1 class="text-2xl font-semibold text-mist-100">The catalog</h1>
+  <p class="mt-1 text-mist-300">
+    <strong class="text-mist-100">{count.toLocaleString()}</strong> objects currently tracked overhead.
+    Search by name — this is the backdrop the globe propagates; the console reserves its
+    cards for anomalies and watched objects.
+  </p>
+
+  <input
+    id="q"
+    type="text"
+    placeholder="search e.g. ISS, STARLINK, GPS, HUBBLE…"
+    autocomplete="off"
+    class="mt-4 w-full rounded-lg border border-void-700 bg-void-950 px-4 py-2.5 text-mist-100 placeholder:text-mist-400"
+  />
+  <p id="meta" class="mt-2 text-xs text-mist-400"></p>
+  <div id="results" class="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3"></div>
+
+  <script is:inline define:vars={{ catalogUrl }}>
+    let data = [];
+    const q = document.getElementById('q');
+    const out = document.getElementById('results');
+    const meta = document.getElementById('meta');
+
+    function render(term) {
+      const t = (term || '').trim().toUpperCase();
+      const all = t ? data.filter((o) => (o.name || '').toUpperCase().includes(t)) : data;
+      const shown = all.slice(0, 180);
+      meta.textContent = t
+        ? `${all.length.toLocaleString()} match "${term.trim()}"${all.length > shown.length ? ` — showing first ${shown.length}` : ''}`
+        : `${data.length.toLocaleString()} objects — showing first ${shown.length}; type to search`;
+      out.innerHTML = shown.map((o) =>
+        `<div class="rounded-lg border border-void-800 bg-void-900 px-3 py-2 text-sm">
+          <span class="text-mist-100">${(o.name || '(unnamed)').replace(/</g,'&lt;')}</span>
+          <span class="block text-xs text-mist-400">#${o.norad_id ?? '—'}</span>
+        </div>`).join('') || '<p class="text-mist-400">No matches.</p>';
+    }
+
+    fetch(catalogUrl).then((r) => r.json()).then((d) => { data = Array.isArray(d) ? d : []; render(''); })
+      .catch(() => { meta.textContent = 'Catalog unavailable (needs the engine bundle).'; });
+    q.addEventListener('input', () => render(q.value));
+  </script>
+</Base>

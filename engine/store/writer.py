@@ -39,3 +39,18 @@ def list_records() -> list[dict]:
         except Exception:
             pass
     return out
+
+
+def prune_records(prefix: str, keep_ids: set[str]) -> int:
+    """Delete stale generated records for one prefix while leaving .gitkeep intact."""
+    if not RECORDS_DIR.exists():
+        return 0
+
+    removed = 0
+    for p in RECORDS_DIR.glob(f'{prefix}*.json'):
+        record_id = p.stem
+        if record_id in keep_ids:
+            continue
+        p.unlink(missing_ok=True)
+        removed += 1
+    return removed

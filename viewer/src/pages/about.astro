@@ -1,0 +1,30 @@
+---
+import Base from '@/layouts/Base.astro';
+import { stats } from '@/lib/store';
+const s = stats();
+---
+<Base title="About">
+  <div class="prose-text space-y-5">
+    <h1 class="text-2xl font-semibold text-mist-100">About Stars Edition</h1>
+    <p class="text-mist-300">
+      Dragon Eye Stars Edition is a beautiful way to explore space from home — and a quiet
+      anomaly watch underneath. It brings four domains onto one calm surface: orbital objects
+      (satellites &amp; debris), near-Earth objects, space weather, and launches/reentries.
+      Currently tracking {s.total} records across {s.domains} live domain(s).
+    </p>
+    <section>
+      <h2 class="text-lg font-semibold text-mist-100">How it works</h2>
+      <ul class="mt-2 list-disc space-y-1 pl-5 text-mist-300">
+        <li><strong>Observation / advisory only.</strong> It surfaces and explains; it does not act.</li>
+        <li><strong>Anomaly detection</strong> flags what does not belong — maneuvers, close approaches, severe space weather — each with evidence you can read.</li>
+        <li><strong>Dragon Eye tiers.</strong> T1 (priority) is always red; T2 notable; T3 background. Watchlisted objects escalate.</li>
+        <li><strong>Provenance on every record</strong> — source, fetch time, and a freshness/staleness signal so a stale orbit is never mistaken for a maneuver.</li>
+      </ul>
+    </section>
+    <section>
+      <h2 class="text-lg font-semibold text-mist-100">Sources</h2>
+      <p class="mt-2 text-mist-300">Space-Track &amp; CelesTrak (orbital), Launch Library 2 (launches), NOAA SWPC (space weather), ESA NEOCC (near-Earth objects). Non-NASA, free, primary + fallback.</p>
+    </section>
+    <p class="text-sm text-mist-400">Independent project. Not affiliated with any government agency.</p>
+  </div>
+</Base>

@@ -46,13 +46,12 @@ and keeps Stars Edition simple to reason about on its own.
 ```
 schema/      the unified record model (the producer/consumer contract)
 docs/        architecture + data sources
-engine/      Python: pollers, normalizers, anomaly detectors, tiering (Rocky/Ice Man lane)
-viewer/      globe/sky UI + tier-sorted cards (Oracle lane)
+engine/      Python: pollers, normalizers, anomaly detectors, tiering
+viewer/      globe/sky UI + tier-sorted cards
 config/      watchlist + runtime config (examples only; no secrets committed)
 ```
 
 ## Status
 
-Design locked (schema consensus + data spine). Scaffolding stage. Not yet wired,
-not yet pushed publicly — Goldwing clearance gates any public push, per house
-standard. License TBD (Tanya's call — see note in this repo's first issue/PR).
+Design locked (schema consensus + data spine). Scaffolding stage. Not yet pushed
+publicly; security clearance gates any public push. License TBD.

@@ -1,4 +1,4 @@
-# viewer/ — globe/sky surface + cards (Oracle lane)
+# viewer/ — globe/sky surface + cards
 
 The calm public face: a living globe/sky with layer toggles and tier-sorted
 cards. Reads the engine's record store; renders observation-only.

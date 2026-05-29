@@ -21,6 +21,15 @@ T2_KINDS = frozenset({
 })
 
 
+def escalate_tier(tier: str) -> str:
+    """Escalate one tier step for watchlist hits."""
+    if tier == 'T3':
+        return 'T2'
+    if tier == 'T2':
+        return 'T1'
+    return 'T1'
+
+
 def assign_tier(anomalies: list, watchlist_hit: bool = False) -> str:
     """
     T1: any active T1-class anomaly.
@@ -41,9 +50,6 @@ def assign_tier(anomalies: list, watchlist_hit: bool = False) -> str:
             tier = 'T2'
 
     if watchlist_hit:
-        if tier == 'T3':
-            tier = 'T2'
-        elif tier == 'T2':
-            tier = 'T1'
+        tier = escalate_tier(tier)
 
     return tier

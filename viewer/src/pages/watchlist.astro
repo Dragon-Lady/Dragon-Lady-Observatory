@@ -1,0 +1,44 @@
+---
+import Base from '@/layouts/Base.astro';
+import { allRecords } from '@/lib/store';
+import { primaryName } from '@/types';
+import { DOMAIN_LABEL, tierDot, tierClass, placeLabel } from '@/lib/display';
+const base = import.meta.env.BASE_URL;
+// id -> minimal render info, for the client to look up against localStorage keys
+const index = Object.fromEntries(allRecords().map((r) => [r.id, {
+  name: primaryName(r), domain: DOMAIN_LABEL[r.domain], place: placeLabel(r), tier: r.tier,
+}]));
+---
+<Base title="Watched">
+  <h1 class="mb-1 text-2xl font-semibold text-mist-100">Watched</h1>
+  <p class="mb-5 text-sm text-mist-400">Objects you've pinned. Stored on this device only.</p>
+  <div id="watched" class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3"></div>
+  <p id="empty" class="rounded-lg border border-dashed border-void-700 p-8 text-center text-mist-400" hidden>
+    Nothing watched yet. Open any object and tap ★ Watch.
+  </p>
+
+  <script is:inline define:vars={{ index, base }}>
+    const KEY = 'stars_watchlist';
+    const dotClass = { T1: 'dot-t1', T2: 'dot-t2', T3: 'dot-t3' };
+    const tierTxt = { T1: 'tier-t1', T2: 'tier-t2', T3: 'tier-t3' };
+    let watched = {};
+    try { watched = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch {}
+    const ids = Object.keys(watched);
+    const grid = document.getElementById('watched');
+    const empty = document.getElementById('empty');
+    if (!ids.length) { empty.hidden = false; }
+    else {
+      grid.innerHTML = ids.map((id) => {
+        const r = index[id];
+        const label = r ? r.name : (watched[id] || id);
+        const meta = r ? `${r.domain} · ${r.place}` : 'no longer in current feed';
+        const tier = r ? r.tier : 'T3';
+        return `<a href="${base}record/${id}" class="flex flex-col gap-2 rounded-lg border border-void-800 bg-void-900 p-4 hover:border-void-600">
+          <span class="flex items-center gap-1.5 text-xs font-medium"><span class="inline-block h-2 w-2 rounded-full ${dotClass[tier]}"></span><span class="${tierTxt[tier]}">${tier}</span></span>
+          <span class="font-medium text-mist-100">${label}</span>
+          <span class="text-xs text-mist-400">${meta}</span>
+        </a>`;
+      }).join('');
+    }
+  </script>
+</Base>
