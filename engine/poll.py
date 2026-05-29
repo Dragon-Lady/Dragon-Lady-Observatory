@@ -67,6 +67,30 @@ def _should_emit_orbital_record(rec: dict, watchlist_hit: bool) -> bool:
     return bool(rec.get('anomalies')) or watchlist_hit or is_notable(norad)
 
 
+def _attach_conjunction_tles(rec: dict, tle_by_norad: dict[int, dict]) -> dict:
+    """Backfill TLEs for conjunction endpoints from the catalog bundle."""
+    location = rec.get('location') or {}
+    objects = location.get('objects')
+    if not isinstance(objects, list):
+        return rec
+
+    enriched = []
+    for obj in objects:
+        if not isinstance(obj, dict):
+            continue
+        norad = obj.get('norad_id')
+        tle = tle_by_norad.get(norad) if isinstance(norad, int) else None
+        enriched_obj = dict(obj)
+        if tle:
+            enriched_obj['tle1'] = tle.get('tle1', '')
+            enriched_obj['tle2'] = tle.get('tle2', '')
+        enriched.append(enriched_obj)
+
+    location['objects'] = enriched
+    rec['location'] = location
+    return rec
+
+
 def run_pass():
     print(f'[poll] pass started {_now_iso()}')
     written = 0
@@ -130,6 +154,7 @@ def run_pass():
 
     # (b) Build corroboration map + write records for notable objects
     ct_by_norad: dict[int, dict] = {}
+    ct_signal = 0
 
     for gp in ct_catalog:
         try:
@@ -144,11 +169,11 @@ def run_pass():
                 rec['tier'] = assign_tier([], watchlist_hit=wl)
                 write_record(rec)
                 orbital_keep_ids.add(rec['id'])
+                ct_signal += 1
                 written += 1
         except Exception:
             continue
 
-    ct_signal = written
     print(f'  CelesTrak notable/watchlisted records: {ct_signal}')
 
     # ── 4. Orbital — Space-Track (primary, needs .env creds) ─────────────────
@@ -207,6 +232,7 @@ def run_pass():
         try:
             rec = det_conjunction.from_cdm(cdm, cdm_source)
             if rec:
+                rec = _attach_conjunction_tles(rec, tle_by_norad)
                 wl = is_watchlisted(rec)
                 rec['watchlist'] = wl
                 if wl:
@@ -216,8 +242,6 @@ def run_pass():
                 written += 1
                 t = rec['tier']
                 conj_counts[t] = conj_counts.get(t, 0) + 1
-                if t == 'T1':
-                    print(f'  [T1] conjunction: {rec["names"][0]}')
         except Exception:
             continue
 

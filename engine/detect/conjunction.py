@@ -33,7 +33,23 @@ def _safe_name(sat_id: str, sat_name: str) -> str:
     return n if n and n != sat_id else sat_id
 
 
-def from_cdm(cdm: dict, sources: list[dict]) -> dict | None:
+def _tle_entry(norad_str: str, name: str, tle_by_norad: dict | None) -> dict:
+    """Build one object entry for location.objects, with TLEs if available."""
+    entry = {
+        'norad_id': int(norad_str) if norad_str.isdigit() else norad_str,
+        'name':     name,
+        'tle1':     '',
+        'tle2':     '',
+    }
+    if tle_by_norad and norad_str.isdigit():
+        tle = tle_by_norad.get(int(norad_str), {})
+        entry['tle1'] = tle.get('tle1', '')
+        entry['tle2'] = tle.get('tle2', '')
+    return entry
+
+
+def from_cdm(cdm: dict, sources: list[dict],
+             tle_by_norad: dict | None = None) -> dict | None:
     """
     Normalize a Space-Track CDM record to a unified conjunction record.
 
@@ -127,8 +143,13 @@ def from_cdm(cdm: dict, sources: list[dict]) -> dict | None:
         'location': {
             'tca':                   tca,
             'miss_distance_km':      miss_km,
+            'pc':                    pc,
             'relative_velocity_kms': rel_vel,
             'regime':                regime,
+            'objects': [
+                _tle_entry(sat1_id, a_label, tle_by_norad),
+                _tle_entry(sat2_id, b_label, tle_by_norad),
+            ],
         },
         'tier':      tier,
         'watchlist': False,
