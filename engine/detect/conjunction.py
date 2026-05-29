@@ -13,14 +13,16 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
 
 
-# Pc screening bands (probability of collision)
-_PC_T1   = 1e-4    # T1: Pc >= 1e-4 (1 in 10,000) -- genuinely high risk
-_PC_T2   = 1e-5    # T2: 1e-5 <= Pc < 1e-4
-_PC_MIN  = 1e-5    # below this: don't emit a record (background noise)
+# Tiering bands — James's AND-gate policy (2026-05-28):
+# T1: BOTH Pc >= 1e-4 AND miss < 10 km  (AND keeps red rare and honest)
+# T2: moderate Pc OR close miss with any Pc
+# T3/skip: everything else — not emitted as a record
+_PC_T1       = 1e-4    # probability of collision threshold for T1
+_MISS_T1_KM  = 10.0    # miss distance threshold for T1 (km)
 
-# Miss distance secondary gates (km)
-_MISS_T1 = 1.0     # < 1 km with any non-trivial Pc -> T1
-_MISS_T2 = 5.0     # < 5 km -> at least T2 regardless of Pc
+_PC_T2       = 1e-5    # lower Pc bound for T2
+_MISS_T2_KM  = 50.0    # miss distance for T2 proximity gate
+_PC_NONTRIVIAL = 1e-6  # "non-trivial Pc" floor for T2 proximity gate
 
 
 def _slug(s: str) -> str:
@@ -79,27 +81,29 @@ def from_cdm(cdm: dict, sources: list[dict],
         str_keys = {k: v for k, v in cdm.items() if isinstance(v, str) and v.strip()}
         print(f'[conjunction] CDM field debug: {list(str_keys.keys())[:15]}')
 
-    tca     = cdm.get('TCA', _now_iso())
-    miss_km = float(
-        cdm.get('MISS_DISTANCE', cdm.get('MIN_RNG', cdm.get('MISS', 9999))) or 9999
-    )
-    pc      = float(cdm.get('COLLISION_PROBABILITY', cdm.get('PC',           0)) or 0)
-    rel_vel = float(cdm.get('RELATIVE_SPEED',        cdm.get('REL_SPEED',    0)) or 0)
+    tca = cdm.get('TCA', _now_iso())
+
+    # MISS_DISTANCE in Space-Track CDM is in METERS (CCSDS standard).
+    # Convert to km for all threshold comparisons and record output.
+    miss_m  = float(cdm.get('MISS_DISTANCE', cdm.get('MIN_RNG', cdm.get('MISS', 9_999_999))) or 9_999_999)
+    miss_km = miss_m / 1000.0
+
+    pc      = float(cdm.get('COLLISION_PROBABILITY', cdm.get('PC', 0)) or 0)
+    rel_vel = float(cdm.get('RELATIVE_SPEED',        cdm.get('REL_SPEED', 0)) or 0)
     regime  = str(cdm.get('ORBIT_REGIME', 'LEO') or 'LEO')
 
-    # Skip pure background — Pc too low and miss too large to be meaningful
-    if pc < _PC_MIN and miss_km > _MISS_T2:
-        return None
-
-    # Determine tier from Pc + miss distance
-    if pc >= _PC_T1 or (miss_km < _MISS_T1 and pc > 0):
+    # James's AND-gate tiering policy:
+    # T1: Pc >= 1e-4 AND miss < 10 km  (both required — red stays rare and honest)
+    # T2: moderate Pc OR close miss with non-trivial Pc
+    # Everything else: skip (T3 background, not emitted)
+    if pc >= _PC_T1 and miss_km < _MISS_T1_KM:
         tier      = 'T1'
         anom_kind = 'conjunction_high_pc'
-    elif pc >= _PC_T2 or miss_km < _MISS_T2:
+    elif (pc >= _PC_T2) or (miss_km < _MISS_T2_KM and pc >= _PC_NONTRIVIAL):
         tier      = 'T2'
         anom_kind = 'conjunction_high_pc'
     else:
-        return None  # below both gates
+        return None  # background — not emitted
 
     now          = _now_iso()
     a_label      = _safe_name(sat1_id, sat1_name)

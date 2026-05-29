@@ -184,34 +184,43 @@ def run_all() -> bool:
 
     print('\n-- Conjunction detector ---------------------------------------')
 
+    # MISS_DISTANCE in CDM is METERS. 420 m = 0.42 km, Pc 0.0012 -> T1 (AND-gate: both met)
     cdm_hit = {
         'SAT1_ID': '90211', 'SAT2_ID': '37820',
-        'TCA': _iso(3), 'MISS_DISTANCE': '0.42',
+        'TCA': _iso(3), 'MISS_DISTANCE': '420',
         'COLLISION_PROBABILITY': '0.0012', 'RELATIVE_SPEED': '11.3',
         'ORBIT_REGIME': 'LEO',
     }
     st_src = [{'name': 'space-track', 'url': 'https://www.space-track.org/', 'retrieved_at': _iso()}]
     conj_rec = det_conjunction.from_cdm(cdm_hit, st_src)
     if not conj_rec:
-        ok = _fail('conjunction detected', 'CDM below threshold should produce a record')
+        ok = _fail('conjunction detected', '420m miss / Pc 0.0012 should produce T1 record')
     else:
         if conj_rec['tier'] != 'T1':
             ok = _fail('conjunction tier', f'expected T1, got {conj_rec["tier"]}')
         else:
-            _pass('conjunction tier = T1')
+            _pass('conjunction tier = T1 (420m miss, Pc 0.0012, AND-gate met)')
         ev = conj_rec['anomalies'][0]['evidence'][0]
         if abs(float(ev['value']) - 0.42) > 0.01:
-            ok = _fail('conjunction evidence value', f'expected 0.42, got {ev["value"]}')
+            ok = _fail('conjunction evidence value', f'expected 0.42 km, got {ev["value"]}')
         else:
-            _pass('conjunction miss_distance in evidence = 0.42 km')
+            _pass('conjunction miss_distance in evidence = 0.42 km (converted from 420 m)')
 
-    # Below threshold -> None
-    cdm_miss = dict(cdm_hit, MISS_DISTANCE='5.0', COLLISION_PROBABILITY='0.000001')
+    # James AND-gate: 202 km miss (202000 m) with high Pc -> NOT T1 (miss too large)
+    cdm_202km = dict(cdm_hit, MISS_DISTANCE='202000', COLLISION_PROBABILITY='0.0009')
+    no_t1 = det_conjunction.from_cdm(cdm_202km, st_src)
+    if no_t1 and no_t1.get('tier') == 'T1':
+        ok = _fail('AND-gate: 202km miss not T1', '202km miss should fail the <10km AND-gate')
+    else:
+        _pass('AND-gate holds: 202km miss does not glow red regardless of Pc')
+
+    # Wide miss + negligible Pc -> None (background, not emitted)
+    cdm_miss = dict(cdm_hit, MISS_DISTANCE='500000', COLLISION_PROBABILITY='0.000000001')
     no_conj = det_conjunction.from_cdm(cdm_miss, st_src)
     if no_conj is not None:
-        ok = _fail('conjunction threshold', 'wide-miss CDM should return None')
+        ok = _fail('conjunction threshold', '500km miss / negligible Pc should return None')
     else:
-        _pass('wide-miss CDM correctly returns None')
+        _pass('wide-miss / negligible-Pc CDM correctly returns None')
 
     print('\n-- Space weather detector -------------------------------------')
 
