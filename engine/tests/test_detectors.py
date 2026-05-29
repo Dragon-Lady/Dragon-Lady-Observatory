@@ -184,43 +184,84 @@ def run_all() -> bool:
 
     print('\n-- Conjunction detector ---------------------------------------')
 
-    # MISS_DISTANCE in CDM is METERS. 420 m = 0.42 km, Pc 0.0012 -> T1 (AND-gate: both met)
-    cdm_hit = {
+    st_src = [{'name': 'space-track', 'url': 'https://www.space-track.org/', 'retrieved_at': _iso()}]
+
+    # T1: active payload involved (even large miss) -- James's spec
+    cdm_active = {
+        'SAT1_ID': '25544', 'SAT2_ID': '37820',
+        'SAT1_OBJECT_TYPE': 'PAYLOAD', 'SAT2_OBJECT_TYPE': 'DEBRIS',
+        'TCA': _iso(3), 'MISS_DISTANCE': '5000',  # 5000m = 5km -- large, but payload involved
+        'COLLISION_PROBABILITY': '0.0001', 'RELATIVE_SPEED': '11.3',
+        'ORBIT_REGIME': 'LEO',
+    }
+    rec_active = det_conjunction.from_cdm(cdm_active, st_src)
+    if not rec_active or rec_active['tier'] != 'T1':
+        ok = _fail('T1: active payload', f'payload involvement should force T1, got {rec_active and rec_active["tier"]}')
+    else:
+        _pass('T1: active payload involved -> T1 regardless of miss distance')
+
+    # T1: sub-km miss even for debris x debris
+    cdm_subkm = {
         'SAT1_ID': '90211', 'SAT2_ID': '37820',
-        'TCA': _iso(3), 'MISS_DISTANCE': '420',
+        'SAT1_OBJECT_TYPE': 'DEBRIS', 'SAT2_OBJECT_TYPE': 'DEBRIS',
+        'TCA': _iso(3), 'MISS_DISTANCE': '420',  # 420m = 0.42 km
         'COLLISION_PROBABILITY': '0.0012', 'RELATIVE_SPEED': '11.3',
         'ORBIT_REGIME': 'LEO',
     }
-    st_src = [{'name': 'space-track', 'url': 'https://www.space-track.org/', 'retrieved_at': _iso()}]
-    conj_rec = det_conjunction.from_cdm(cdm_hit, st_src)
-    if not conj_rec:
-        ok = _fail('conjunction detected', '420m miss / Pc 0.0012 should produce T1 record')
+    rec_subkm = det_conjunction.from_cdm(cdm_subkm, st_src)
+    if not rec_subkm or rec_subkm['tier'] != 'T1':
+        ok = _fail('T1: sub-km debris miss', f'sub-km miss should be T1, got {rec_subkm and rec_subkm["tier"]}')
     else:
-        if conj_rec['tier'] != 'T1':
-            ok = _fail('conjunction tier', f'expected T1, got {conj_rec["tier"]}')
-        else:
-            _pass('conjunction tier = T1 (420m miss, Pc 0.0012, AND-gate met)')
-        ev = conj_rec['anomalies'][0]['evidence'][0]
+        _pass('T1: sub-km miss (420m) -> T1 even for debris x debris')
+        ev = rec_subkm['anomalies'][0]['evidence'][0]
         if abs(float(ev['value']) - 0.42) > 0.01:
-            ok = _fail('conjunction evidence value', f'expected 0.42 km, got {ev["value"]}')
+            ok = _fail('miss distance conversion', f'expected 0.42 km, got {ev["value"]}')
         else:
-            _pass('conjunction miss_distance in evidence = 0.42 km (converted from 420 m)')
+            _pass('MISS_DISTANCE meters->km conversion correct (420m -> 0.42km)')
 
-    # James AND-gate: 202 km miss (202000 m) with high Pc -> NOT T1 (miss too large)
-    cdm_202km = dict(cdm_hit, MISS_DISTANCE='202000', COLLISION_PROBABILITY='0.0009')
-    no_t1 = det_conjunction.from_cdm(cdm_202km, st_src)
-    if no_t1 and no_t1.get('tier') == 'T1':
-        ok = _fail('AND-gate: 202km miss not T1', '202km miss should fail the <10km AND-gate')
+    # T2: debris x debris, elevated Pc, large miss
+    cdm_debris = {
+        'SAT1_ID': '90211', 'SAT2_ID': '37820',
+        'SAT1_OBJECT_TYPE': 'DEBRIS', 'SAT2_OBJECT_TYPE': 'DEBRIS',
+        'TCA': _iso(3), 'MISS_DISTANCE': '5000',  # 5km
+        'COLLISION_PROBABILITY': '0.00002', 'RELATIVE_SPEED': '11.3',
+        'ORBIT_REGIME': 'LEO',
+    }
+    rec_debris = det_conjunction.from_cdm(cdm_debris, st_src)
+    if not rec_debris or rec_debris['tier'] != 'T2':
+        ok = _fail('T2: debris x debris', f'debris x debris elevated Pc should be T2, got {rec_debris and rec_debris["tier"]}')
     else:
-        _pass('AND-gate holds: 202km miss does not glow red regardless of Pc')
+        _pass('T2: debris x debris + elevated Pc -> T2 (amber)')
 
-    # Wide miss + negligible Pc -> None (background, not emitted)
-    cdm_miss = dict(cdm_hit, MISS_DISTANCE='500000', COLLISION_PROBABILITY='0.000000001')
-    no_conj = det_conjunction.from_cdm(cdm_miss, st_src)
+    # 202km SL-3 R/B x PSLV case: rocket_body x rocket_body, large miss, Pc 9e-4
+    # Should NOT be T1 (no active payload, miss >> 1km); T2 only if Pc elevated
+    cdm_202km = {
+        'SAT1_ID': '11111', 'SAT2_ID': '22222',
+        'SAT1_OBJECT_TYPE': 'ROCKET BODY', 'SAT2_OBJECT_TYPE': 'ROCKET BODY',
+        'TCA': _iso(3), 'MISS_DISTANCE': '202000',  # 202km in meters
+        'COLLISION_PROBABILITY': '0.0009', 'RELATIVE_SPEED': '11.3',
+        'ORBIT_REGIME': 'LEO',
+    }
+    rec_202 = det_conjunction.from_cdm(cdm_202km, st_src)
+    if rec_202 and rec_202.get('tier') == 'T1':
+        ok = _fail('no T1 for 202km miss', '202km miss rocket_body x rocket_body should not be T1')
+    else:
+        tier_202 = rec_202['tier'] if rec_202 else 'None (not emitted)'
+        _pass(f'202km SL-3 R/B case -> {tier_202} (not T1, red stays honest)')
+
+    # None: routine background
+    cdm_background = {
+        'SAT1_ID': '90211', 'SAT2_ID': '37820',
+        'SAT1_OBJECT_TYPE': 'DEBRIS', 'SAT2_OBJECT_TYPE': 'DEBRIS',
+        'TCA': _iso(3), 'MISS_DISTANCE': '500000',  # 500km
+        'COLLISION_PROBABILITY': '0.000000001', 'RELATIVE_SPEED': '11.3',
+        'ORBIT_REGIME': 'LEO',
+    }
+    no_conj = det_conjunction.from_cdm(cdm_background, st_src)
     if no_conj is not None:
-        ok = _fail('conjunction threshold', '500km miss / negligible Pc should return None')
+        ok = _fail('background not emitted', '500km / negligible Pc debris should return None')
     else:
-        _pass('wide-miss / negligible-Pc CDM correctly returns None')
+        _pass('background conjunction correctly not emitted')
 
     print('\n-- Space weather detector -------------------------------------')
 

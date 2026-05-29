@@ -30,7 +30,7 @@ from engine.detect import space_weather as det_sw
 from engine.freshness import may_promote
 from engine.tier import assign_tier, escalate_tier
 from engine.watchlist import is_watchlisted
-from engine.store.writer import write_record, load_record, prune_records
+from engine.store.writer import write_record, load_record, prune_records, list_records
 from engine.store.catalog import write_tle_bundle, is_notable
 
 
@@ -152,8 +152,9 @@ def run_pass():
         bundle_path = write_tle_bundle(tle_records)
         print(f'  TLE bundle -> {bundle_path} ({len(tle_records)} objects)')
 
-    # (b) Build corroboration map + write records for notable objects
+    # (b) Build corroboration map + type map + write records for notable objects
     ct_by_norad: dict[int, dict] = {}
+    type_by_norad: dict[int, str] = {}  # norad -> 'satellite'|'rocket_body'|'debris'
     ct_signal = 0
 
     for gp in ct_catalog:
@@ -162,6 +163,7 @@ def run_pass():
             rec = _attach_tle(rec, tle_by_norad)
             norad = rec['location']['norad_id']
             ct_by_norad[norad] = rec
+            type_by_norad[norad] = rec.get('type', 'satellite')
 
             wl = is_watchlisted(rec)
             if _should_emit_orbital_record(rec, wl):
@@ -183,6 +185,21 @@ def run_pass():
     st_catalog = space_track.fetch_gp_catalog()
     st_anomalies = 0
     print(f'  Space-Track: {len(st_catalog)} objects')
+
+    for gp in st_catalog:
+        try:
+            norad = int(gp.get('NORAD_CAT_ID', 0))
+        except Exception:
+            continue
+        tle1 = gp.get('TLE_LINE1', '')
+        tle2 = gp.get('TLE_LINE2', '')
+        if norad and tle1 and tle2 and norad not in tle_by_norad:
+            tle_by_norad[norad] = {
+                'norad_id': norad,
+                'name': gp.get('OBJECT_NAME', ''),
+                'tle1': tle1,
+                'tle2': tle2,
+            }
 
     for gp in st_catalog:
         try:
@@ -227,10 +244,12 @@ def run_pass():
     # ── 5. Conjunctions (Space-Track CDM) ─────────────────────────────────────
     print('[poll] fetching Space-Track CDMs...')
     cdm_source = [space_track.source_entry(_now_iso())]
-    conj_counts = {'T1': 0, 'T2': 0}
+    conj_ids_by_tier = {'T1': set(), 'T2': set()}
     for cdm in space_track.fetch_cdm():
         try:
-            rec = det_conjunction.from_cdm(cdm, cdm_source)
+            rec = det_conjunction.from_cdm(cdm, cdm_source,
+                                           tle_by_norad=tle_by_norad,
+                                           type_by_norad=type_by_norad)
             if rec:
                 rec = _attach_conjunction_tles(rec, tle_by_norad)
                 wl = is_watchlisted(rec)
@@ -241,18 +260,23 @@ def run_pass():
                 orbital_keep_ids.add(rec['id'])
                 written += 1
                 t = rec['tier']
-                conj_counts[t] = conj_counts.get(t, 0) + 1
+                if t in conj_ids_by_tier:
+                    conj_ids_by_tier[t].add(rec['id'])
         except Exception:
             continue
 
-    if any(conj_counts.values()):
-        print(f'  Conjunctions: {conj_counts.get("T1",0)} T1, {conj_counts.get("T2",0)} T2')
+    if any(conj_ids_by_tier.values()):
+        print(
+            f'  Conjunctions: {len(conj_ids_by_tier["T1"])} T1, '
+            f'{len(conj_ids_by_tier["T2"])} T2 (unique records)'
+        )
 
     removed = prune_records('orbital-', orbital_keep_ids)
     if removed:
         print(f'  Pruned {removed} stale orbital record(s)')
 
-    print(f'[poll] pass done - {written} signal records {_now_iso()}')
+    final_records = len(list_records())
+    print(f'[poll] pass done - {final_records} retained records ({written} write ops) {_now_iso()}')
     return written
 
 

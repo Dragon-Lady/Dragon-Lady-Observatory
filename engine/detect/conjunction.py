@@ -13,16 +13,15 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
 
 
-# Tiering bands — James's AND-gate policy (2026-05-28):
-# T1: BOTH Pc >= 1e-4 AND miss < 10 km  (AND keeps red rare and honest)
-# T2: moderate Pc OR close miss with any Pc
-# T3/skip: everything else — not emitted as a record
-_PC_T1       = 1e-4    # probability of collision threshold for T1
-_MISS_T1_KM  = 10.0    # miss distance threshold for T1 (km)
+# James's final tiering spec (CONJUNCTION_TIERING_FINAL_SPEC_MAY28_2026.md):
+# T1: miss < 1km  OR  at least one object is an active payload (not debris x debris)
+# T2: debris x debris with elevated Pc (>= 1e-5) and miss >= 1km
+# T3/skip: everything else -- not emitted
+_MISS_T1_KM    = 1.0    # sub-km miss -> T1 regardless of type
+_PC_DEBRIS_T2  = 1e-5   # Pc floor for debris x debris to qualify as T2
 
-_PC_T2       = 1e-5    # lower Pc bound for T2
-_MISS_T2_KM  = 50.0    # miss distance for T2 proximity gate
-_PC_NONTRIVIAL = 1e-6  # "non-trivial Pc" floor for T2 proximity gate
+# Types that count as active/operational payloads for T1.
+_ACTIVE_TYPES = frozenset({'payload', 'satellite'})
 
 
 def _slug(s: str) -> str:
@@ -51,7 +50,8 @@ def _tle_entry(norad_str: str, name: str, tle_by_norad: dict | None) -> dict:
 
 
 def from_cdm(cdm: dict, sources: list[dict],
-             tle_by_norad: dict | None = None) -> dict | None:
+             tle_by_norad: dict | None = None,
+             type_by_norad: dict | None = None) -> dict | None:
     """
     Normalize a Space-Track CDM record to a unified conjunction record.
 
@@ -92,18 +92,31 @@ def from_cdm(cdm: dict, sources: list[dict],
     rel_vel = float(cdm.get('RELATIVE_SPEED',        cdm.get('REL_SPEED', 0)) or 0)
     regime  = str(cdm.get('ORBIT_REGIME', 'LEO') or 'LEO')
 
-    # James's AND-gate tiering policy:
-    # T1: Pc >= 1e-4 AND miss < 10 km  (both required — red stays rare and honest)
-    # T2: moderate Pc OR close miss with non-trivial Pc
-    # Everything else: skip (T3 background, not emitted)
-    if pc >= _PC_T1 and miss_km < _MISS_T1_KM:
+    # Prefer CDM object types directly; only fall back to an optional map.
+    def _obj_type(norad_str: str, cdm_type, fallback: str = 'unknown') -> str:
+        if cdm_type not in (None, ''):
+            return str(cdm_type).strip().lower()
+        if type_by_norad and norad_str.isdigit():
+            return str(type_by_norad.get(int(norad_str), fallback)).strip().lower()
+        return fallback
+
+    type1 = _obj_type(sat1_id, cdm.get('SAT1_OBJECT_TYPE') or cdm.get('SAT_1_OBJECT_TYPE'))
+    type2 = _obj_type(sat2_id, cdm.get('SAT2_OBJECT_TYPE') or cdm.get('SAT_2_OBJECT_TYPE'))
+    either_active = (type1 in _ACTIVE_TYPES) or (type2 in _ACTIVE_TYPES)
+    both_debris = type1 == 'debris' and type2 == 'debris'
+
+    # James's final spec:
+    # T1: miss < 1km  OR  active payload involved
+    # T2: debris x debris, elevated Pc, miss >= 1km
+    # else: not emitted
+    if miss_km < _MISS_T1_KM or either_active:
         tier      = 'T1'
         anom_kind = 'conjunction_high_pc'
-    elif (pc >= _PC_T2) or (miss_km < _MISS_T2_KM and pc >= _PC_NONTRIVIAL):
+    elif both_debris and pc >= _PC_DEBRIS_T2 and miss_km >= _MISS_T1_KM:
         tier      = 'T2'
         anom_kind = 'conjunction_high_pc'
     else:
-        return None  # background — not emitted
+        return None  # routine background — not emitted
 
     now          = _now_iso()
     a_label      = _safe_name(sat1_id, sat1_name)
