@@ -13,11 +13,12 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
 
 
-# James's final tiering spec (CONJUNCTION_TIERING_FINAL_SPEC_MAY28_2026.md):
-# T1: miss < 1km  OR  at least one object is an active payload (not debris x debris)
+# James's final tiering spec (calibrated conservative payload gate):
+# T1: miss < 1km  OR  active payload involved with miss < 2km
 # T2: debris x debris with elevated Pc (>= 1e-5) and miss >= 1km
 # T3/skip: everything else -- not emitted
 _MISS_T1_KM    = 1.0    # sub-km miss -> T1 regardless of type
+_PAYLOAD_T1_KM = 2.0    # payload-involved passes must still be genuinely tight
 _PC_DEBRIS_T2  = 1e-5   # Pc floor for debris x debris to qualify as T2
 
 # Types that count as active/operational payloads for T1.
@@ -105,11 +106,11 @@ def from_cdm(cdm: dict, sources: list[dict],
     either_active = (type1 in _ACTIVE_TYPES) or (type2 in _ACTIVE_TYPES)
     both_debris = type1 == 'debris' and type2 == 'debris'
 
-    # James's final spec:
-    # T1: miss < 1km  OR  active payload involved
+    # James's final spec, final conservative payload gate:
+    # T1: miss < 1km OR payload-involved and miss < 2km
     # T2: debris x debris, elevated Pc, miss >= 1km
     # else: not emitted
-    if miss_km < _MISS_T1_KM or either_active:
+    if miss_km < _MISS_T1_KM or (either_active and miss_km < _PAYLOAD_T1_KM):
         tier      = 'T1'
         anom_kind = 'conjunction_high_pc'
     elif both_debris and pc >= _PC_DEBRIS_T2 and miss_km >= _MISS_T1_KM:
@@ -163,6 +164,9 @@ def from_cdm(cdm: dict, sources: list[dict],
             'pc':                    pc,
             'relative_velocity_kms': rel_vel,
             'regime':                regime,
+            # Display sub-tier: payload-involved = bright ALERT, debris x debris
+            # = dim close pass. Drives the globe marker glow (viewer reads this).
+            'alert_class':           'alert' if either_active else 'close_pass',
             'objects': [
                 _tle_entry(sat1_id, a_label, tle_by_norad),
                 _tle_entry(sat2_id, b_label, tle_by_norad),

@@ -186,19 +186,19 @@ def run_all() -> bool:
 
     st_src = [{'name': 'space-track', 'url': 'https://www.space-track.org/', 'retrieved_at': _iso()}]
 
-    # T1: active payload involved (even large miss) -- James's spec
+    # T1: active payload involved AND miss < 2km (conservative payload gate)
     cdm_active = {
         'SAT1_ID': '25544', 'SAT2_ID': '37820',
         'SAT1_OBJECT_TYPE': 'PAYLOAD', 'SAT2_OBJECT_TYPE': 'DEBRIS',
-        'TCA': _iso(3), 'MISS_DISTANCE': '5000',  # 5000m = 5km -- large, but payload involved
+        'TCA': _iso(3), 'MISS_DISTANCE': '1500',  # 1500m = 1.5km -- payload + tight miss
         'COLLISION_PROBABILITY': '0.0001', 'RELATIVE_SPEED': '11.3',
         'ORBIT_REGIME': 'LEO',
     }
     rec_active = det_conjunction.from_cdm(cdm_active, st_src)
     if not rec_active or rec_active['tier'] != 'T1':
-        ok = _fail('T1: active payload', f'payload involvement should force T1, got {rec_active and rec_active["tier"]}')
+        ok = _fail('T1: active payload', f'payload + 1.5km miss should be T1, got {rec_active and rec_active["tier"]}')
     else:
-        _pass('T1: active payload involved -> T1 regardless of miss distance')
+        _pass('T1: active payload + miss < 2km -> T1')
 
     # T1: sub-km miss even for debris x debris
     cdm_subkm = {
@@ -248,6 +248,20 @@ def run_all() -> bool:
     else:
         tier_202 = rec_202['tier'] if rec_202 else 'None (not emitted)'
         _pass(f'202km SL-3 R/B case -> {tier_202} (not T1, red stays honest)')
+
+    # alert_class: payload-involved -> 'alert', debris x debris -> 'close_pass'
+    if rec_active:
+        ac = rec_active.get('location', {}).get('alert_class')
+        if ac != 'alert':
+            ok = _fail('alert_class: payload', f'expected alert, got {ac}')
+        else:
+            _pass('alert_class = alert for payload-involved conjunction')
+    if rec_debris:
+        ac = rec_debris.get('location', {}).get('alert_class')
+        if ac != 'close_pass':
+            ok = _fail('alert_class: debris', f'expected close_pass, got {ac}')
+        else:
+            _pass('alert_class = close_pass for debris x debris conjunction')
 
     # None: routine background
     cdm_background = {
