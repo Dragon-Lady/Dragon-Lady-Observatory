@@ -38,6 +38,28 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
 
 
+def _attach_tle(rec: dict, tle_by_norad: dict[int, dict]) -> dict:
+    """Backfill raw TLE text onto orbital records when the source GP payload omits it."""
+    location = rec.get('location') or {}
+    elset = location.get('elset') or {}
+    if elset.get('tle1') and elset.get('tle2'):
+        return rec
+
+    norad = location.get('norad_id')
+    if not isinstance(norad, int):
+        return rec
+
+    tle = tle_by_norad.get(norad)
+    if not tle:
+        return rec
+
+    elset['tle1'] = tle.get('tle1', '')
+    elset['tle2'] = tle.get('tle2', '')
+    location['elset'] = elset
+    rec['location'] = location
+    return rec
+
+
 def run_pass():
     print(f'[poll] pass started {_now_iso()}')
     written = 0
@@ -89,6 +111,11 @@ def run_pass():
 
     # (a) Emit TLE bundle for globe — fetch TLE text format (has tle1/tle2 lines)
     tle_records = celestrak.fetch_tle_records()
+    tle_by_norad = {
+        int(rec.get('norad_id', 0)): rec
+        for rec in tle_records
+        if rec.get('tle1') and rec.get('tle2')
+    }
     if tle_records:
         bundle_path = write_tle_bundle(tle_records)
         print(f'  TLE bundle -> {bundle_path} ({len(tle_records)} objects)')
@@ -99,6 +126,7 @@ def run_pass():
     for gp in ct_catalog:
         try:
             rec = norm_orbital.from_gp(gp, ct_source)
+            rec = _attach_tle(rec, tle_by_norad)
             norad = rec['location']['norad_id']
             ct_by_norad[norad] = rec
 
@@ -129,6 +157,7 @@ def run_pass():
                 sources.append(celestrak.source_entry(retrieved_ct))
 
             rec = norm_orbital.from_gp(gp, sources)
+            rec = _attach_tle(rec, tle_by_norad)
             wl  = is_watchlisted(rec)
             rec['watchlist'] = wl
 
@@ -144,11 +173,12 @@ def run_pass():
             rec['anomalies'] = filtered
             rec['tier'] = assign_tier(filtered, watchlist_hit=wl)
 
-            write_record(rec)
-            written += 1
-
-            if filtered:
-                print(f'  [T{rec["tier"][-1]}] maneuver {rec["names"][0]}')
+            # Records only for signal: anomaly, watchlisted, or notable
+            if filtered or wl or is_notable(norad):
+                write_record(rec)
+                written += 1
+                if filtered:
+                    print(f'  [T{rec["tier"][-1]}] maneuver {rec["names"][0]}')
 
         except Exception:
             continue
@@ -169,7 +199,7 @@ def run_pass():
         except Exception:
             continue
 
-    print(f'[poll] pass done — {written} records written {_now_iso()}')
+    print(f'[poll] pass done - {written} records written {_now_iso()}')
     return written
 
 
