@@ -28,9 +28,9 @@ from engine.detect import maneuver as det_maneuver
 from engine.detect import conjunction as det_conjunction
 from engine.detect import space_weather as det_sw
 from engine.freshness import may_promote
-from engine.tier import assign_tier
+from engine.tier import assign_tier, escalate_tier
 from engine.watchlist import is_watchlisted
-from engine.store.writer import write_record, load_record
+from engine.store.writer import write_record, load_record, prune_records
 from engine.store.catalog import write_tle_bundle, is_notable
 
 
@@ -60,9 +60,17 @@ def _attach_tle(rec: dict, tle_by_norad: dict[int, dict]) -> dict:
     return rec
 
 
+def _should_emit_orbital_record(rec: dict, watchlist_hit: bool) -> bool:
+    """Keep per-record output limited to signal and the curated baseline set."""
+    location = rec.get('location') or {}
+    norad = location.get('norad_id')
+    return bool(rec.get('anomalies')) or watchlist_hit or is_notable(norad)
+
+
 def run_pass():
     print(f'[poll] pass started {_now_iso()}')
     written = 0
+    orbital_keep_ids: set[str] = set()
 
     # ── 1. Space weather (NOAA SWPC — no key, runs immediately) ──────────────
     print('[poll] fetching NOAA SWPC...')
@@ -130,23 +138,25 @@ def run_pass():
             norad = rec['location']['norad_id']
             ct_by_norad[norad] = rec
 
-            # Write records for watchlisted + notable objects (not the whole catalog)
             wl = is_watchlisted(rec)
-            if wl or is_notable(norad):
+            if _should_emit_orbital_record(rec, wl):
                 rec['watchlist'] = wl
                 rec['tier'] = assign_tier([], watchlist_hit=wl)
                 write_record(rec)
+                orbital_keep_ids.add(rec['id'])
                 written += 1
         except Exception:
             continue
 
-    print(f'  Notable/watchlisted orbital records written: {written}')
+    ct_signal = written
+    print(f'  CelesTrak notable/watchlisted records: {ct_signal}')
 
     # ── 4. Orbital — Space-Track (primary, needs .env creds) ─────────────────
     print('[poll] fetching Space-Track GP catalog...')
     retrieved_st = _now_iso()
     st_source = [space_track.source_entry(retrieved_st)]
     st_catalog = space_track.fetch_gp_catalog()
+    st_anomalies = 0
     print(f'  Space-Track: {len(st_catalog)} objects')
 
     for gp in st_catalog:
@@ -173,33 +183,52 @@ def run_pass():
             rec['anomalies'] = filtered
             rec['tier'] = assign_tier(filtered, watchlist_hit=wl)
 
-            # Records only for signal: anomaly, watchlisted, or notable
-            if filtered or wl or is_notable(norad):
+            if _should_emit_orbital_record(rec, wl):
                 write_record(rec)
+                orbital_keep_ids.add(rec['id'])
                 written += 1
                 if filtered:
-                    print(f'  [T{rec["tier"][-1]}] maneuver {rec["names"][0]}')
+                    st_anomalies += 1
+                    print(f'  [T{rec["tier"][-1]}] maneuver: {rec["names"][0]}')
 
         except Exception:
             continue
 
+    if st_anomalies == 0 and st_catalog:
+        print(f'  Space-Track: {len(st_catalog)} objects scanned, no anomalies (baseline pass)')
+    elif st_catalog:
+        print(f'  Space-Track: {st_anomalies} anomaly record(s) from {len(st_catalog)} objects')
+
     # ── 5. Conjunctions (Space-Track CDM) ─────────────────────────────────────
     print('[poll] fetching Space-Track CDMs...')
     cdm_source = [space_track.source_entry(_now_iso())]
+    conj_counts = {'T1': 0, 'T2': 0}
     for cdm in space_track.fetch_cdm():
         try:
             rec = det_conjunction.from_cdm(cdm, cdm_source)
             if rec:
                 wl = is_watchlisted(rec)
                 rec['watchlist'] = wl
-                rec['tier'] = assign_tier(rec['anomalies'], watchlist_hit=wl)
+                if wl:
+                    rec['tier'] = escalate_tier(rec['tier'])
                 write_record(rec)
+                orbital_keep_ids.add(rec['id'])
                 written += 1
-                print(f'  [T{rec["tier"][-1]}] conjunction {rec["names"][0]}')
+                t = rec['tier']
+                conj_counts[t] = conj_counts.get(t, 0) + 1
+                if t == 'T1':
+                    print(f'  [T1] conjunction: {rec["names"][0]}')
         except Exception:
             continue
 
-    print(f'[poll] pass done - {written} records written {_now_iso()}')
+    if any(conj_counts.values()):
+        print(f'  Conjunctions: {conj_counts.get("T1",0)} T1, {conj_counts.get("T2",0)} T2')
+
+    removed = prune_records('orbital-', orbital_keep_ids)
+    if removed:
+        print(f'  Pruned {removed} stale orbital record(s)')
+
+    print(f'[poll] pass done - {written} signal records {_now_iso()}')
     return written
 
 

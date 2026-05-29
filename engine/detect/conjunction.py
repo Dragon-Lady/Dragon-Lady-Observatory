@@ -40,13 +40,33 @@ def from_cdm(cdm: dict, sources: list[dict]) -> dict | None:
     Returns None for background conjunctions (Pc < 1e-5 and miss > 5 km).
     Tier is set by Pc + miss distance; the caller may override via watchlist.
     """
-    sat1_id   = str(cdm.get('SAT1_ID',   '') or cdm.get('OBJECT1_ID',   '') or '').strip()
-    sat2_id   = str(cdm.get('SAT2_ID',   '') or cdm.get('OBJECT2_ID',   '') or '').strip()
-    sat1_name = str(cdm.get('SAT1_NAME', '') or cdm.get('OBJECT1_NAME', '') or '').strip()
-    sat2_name = str(cdm.get('SAT2_NAME', '') or cdm.get('OBJECT2_NAME', '') or '').strip()
+    # Space-Track CDM field names vary by endpoint version — try all known variants
+    sat1_id = str(
+        cdm.get('SAT_1_ID') or cdm.get('SAT1_ID') or
+        cdm.get('OBJECT_DESIGNATOR_1') or cdm.get('OBJECT1_ID') or ''
+    ).strip()
+    sat2_id = str(
+        cdm.get('SAT_2_ID') or cdm.get('SAT2_ID') or
+        cdm.get('OBJECT_DESIGNATOR_2') or cdm.get('OBJECT2_ID') or ''
+    ).strip()
+    sat1_name = str(
+        cdm.get('SAT_1_NAME') or cdm.get('SAT1_NAME') or
+        cdm.get('OBJECT_NAME_1') or cdm.get('OBJECT1_NAME') or ''
+    ).strip()
+    sat2_name = str(
+        cdm.get('SAT_2_NAME') or cdm.get('SAT2_NAME') or
+        cdm.get('OBJECT_NAME_2') or cdm.get('OBJECT2_NAME') or ''
+    ).strip()
+
+    # Last resort: dump all string-valued keys so we can see what's actually in the CDM
+    if not sat1_name and not sat2_name and not sat1_id and not sat2_id:
+        str_keys = {k: v for k, v in cdm.items() if isinstance(v, str) and v.strip()}
+        print(f'[conjunction] CDM field debug: {list(str_keys.keys())[:15]}')
 
     tca     = cdm.get('TCA', _now_iso())
-    miss_km = float(cdm.get('MISS_DISTANCE',        cdm.get('MISS',      9999)) or 9999)
+    miss_km = float(
+        cdm.get('MISS_DISTANCE', cdm.get('MIN_RNG', cdm.get('MISS', 9999))) or 9999
+    )
     pc      = float(cdm.get('COLLISION_PROBABILITY', cdm.get('PC',           0)) or 0)
     rel_vel = float(cdm.get('RELATIVE_SPEED',        cdm.get('REL_SPEED',    0)) or 0)
     regime  = str(cdm.get('ORBIT_REGIME', 'LEO') or 'LEO')

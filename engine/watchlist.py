@@ -19,11 +19,16 @@ def _load() -> list[dict]:
     global _watchlist
     if _watchlist is not None:
         return _watchlist
-    path = _WATCHLIST_PATH if _WATCHLIST_PATH.exists() else _EXAMPLE_PATH
-    try:
-        data = json.loads(path.read_text(encoding='utf-8'))
-        _watchlist = data.get('entries', [])
-    except Exception:
+    # Only load the real watchlist.json — never fall back to the example file.
+    # The example is documentation, not live config. Baseline objects (ISS etc.)
+    # sit at T3 until explicitly added to watchlist.json.
+    if _WATCHLIST_PATH.exists():
+        try:
+            data = json.loads(_WATCHLIST_PATH.read_text(encoding='utf-8'))
+            _watchlist = data.get('entries', [])
+        except Exception:
+            _watchlist = []
+    else:
         _watchlist = []
     return _watchlist
 
