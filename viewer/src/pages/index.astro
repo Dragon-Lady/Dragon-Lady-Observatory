@@ -23,8 +23,8 @@ const catalogCount = loadCatalog().length;
         A calm place to explore what’s overhead — satellites, stars, and quiet moments worth noticing.
       </p>
       <div class="mt-5 flex flex-wrap gap-4 text-sm text-mist-400">
-        <span><strong class="text-mist-100">{s.total}</strong> objects tracked</span>
-        <span><strong class="text-mist-100">{s.anomalies}</strong> moments of interest</span>
+        <span><strong class="text-mist-100">{s.total}</strong> things overhead</span>
+        <span><strong class="text-mist-100">{s.anomalies}</strong> quiet moments saved</span>
       </div>
       <div class="mt-6 flex flex-wrap gap-3">
         <a href={base + 'globe'} class="inline-flex items-center gap-2 rounded-md bg-signal-400 px-5 py-2.5 text-sm font-semibold !text-void-950 hover:!no-underline hover:bg-signal-300">
@@ -59,7 +59,7 @@ const catalogCount = loadCatalog().length;
 
   <!-- browse-catalog hatch (softened) -->
   <a href={base + 'catalog'} class="mb-4 flex items-center justify-between rounded-lg border border-void-800 bg-void-900 px-4 py-3 text-sm hover:border-void-600 hover:!no-underline opacity-85">
-    <span class="!text-mist-200">🛰 Explore the full catalog — <strong class="text-mist-100">{catalogCount.toLocaleString()}</strong> objects overhead</span>
+    <span class="!text-mist-200">🛰 Browse everything up there — <strong class="text-mist-100">{catalogCount.toLocaleString()}</strong> things overhead</span>
     <span class="text-signal-400">search →</span>
   </a>
 

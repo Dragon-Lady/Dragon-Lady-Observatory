@@ -96,9 +96,11 @@ const base = import.meta.env.BASE_URL;
         const sourceEventId = `${type}:${item.id}`;
         const existing = pins.find((pin) => pin.sourceEventId === sourceEventId);
 
+        const pinId = existing ? existing.id : `${Date.now().toString(36)}-${item.id}`;
+
         if (!existing) {
           pins.unshift({
-            id: `${Date.now().toString(36)}-${item.id}`,
+            id: pinId,
             createdAt: new Date().toISOString(),
             viewState: defaultViews[item.id] || { lat: 0, lng: 0, altitude: 2.4 },
             label: item.name,
@@ -112,11 +114,19 @@ const base = import.meta.env.BASE_URL;
         btn.disabled = true;
         btn.classList.add('!border-emerald-700', '!text-emerald-400');
 
+        localStorage.setItem('flyToPin', JSON.stringify({
+          id: pinId,
+          viewState: defaultViews[item.id] || { lat: 0, lng: 0, altitude: 2.4 }
+        }));
+
         const toast = document.createElement('div');
-        toast.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#0f1420;border:1px solid #36415a;color:#e9edf5;padding:9px 20px;border-radius:9999px;font-size:13px;';
-        toast.textContent = `${item.name} pinned`;
+        toast.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#0f1420;border:1px solid #36415a;color:#e9edf5;padding:10px 22px;border-radius:9999px;font-size:13px;display:flex;gap:12px;align-items:center;';
+        toast.innerHTML = `
+          <span>${item.name} saved to your pins</span>
+          <a href="${base}globe" style="color:#6fd3e2;text-decoration:none;font-size:12px;">View on globe →</a>
+        `;
         document.body.appendChild(toast);
-        setTimeout(() => toast.remove(), 1600);
+        setTimeout(() => toast.remove(), 4200);
       });
 
       return el;
