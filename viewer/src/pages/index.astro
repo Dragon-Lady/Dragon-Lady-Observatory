@@ -66,6 +66,13 @@ const catalogCount = loadCatalog().length;
             <option value="favorites">Favorites first</option>
           </select>
         </div>
+        <div class="flex gap-2">
+          <button id="export-pins" class="px-3 py-1.5 text-sm rounded-lg border border-void-700 text-mist-300 hover:bg-void-800">Export my pins</button>
+          <label class="px-3 py-1.5 text-sm rounded-lg border border-void-700 text-mist-300 hover:bg-void-800 cursor-pointer">
+            Import pins
+            <input type="file" id="import-pins" accept=".json" class="hidden" />
+          </label>
+        </div>
       </div>
 
       <div id="pins-grid" class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -170,6 +177,14 @@ const catalogCount = loadCatalog().length;
     const parsed = Number(value);
     return Number.isFinite(parsed) ? parsed : fallback;
   };
+
+  function showToast(message) {
+    const toast = document.createElement('div');
+    toast.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#0f1420;border:1px solid #36415a;color:#e9edf5;padding:10px 22px;border-radius:9999px;font-size:13px;z-index:9999;';
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 3200);
+  }
 
   let activeChip = 'all';
 
@@ -363,10 +378,8 @@ const catalogCount = loadCatalog().length;
         `;
         editPanel.classList.remove('hidden');
 
-        // Prevent card click (flyTo) when interacting with the edit panel
-        editPanel.addEventListener('click', (e) => {
-          e.stopImmediatePropagation();
-        }, { once: true });
+        // Robust protection so clicks inside the edit panel never trigger card flyTo
+        editPanel.addEventListener('click', (ev) => ev.stopImmediatePropagation());
 
         const saveBtn = editPanel.querySelector('.save-edit');
         const cancelBtn = editPanel.querySelector('.cancel-edit');
@@ -411,6 +424,71 @@ const catalogCount = loadCatalog().length;
         renderMyPins();
       });
     });
+
+    // Export
+    const exportBtn = document.getElementById('export-pins');
+    if (exportBtn) {
+      exportBtn.addEventListener('click', () => {
+        const pins = JSON.parse(localStorage.getItem('personalPins') || '[]');
+        const date = new Date().toISOString().split('T')[0];
+        const blob = new Blob([JSON.stringify(pins, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `dragon-lady-pins-${date}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      });
+    }
+
+    // Import
+    const importInput = document.getElementById('import-pins');
+    if (importInput) {
+      importInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          try {
+            const imported = JSON.parse(event.target.result);
+            if (!Array.isArray(imported)) {
+              showToast('File does not contain a valid pins array.');
+              return;
+            }
+
+            let current = [];
+            try {
+              current = JSON.parse(localStorage.getItem('personalPins') || '[]');
+            } catch {}
+
+            const existingIds = new Set(current.map(p => p.id));
+            let added = 0;
+
+            imported.forEach(pin => {
+              if (pin && pin.id && !existingIds.has(pin.id)) {
+                current.push(pin);
+                existingIds.add(pin.id);
+                added++;
+              }
+            });
+
+            localStorage.setItem('personalPins', JSON.stringify(current));
+            renderMyPins();
+
+            const msg = added === 1 ? '1 pin imported' : `${added} pins imported`;
+            showToast(msg);
+
+          } catch (err) {
+            showToast('Could not read the file. Please make sure it is a valid pins backup.');
+          }
+        };
+        reader.readAsText(file);
+        e.target.value = '';
+      });
+    }
 
     renderMyPins();
 
