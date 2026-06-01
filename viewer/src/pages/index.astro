@@ -37,92 +37,116 @@ const catalogCount = loadCatalog().length;
     </div>
   </section>
 
-  <!-- layer toggles + tier legend (de-emphasized) -->
-  <div class="mb-4 flex flex-wrap items-center justify-between gap-3 opacity-90">
-    <div class="flex flex-wrap items-center gap-2">
-      <button class="layer-btn active rounded-full border border-signal-400 bg-void-800 px-3 py-1 text-sm !text-mist-100" data-layer="all">All</button>
-      {allDomains.map((d) => (
-        <button
-          class="layer-btn rounded-full border border-void-700 bg-void-900 px-3 py-1 text-sm text-mist-300 disabled:opacity-40"
-          data-layer={d}
-          disabled={!present.includes(d)}
-          title={present.includes(d) ? '' : 'no data yet'}
-        >{DOMAIN_LABEL[d]}</button>
-      ))}
+  <!-- Your Observatory (primary personal experience) -->
+  <section class="mb-8">
+    <div class="mb-4">
+      <h2 class="text-xl font-semibold text-mist-100">Your observatory</h2>
+      <p class="text-xs text-mist-500 mt-0.5">The places in the sky that matter to you.</p>
     </div>
-    <div class="flex items-center gap-3 text-xs text-mist-400/80" title="Tiers reflect interest level, not urgency.">
-      <span class="flex items-center gap-1"><span class="inline-block h-1.5 w-1.5 rounded-full dot-t1"></span>T1</span>
-      <span class="flex items-center gap-1"><span class="inline-block h-1.5 w-1.5 rounded-full dot-t2"></span>T2</span>
-      <span class="flex items-center gap-1"><span class="inline-block h-1.5 w-1.5 rounded-full dot-t3"></span>T3</span>
-    </div>
-  </div>
 
-  <!-- browse-catalog hatch (softened) -->
-  <a href={base + 'catalog'} class="mb-4 flex items-center justify-between rounded-lg border border-void-800 bg-void-900 px-4 py-3 text-sm hover:border-void-600 hover:!no-underline opacity-85">
-    <span class="!text-mist-200">🛰 Browse everything up there — <strong class="text-mist-100">{catalogCount.toLocaleString()}</strong> things overhead</span>
-    <span class="text-signal-400">search →</span>
-  </a>
-
-  {records.length === 0 ? (
-    <div class="rounded-lg border border-dashed border-void-700 p-8 text-center">
-      <p class="text-mist-300">The sky feels quiet right now. Take your time exploring.</p>
-    </div>
-  ) : (
-    <div id="grid" class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-      {records.map((r) => <RecordCard record={r} />)}
-    </div>
-  )}
-
-  <script is:inline>
-    const btns = document.querySelectorAll('.layer-btn');
-    const cards = document.querySelectorAll('.record-card');
-    btns.forEach((b) => b.addEventListener('click', () => {
-      const layer = b.dataset.layer;
-      btns.forEach((x) => {
-        const on = x === b;
-        x.classList.toggle('active', on);
-        x.classList.toggle('border-signal-400', on);
-        x.classList.toggle('!text-mist-100', on);
-        x.classList.toggle('border-void-700', !on);
-        x.classList.toggle('text-mist-300', !on);
-      });
-      cards.forEach((c) => {
-        c.style.display = (layer === 'all' || c.dataset.domain === layer) ? '' : 'none';
-      });
-    }));
-  </script>
-
-  <!-- My Pins Section -->
-  <section class="mt-10">
-    <div class="mb-4 flex items-center justify-between gap-4">
-      <div>
-        <h2 class="text-xl font-semibold text-mist-100">My Pins</h2>
-        <p class="text-xs text-mist-500 mt-0.5">The places in the sky that matter to you.</p>
+    <!-- My Pins Section -->
+    <div class="mb-6">
+      <div class="mb-4 flex items-center justify-between gap-4">
+        <div class="flex items-center gap-3">
+          <input id="pins-search" type="text" placeholder="Find a saved view..."
+                 class="text-sm px-3 py-1.5 rounded-lg border border-void-700 bg-void-900 text-mist-200 placeholder:text-mist-500 focus:outline-none focus:border-void-500" style="width:180px;">
+          <button id="clear-search" class="text-xs text-mist-500 hover:text-mist-300">clear</button>
+          <select id="pins-sort" class="text-sm px-3 py-1.5 rounded-lg border border-void-700 bg-void-900 text-mist-200 focus:outline-none focus:border-void-500">
+            <option value="newest">Newest first</option>
+            <option value="oldest">Oldest first</option>
+            <option value="favorites">Favorites first</option>
+          </select>
+        </div>
       </div>
-      <div class="flex items-center gap-3">
-        <input id="pins-search" type="text" placeholder="Find a saved view..."
-               class="text-sm px-3 py-1.5 rounded-lg border border-void-700 bg-void-900 text-mist-200 placeholder:text-mist-500 focus:outline-none focus:border-void-500" style="width:180px;">
-        <button id="clear-search" class="text-xs text-mist-500 hover:text-mist-300">clear</button>
-        <select id="pins-sort" class="text-sm px-3 py-1.5 rounded-lg border border-void-700 bg-void-900 text-mist-200 focus:outline-none focus:border-void-500">
-          <option value="newest">Newest first</option>
-          <option value="oldest">Oldest first</option>
-          <option value="favorites">Favorites first</option>
-        </select>
+
+      <div id="pins-grid" class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <!-- Populated by script below -->
       </div>
-    </div>
 
-    <div id="pins-grid" class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      <!-- Populated by script below -->
-    </div>
+      <div id="pins-empty" class="hidden rounded-xl border border-dashed border-void-700 p-8 text-center">
+        <p class="text-mist-300">No pins yet. Open the globe and press <strong>P</strong> on anything beautiful.</p>
+      </div>
 
-    <div id="pins-empty" class="hidden rounded-xl border border-dashed border-void-700 p-8 text-center">
-      <p class="text-mist-300">No pins yet. Open the globe and press <strong>P</strong> on anything beautiful.</p>
-    </div>
-
-    <div id="pins-no-results" class="hidden col-span-full text-center text-mist-400 text-sm py-6">
-      No pins match your search.
+      <div id="pins-no-results" class="hidden col-span-full text-center text-mist-400 text-sm py-6">
+        No pins match your search.
+      </div>
     </div>
   </section>
+
+  <!-- Sky Events teaser -->
+  <section class="mb-8">
+    <a href={base + 'sky-events'} class="block rounded-2xl border border-void-700 bg-void-900 p-6 hover:border-void-500 transition-colors">
+      <div class="flex items-center justify-between">
+        <div>
+          <div class="font-medium text-mist-100 text-lg">Sky Events</div>
+          <p class="mt-1 text-sm text-mist-300">Constellations and quiet moments worth noticing tonight and soon.</p>
+        </div>
+        <span class="text-signal-400 text-sm">Explore →</span>
+      </div>
+    </a>
+  </section>
+
+  <!-- Everything overhead (optional) — collapsed by default -->
+  <details class="mb-6">
+    <summary class="cursor-pointer text-sm text-mist-400 hover:text-mist-200 mb-4 select-none">
+      Everything overhead (optional)
+    </summary>
+
+    <!-- layer toggles + tier legend (de-emphasized) -->
+    <div class="mb-4 flex flex-wrap items-center justify-between gap-3 opacity-85">
+      <div class="flex flex-wrap items-center gap-2">
+        <button class="layer-btn active rounded-full border border-signal-400 bg-void-800 px-3 py-1 text-sm !text-mist-100" data-layer="all">All</button>
+        {allDomains.map((d) => (
+          <button
+            class="layer-btn rounded-full border border-void-700 bg-void-900 px-3 py-1 text-sm text-mist-300 disabled:opacity-40"
+            data-layer={d}
+            disabled={!present.includes(d)}
+            title={present.includes(d) ? '' : 'no data yet'}
+          >{DOMAIN_LABEL[d]}</button>
+        ))}
+      </div>
+      <div class="flex items-center gap-3 text-xs text-mist-400/80" title="Tiers reflect interest level, not urgency.">
+        <span class="flex items-center gap-1"><span class="inline-block h-1.5 w-1.5 rounded-full dot-t1"></span>T1</span>
+        <span class="flex items-center gap-1"><span class="inline-block h-1.5 w-1.5 rounded-full dot-t2"></span>T2</span>
+        <span class="flex items-center gap-1"><span class="inline-block h-1.5 w-1.5 rounded-full dot-t3"></span>T3</span>
+      </div>
+    </div>
+
+    <!-- browse-catalog hatch (softened) -->
+    <a href={base + 'catalog'} class="mb-4 flex items-center justify-between rounded-lg border border-void-800 bg-void-900 px-4 py-3 text-sm hover:border-void-600 hover:!no-underline opacity-85">
+      <span class="!text-mist-200">🛰 Browse everything up there — <strong class="text-mist-100">{catalogCount.toLocaleString()}</strong> things overhead</span>
+      <span class="text-signal-400">search →</span>
+    </a>
+
+    {records.length === 0 ? (
+      <div class="rounded-lg border border-dashed border-void-700 p-8 text-center">
+        <p class="text-mist-300">The sky feels quiet right now. Take your time exploring.</p>
+      </div>
+    ) : (
+      <div id="grid" class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {records.map((r) => <RecordCard record={r} />)}
+      </div>
+    )}
+
+    <script is:inline>
+      const btns = document.querySelectorAll('.layer-btn');
+      const cards = document.querySelectorAll('.record-card');
+      btns.forEach((b) => b.addEventListener('click', () => {
+        const layer = b.dataset.layer;
+        btns.forEach((x) => {
+          const on = x === b;
+          x.classList.toggle('active', on);
+          x.classList.toggle('border-signal-400', on);
+          x.classList.toggle('!text-mist-100', on);
+          x.classList.toggle('border-void-700', !on);
+          x.classList.toggle('text-mist-300', !on);
+        });
+        cards.forEach((c) => {
+          c.style.display = (layer === 'all' || c.dataset.domain === layer) ? '' : 'none';
+        });
+      }));
+    </script>
+  </details>
 
   <script is:inline define:vars={{ base }}>
   const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({
@@ -142,7 +166,6 @@ const catalogCount = loadCatalog().length;
     const grid = document.getElementById('pins-grid');
     const empty = document.getElementById('pins-empty');
     const noResults = document.getElementById('pins-no-results');
-    const countEl = document.getElementById('pins-count');
 
     let pins = [];
     try {
@@ -181,7 +204,6 @@ const catalogCount = loadCatalog().length;
     if (pins.length === 0) {
       empty.classList.remove('hidden');
       noResults.classList.add('hidden');
-      if (countEl) countEl.textContent = '';
       return;
     }
 
@@ -189,14 +211,9 @@ const catalogCount = loadCatalog().length;
 
     if (sorted.length === 0 && searchTerm) {
       noResults.classList.remove('hidden');
-      if (countEl) countEl.textContent = `0 moments saved`;
       return;
     } else {
       noResults.classList.add('hidden');
-    }
-
-    if (countEl) {
-      countEl.textContent = `${sorted.length} moment${sorted.length === 1 ? '' : 's'} saved`;
     }
 
     sorted.forEach((pin) => {
