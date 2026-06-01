@@ -55,6 +55,15 @@ const catalogCount = loadCatalog().length;
       </div>
       <div id="chip-hint" class="hidden mb-3 text-xs text-mist-400"></div>
 
+      <!-- Vault Migration Banner -->
+      <div id="vault-banner" class="hidden mb-4 rounded-xl border border-void-700 bg-void-900 p-5" onclick="event.stopImmediatePropagation()">
+        <div class="text-mist-200 mb-3">You have a backup of your pins in the vault. Would you like to bring them into this browser?</div>
+        <div class="flex gap-3">
+          <button id="bring-home" class="px-4 py-1.5 text-sm rounded-lg bg-signal-400 text-void-950 font-medium">Bring them home</button>
+          <button id="not-now" class="px-4 py-1.5 text-sm rounded-lg border border-void-700 text-mist-300">Not now</button>
+        </div>
+      </div>
+
       <div class="mb-4 flex items-center justify-between gap-4">
         <div class="flex items-center gap-3">
           <input id="pins-search" type="text" placeholder="Find a saved view..."
@@ -177,14 +186,6 @@ const catalogCount = loadCatalog().length;
     const parsed = Number(value);
     return Number.isFinite(parsed) ? parsed : fallback;
   };
-
-  function showToast(message) {
-    const toast = document.createElement('div');
-    toast.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#0f1420;border:1px solid #36415a;color:#e9edf5;padding:10px 22px;border-radius:9999px;font-size:13px;z-index:9999;';
-    toast.textContent = message;
-    document.body.appendChild(toast);
-    setTimeout(() => toast.remove(), 3200);
-  }
 
   let activeChip = 'all';
 
@@ -378,14 +379,10 @@ const catalogCount = loadCatalog().length;
         `;
         editPanel.classList.remove('hidden');
 
-        // Robust protection so clicks inside the edit panel never trigger card flyTo
-        editPanel.addEventListener('click', (ev) => ev.stopImmediatePropagation());
-
         const saveBtn = editPanel.querySelector('.save-edit');
         const cancelBtn = editPanel.querySelector('.cancel-edit');
 
-        saveBtn.addEventListener('click', (e) => {
-          e.stopImmediatePropagation();
+        saveBtn.addEventListener('click', () => {
           const newLabel = editPanel.querySelector('.edit-label').value.trim();
           const newNote = editPanel.querySelector('.edit-note').value.trim();
           if (newLabel) pin.label = newLabel;
@@ -395,8 +392,7 @@ const catalogCount = loadCatalog().length;
           renderMyPins();
         });
 
-        cancelBtn.addEventListener('click', (e) => {
-          e.stopImmediatePropagation();
+        cancelBtn.addEventListener('click', () => {
           editPanel.classList.add('hidden');
           editPanel.innerHTML = '';
         });
@@ -404,6 +400,59 @@ const catalogCount = loadCatalog().length;
 
       grid.appendChild(card);
     });
+  }
+
+  async function checkVaultAndShowBanner() {
+    const banner = document.getElementById('vault-banner');
+    if (!banner || localStorage.getItem('vaultMigrationBannerDismissed')) return;
+
+    try {
+      // Lightweight read endpoint (minimal for this slice)
+      const res = await fetch('/api/vault-pins');
+      if (!res.ok) return;
+
+      const vaultData = await res.json();
+      if (!Array.isArray(vaultData.pins) || vaultData.pins.length === 0) return;
+
+      const localPins = JSON.parse(localStorage.getItem('personalPins') || '[]');
+      const latestLocal = localPins.reduce((max, p) => {
+        const d = new Date(p.updatedAt || p.createdAt || 0);
+        return d > max ? d : max;
+      }, new Date(0));
+      const vaultNewer = vaultData.lastSynced && (!localPins.length || new Date(vaultData.lastSynced) > latestLocal);
+
+      if (vaultNewer || localPins.length === 0) {
+        banner.classList.remove('hidden');
+
+        document.getElementById('bring-home').onclick = (e) => {
+          e.stopImmediatePropagation();
+          let current = JSON.parse(localStorage.getItem('personalPins') || '[]');
+          const existingIds = new Set(current.map(p => p.id));
+          let added = 0;
+
+          vaultData.pins.forEach(pin => {
+            if (pin && pin.id && !existingIds.has(pin.id)) {
+              current.push(pin);
+              existingIds.add(pin.id);
+              added++;
+            }
+          });
+
+          localStorage.setItem('personalPins', JSON.stringify(current));
+          localStorage.setItem('vaultMigrationBannerDismissed', 'true');
+          banner.classList.add('hidden');
+          renderMyPins();
+        };
+
+        document.getElementById('not-now').onclick = (e) => {
+          e.stopImmediatePropagation();
+          localStorage.setItem('vaultMigrationBannerDismissed', 'true');
+          banner.classList.add('hidden');
+        };
+      }
+    } catch (e) {
+      // Vault endpoint not available yet — silent fail for this slice
+    }
   }
 
   function setupMyPins() {
@@ -455,7 +504,7 @@ const catalogCount = loadCatalog().length;
           try {
             const imported = JSON.parse(event.target.result);
             if (!Array.isArray(imported)) {
-              showToast('File does not contain a valid pins array.');
+              alert('File does not contain a valid pins array.');
               return;
             }
 
@@ -479,10 +528,14 @@ const catalogCount = loadCatalog().length;
             renderMyPins();
 
             const msg = added === 1 ? '1 pin imported' : `${added} pins imported`;
-            showToast(msg);
+            const toast = document.createElement('div');
+            toast.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#0f1420;border:1px solid #36415a;color:#e9edf5;padding:10px 22px;border-radius:9999px;font-size:13px;';
+            toast.textContent = msg;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
 
           } catch (err) {
-            showToast('Could not read the file. Please make sure it is a valid pins backup.');
+            alert('Could not read the file. Please make sure it is a valid pins backup.');
           }
         };
         reader.readAsText(file);
@@ -491,6 +544,7 @@ const catalogCount = loadCatalog().length;
     }
 
     renderMyPins();
+    checkVaultAndShowBanner();
 
     const searchInput = document.getElementById('pins-search');
     const clearBtn = document.getElementById('clear-search');
