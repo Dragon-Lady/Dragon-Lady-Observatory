@@ -24,3 +24,23 @@ load-bearing false-positive defense — implement it in `freshness.py` and have
 
 Politeness: cache catalogs, poll deltas, respect Space-Track terms. Secrets in
 `.env` only (gitignored).
+
+## Updating the live viewer after a poll
+
+After running a fresh poll (or when new live records appear), run the convenience script from the repo root:
+
+**Windows:**
+```powershell
+.\scripts\update-live.ps1
+```
+
+**macOS / Linux:**
+```bash
+./scripts/update-live.sh
+```
+
+These scripts run the poll + rebuild the viewer in one step.
+
+The globe markers (bright red "Active Pass" for payload-involved vs dim "Debris Pass") are driven by the `alert_class` field at build time. Rebuilding the viewer after a poll is currently required for new/updated conjunctions to show the correct glow and labeling on the globe.
+
+This is the main remaining "live data → globe" wiring step as of late May 2026.

@@ -6,6 +6,7 @@ Watchlist hits auto-escalate one tier.
 """
 
 T1_KINDS = frozenset({
+    'conjunction_close_approach',
     'conjunction_high_pc',
     'decay_imminent',
     'space_weather_severe',

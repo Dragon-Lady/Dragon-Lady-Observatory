@@ -167,7 +167,7 @@ def run_all() -> bool:
     print('\n-- Tier assignment --------------------------------------------')
 
     cases = [
-        ([{'kind': 'conjunction_high_pc', 'state': 'active'}], False, 'T1'),
+        ([{'kind': 'conjunction_close_approach', 'state': 'active'}], False, 'T1'),
         ([{'kind': 'maneuver',            'state': 'active'}], False, 'T2'),
         ([],                                                    False, 'T3'),
         ([],                                                    True,  'T2'),  # watchlist escalates T3->T2
@@ -199,6 +199,11 @@ def run_all() -> bool:
         ok = _fail('T1: active payload', f'payload + 1.5km miss should be T1, got {rec_active and rec_active["tier"]}')
     else:
         _pass('T1: active payload + miss < 2km -> T1')
+        kind = rec_active['anomalies'][0]['kind']
+        if kind != 'conjunction_close_approach':
+            ok = _fail('conjunction kind: payload close approach', f'expected conjunction_close_approach, got {kind}')
+        else:
+            _pass('conjunction kind = conjunction_close_approach for payload-involved close approach')
 
     # T1: sub-km miss even for debris x debris
     cdm_subkm = {

@@ -10,31 +10,35 @@ const s = stats();
 const present = domainsPresent();
 const allDomains: Domain[] = ['orbital', 'neo', 'space_weather', 'launch_reentry'];
 const base = import.meta.env.BASE_URL;
-const catalogCount = loadCatalog().length; // backdrop catalog — the "explore" escape hatch
+const catalogCount = loadCatalog().length;
 ---
-<Base title="Stars Edition">
+
+<Base title="Dragon Lady’s Observatory">
   <!-- celestial hero -->
   <section class="sky -mx-4 mb-6 rounded-none border-b border-void-800 px-4 py-10 sm:rounded-xl sm:border">
     <div class="relative z-10 max-w-2xl">
       <h1 class="text-2xl font-semibold tracking-tight text-mist-100 sm:text-3xl">The sky, watched.</h1>
-      <p class="mt-2 text-mist-300">
-        Satellites and debris overhead, near-Earth objects passing by, space weather, and
-        launches — one calm surface, anomalies surfaced and explained, the source one tap away.
+      <p class="mt-1 text-xs text-mist-500">Your personal observatory in the night sky.</p>
+      <p class="mt-3 text-mist-300">
+        A calm place to explore what’s overhead — satellites, stars, and quiet moments worth noticing.
       </p>
-      <div class="mt-4 flex flex-wrap gap-4 text-sm">
-        <span class="text-mist-200"><strong class="text-mist-100">{s.total}</strong> tracked</span>
-        <span class="tier-t1"><strong>{s.t1}</strong> at T1</span>
-        <span class="text-mist-200"><strong class="text-mist-100">{s.anomalies}</strong> anomalies</span>
-        <span class="text-mist-400">{s.domains}/4 domains live</span>
+      <div class="mt-5 flex flex-wrap gap-4 text-sm text-mist-400">
+        <span><strong class="text-mist-100">{s.total}</strong> objects tracked</span>
+        <span><strong class="text-mist-100">{s.anomalies}</strong> moments of interest</span>
       </div>
-      <a href={base + 'globe'} class="mt-5 inline-flex items-center gap-2 rounded-md bg-signal-400 px-4 py-2 text-sm font-semibold !text-void-950 hover:!no-underline hover:bg-signal-300">
-        🌍 Open the globe →
-      </a>
+      <div class="mt-6 flex flex-wrap gap-3">
+        <a href={base + 'globe'} class="inline-flex items-center gap-2 rounded-md bg-signal-400 px-5 py-2.5 text-sm font-semibold !text-void-950 hover:!no-underline hover:bg-signal-300">
+          🌍 Open the globe
+        </a>
+        <a href={base + 'sky-events'} class="inline-flex items-center gap-2 rounded-md border border-void-700 px-5 py-2.5 text-sm font-medium text-mist-200 hover:bg-emerald-900/20 hover:border-emerald-700 hover:text-emerald-300 transition-colors">
+          ✨ Explore the sky events
+        </a>
+      </div>
     </div>
   </section>
 
-  <!-- layer toggles + tier legend -->
-  <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+  <!-- layer toggles + tier legend (de-emphasized) -->
+  <div class="mb-4 flex flex-wrap items-center justify-between gap-3 opacity-90">
     <div class="flex flex-wrap items-center gap-2">
       <button class="layer-btn active rounded-full border border-signal-400 bg-void-800 px-3 py-1 text-sm !text-mist-100" data-layer="all">All</button>
       {allDomains.map((d) => (
@@ -46,23 +50,22 @@ const catalogCount = loadCatalog().length; // backdrop catalog — the "explore"
         >{DOMAIN_LABEL[d]}</button>
       ))}
     </div>
-    <div class="flex items-center gap-3 text-xs text-mist-400" title="Why most things aren't red: tier is set by real risk, not noise.">
-      <span class="flex items-center gap-1"><span class="inline-block h-2 w-2 rounded-full dot-t1"></span>T1 priority</span>
-      <span class="flex items-center gap-1"><span class="inline-block h-2 w-2 rounded-full dot-t2"></span>T2 notable</span>
-      <span class="flex items-center gap-1"><span class="inline-block h-2 w-2 rounded-full dot-t3"></span>T3 background</span>
+    <div class="flex items-center gap-3 text-xs text-mist-400/80" title="Tiers reflect interest level, not urgency.">
+      <span class="flex items-center gap-1"><span class="inline-block h-1.5 w-1.5 rounded-full dot-t1"></span>T1</span>
+      <span class="flex items-center gap-1"><span class="inline-block h-1.5 w-1.5 rounded-full dot-t2"></span>T2</span>
+      <span class="flex items-center gap-1"><span class="inline-block h-1.5 w-1.5 rounded-full dot-t3"></span>T3</span>
     </div>
   </div>
 
-  <!-- browse-catalog hatch: always present so the console never feels dead -->
-  <a href={base + 'catalog'} class="mb-4 flex items-center justify-between rounded-lg border border-void-800 bg-void-900 px-4 py-3 text-sm hover:border-void-600 hover:!no-underline">
-    <span class="!text-mist-200">🛰 Browse the full catalog — <strong class="text-mist-100">{catalogCount.toLocaleString()}</strong> objects overhead</span>
+  <!-- browse-catalog hatch (softened) -->
+  <a href={base + 'catalog'} class="mb-4 flex items-center justify-between rounded-lg border border-void-800 bg-void-900 px-4 py-3 text-sm hover:border-void-600 hover:!no-underline opacity-85">
+    <span class="!text-mist-200">🛰 Explore the full catalog — <strong class="text-mist-100">{catalogCount.toLocaleString()}</strong> objects overhead</span>
     <span class="text-signal-400">search →</span>
   </a>
 
   {records.length === 0 ? (
     <div class="rounded-lg border border-dashed border-void-700 p-8 text-center">
-      <p class="text-mist-300">The sky's quiet — no anomalies flagged right now.</p>
-      <p class="mt-1 text-sm text-mist-400">That's the good kind of quiet. Browse the catalog above, or <a href={base + 'globe'}>open the globe</a> to watch what's overhead.</p>
+      <p class="text-mist-300">The sky feels quiet right now. Take your time exploring.</p>
     </div>
   ) : (
     <div id="grid" class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -87,5 +90,251 @@ const catalogCount = loadCatalog().length; // backdrop catalog — the "explore"
         c.style.display = (layer === 'all' || c.dataset.domain === layer) ? '' : 'none';
       });
     }));
+  </script>
+
+  <!-- My Pins Section -->
+  <section class="mt-10">
+    <div class="mb-4 flex items-center justify-between gap-4">
+      <div>
+        <h2 class="text-xl font-semibold text-mist-100">My Pins</h2>
+        <p class="text-xs text-mist-500 mt-0.5">The places in the sky that matter to you.</p>
+      </div>
+      <div class="flex items-center gap-3">
+        <input id="pins-search" type="text" placeholder="Find a saved view..."
+               class="text-sm px-3 py-1.5 rounded-lg border border-void-700 bg-void-900 text-mist-200 placeholder:text-mist-500 focus:outline-none focus:border-void-500" style="width:180px;">
+        <button id="clear-search" class="text-xs text-mist-500 hover:text-mist-300">clear</button>
+        <select id="pins-sort" class="text-sm px-3 py-1.5 rounded-lg border border-void-700 bg-void-900 text-mist-200 focus:outline-none focus:border-void-500">
+          <option value="newest">Newest first</option>
+          <option value="oldest">Oldest first</option>
+          <option value="favorites">Favorites first</option>
+        </select>
+      </div>
+    </div>
+
+    <div id="pins-grid" class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <!-- Populated by script below -->
+    </div>
+
+    <div id="pins-empty" class="hidden rounded-xl border border-dashed border-void-700 p-8 text-center">
+      <p class="text-mist-300">No pins yet. Open the globe and press <strong>P</strong> on anything beautiful.</p>
+    </div>
+
+    <div id="pins-no-results" class="hidden col-span-full text-center text-mist-400 text-sm py-6">
+      No pins match your search.
+    </div>
+  </section>
+
+  <script is:inline define:vars={{ base }}>
+  const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;',
+  }[char]));
+
+  const safeNumber = (value, fallback = 0) => {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : fallback;
+  };
+
+  function renderMyPins() {
+    const grid = document.getElementById('pins-grid');
+    const empty = document.getElementById('pins-empty');
+    const noResults = document.getElementById('pins-no-results');
+    const countEl = document.getElementById('pins-count');
+
+    let pins = [];
+    try {
+      pins = JSON.parse(localStorage.getItem('personalPins') || '[]');
+    } catch {
+      pins = [];
+    }
+
+    const searchInput = document.getElementById('pins-search');
+    const searchTerm = searchInput ? searchInput.value.toLowerCase() : '';
+
+    const sortSelect = document.getElementById('pins-sort');
+    const sortMode = sortSelect ? sortSelect.value : 'newest';
+
+    let filtered = pins;
+
+    if (searchTerm) {
+      filtered = filtered.filter(p =>
+        String(p.label || '').toLowerCase().includes(searchTerm) ||
+        (p.note && String(p.note).toLowerCase().includes(searchTerm))
+      );
+    }
+
+    // Sorting
+    let sorted = [...filtered];
+    if (sortMode === 'newest') {
+      sorted.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    } else if (sortMode === 'oldest') {
+      sorted.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+    } else if (sortMode === 'favorites') {
+      sorted.sort((a, b) => (b.favorite ? 1 : 0) - (a.favorite ? 1 : 0) || new Date(b.createdAt) - new Date(a.createdAt));
+    }
+
+    grid.innerHTML = '';
+
+    if (pins.length === 0) {
+      empty.classList.remove('hidden');
+      noResults.classList.add('hidden');
+      if (countEl) countEl.textContent = '';
+      return;
+    }
+
+    empty.classList.add('hidden');
+
+    if (sorted.length === 0 && searchTerm) {
+      noResults.classList.remove('hidden');
+      if (countEl) countEl.textContent = `0 moments saved`;
+      return;
+    } else {
+      noResults.classList.add('hidden');
+    }
+
+    if (countEl) {
+      countEl.textContent = `${sorted.length} moment${sorted.length === 1 ? '' : 's'} saved`;
+    }
+
+    sorted.forEach((pin) => {
+      const card = document.createElement('div');
+      card.className = 'group rounded-xl border border-void-700 bg-void-900 p-5 hover:border-void-500 hover:-translate-y-0.5 transition-all duration-200 shadow-sm cursor-pointer';
+
+      // Thumbnail (real or gradient fallback)
+      let thumbHTML = '';
+      const viewState = pin.viewState || {};
+      const lat = safeNumber(viewState.lat);
+      const lng = safeNumber(viewState.lng);
+      const altitude = safeNumber(viewState.altitude, 2.8);
+      const label = escapeHtml(pin.label || 'Untitled Pin');
+      const note = pin.note ? escapeHtml(pin.note) : '';
+
+      if (pin.thumbnailData) {
+        thumbHTML = `<img src="${escapeHtml(pin.thumbnailData)}" class="w-[52px] h-[38px] rounded-md object-cover flex-shrink-0 border border-void-700" />`;
+      } else {
+        const hue = Math.floor(((lat + 90) / 180) * 360);
+        const sat = 38 + Math.floor(Math.abs(lng) % 35);
+        const light = 32 + Math.floor(Math.abs(lat) % 18);
+        thumbHTML = `<div style="width:52px;height:38px;border-radius:6px;background:linear-gradient(135deg, hsl(${hue},${sat}%,${light}%), hsl(${hue+30},${sat+10}%,${light-8}%));flex-shrink-0;border:1px solid #36415a;"></div>`;
+      }
+
+      const lastViewed = pin.updatedAt 
+        ? `Last viewed ${Math.floor((Date.now() - new Date(pin.updatedAt).getTime()) / (1000*60*60*24))} days ago`
+        : `Pinned ${new Date(pin.createdAt).toLocaleDateString()}`;
+
+      card.innerHTML = `
+        <div class="flex justify-between items-start">
+          <div class="flex items-center gap-2 min-w-0">
+            ${thumbHTML}
+            <div class="min-w-0">
+              <div class="font-medium text-mist-100 pin-label cursor-pointer hover:underline flex items-center gap-1.5">
+                ${label}
+                ${pin.favorite ? `<span class="text-yellow-400 text-sm">★</span>` : ''}
+              </div>
+              <div class="text-[10px] text-mist-500 mt-0.5">${lastViewed}</div>
+            </div>
+          </div>
+          <div class="flex items-center gap-1">
+            <button class="favorite-btn text-lg leading-none transition-colors ${pin.favorite ? 'text-yellow-400' : 'text-mist-400 hover:text-yellow-300'}" data-id="${pin.id}">★</button>
+            <button class="delete-pin text-mist-400 hover:text-red-400/80 text-xl leading-none transition-colors" data-id="${pin.id}">×</button>
+          </div>
+        </div>
+        ${note ? `<div class="mt-3 text-sm text-mist-300 pin-note cursor-pointer hover:underline line-clamp-2">${note}</div>` : ''}
+        ${pin.sourceEventId ? `<div class="mt-2 text-[10px] text-emerald-400/70">from Sky Events</div>` : ''}
+        <div class="mt-3 text-[10px] text-mist-500">lat ${lat.toFixed(2)} · lng ${lng.toFixed(2)}</div>
+      `;
+
+      // Click card → fly to view on globe + pass pin identity
+      card.addEventListener('click', (e) => {
+        if (e.target.classList.contains('delete-pin') || e.target.classList.contains('favorite-btn')) return;
+
+        // Pass both the viewState and the specific pin ID so the globe knows exactly which pin we're viewing
+        localStorage.setItem('flyToPin', JSON.stringify({
+          id: pin.id,
+          viewState: { lat, lng, altitude }
+        }));
+        window.location.href = base + 'globe';
+      });
+
+      // Delete
+      card.querySelector('.delete-pin').addEventListener('click', (e) => {
+        e.stopImmediatePropagation();
+        if (!confirm('Remove this pin?')) return;
+        const updated = pins.filter(p => p.id !== pin.id);
+        localStorage.setItem('personalPins', JSON.stringify(updated));
+        renderMyPins();
+      });
+
+      // Favorite toggle
+      const favBtn = card.querySelector('.favorite-btn');
+      if (favBtn) {
+        favBtn.addEventListener('click', (e) => {
+          e.stopImmediatePropagation();
+          pin.favorite = !pin.favorite;
+          const updated = pins.map(p => p.id === pin.id ? pin : p);
+          localStorage.setItem('personalPins', JSON.stringify(updated));
+          renderMyPins();
+        });
+      }
+
+      // Edit label
+      const labelEl = card.querySelector('.pin-label');
+      if (labelEl) {
+        labelEl.addEventListener('click', (e) => {
+          e.stopImmediatePropagation();
+          const newLabel = prompt('Edit label:', pin.label);
+          if (newLabel && newLabel.trim()) {
+            pin.label = newLabel.trim();
+            const updated = pins.map(p => p.id === pin.id ? pin : p);
+            localStorage.setItem('personalPins', JSON.stringify(updated));
+            renderMyPins();
+          }
+        });
+      }
+
+      // Edit note
+      const noteEl = card.querySelector('.pin-note');
+      if (noteEl) {
+        noteEl.addEventListener('click', (e) => {
+          e.stopImmediatePropagation();
+          const newNote = prompt('Edit note:', pin.note || '');
+          pin.note = newNote ? newNote.trim() : undefined;
+          const updated = pins.map(p => p.id === pin.id ? pin : p);
+          localStorage.setItem('personalPins', JSON.stringify(updated));
+          renderMyPins();
+        });
+      }
+
+      grid.appendChild(card);
+    });
+  }
+
+  function setupMyPins() {
+    renderMyPins();
+
+    const searchInput = document.getElementById('pins-search');
+    const clearBtn = document.getElementById('clear-search');
+    const sortSelect = document.getElementById('pins-sort');
+
+    if (searchInput) {
+      searchInput.addEventListener('input', () => renderMyPins());
+    }
+
+    if (clearBtn && searchInput) {
+      clearBtn.addEventListener('click', () => {
+        searchInput.value = '';
+        renderMyPins();
+      });
+    }
+
+    if (sortSelect) {
+      sortSelect.addEventListener('change', () => renderMyPins());
+    }
+  }
+
+  setupMyPins();
   </script>
 </Base>

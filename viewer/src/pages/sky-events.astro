@@ -1,0 +1,137 @@
+---
+import Base from '@/layouts/Base.astro';
+const base = import.meta.env.BASE_URL;
+---
+
+<Base title="Sky Events · Dragon Lady’s Observatory">
+  <div class="max-w-6xl mx-auto px-4 py-10">
+    <div class="mb-10">
+      <a href={base} class="text-sm text-mist-400 hover:text-mist-200">← back to console</a>
+      <h1 class="mt-4 text-4xl font-semibold tracking-tight text-mist-100">What’s beautiful in the sky tonight?</h1>
+      <p class="mt-3 text-mist-300 max-w-2xl text-lg">
+        A calm, personal guide to celestial moments worth looking at.<br>
+        No alerts. Just wonder.
+      </p>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-5 gap-8">
+      
+      <!-- What's Happening Tonight -->
+      <section class="lg:col-span-3">
+        <div class="flex items-center justify-between mb-5">
+          <h2 class="text-xl font-medium text-mist-200">What’s Happening Tonight / Soon</h2>
+          <span class="text-xs text-mist-500">Tonight + next 7 days</span>
+        </div>
+
+        <div class="space-y-4" id="events-grid">
+          <!-- Populated by script -->
+        </div>
+      </section>
+
+      <!-- Constellation Highlights -->
+      <section class="lg:col-span-2">
+        <div class="flex items-center justify-between mb-5">
+          <h2 class="text-xl font-medium text-mist-200">Constellation Highlights</h2>
+        </div>
+
+        <div class="space-y-4" id="constellations-grid">
+          <!-- Populated by script -->
+        </div>
+      </section>
+
+    </div>
+  </div>
+
+  <script is:inline>
+    const events = [
+      { id: 'full-moon', name: 'Full Moon', desc: 'A luminous full moon rises tonight — perfect for quiet sky watching.' },
+      { id: 'venus-evening', name: 'Venus as Evening Star', desc: 'Venus shines brilliantly in the western sky after sunset.' },
+      { id: 'perseids', name: 'Perseid Meteor Shower', desc: 'Fast, bright meteors streak across the night sky in mid-August.' },
+    ];
+
+    const constellations = [
+      { id: 'orion', name: 'Orion', desc: 'The Hunter. One of the most recognizable constellations in the winter sky.' },
+      { id: 'pleiades', name: 'Pleiades', desc: 'A delicate cluster of stars, often called the Seven Sisters.' },
+      { id: 'andromeda', name: 'Andromeda Galaxy', desc: 'Our nearest major galactic neighbor — visible to the naked eye on dark nights.' },
+      { id: 'cassiopeia', name: 'Cassiopeia', desc: 'The Queen. A bright W-shaped constellation in the northern sky.' },
+    ];
+
+    const defaultViews = {
+      'full-moon': { lat: 18, lng: -35, altitude: 1.9 },
+      'venus-evening': { lat: 8, lng: -65, altitude: 2.1 },
+      perseids: { lat: 52, lng: 46, altitude: 2.0 },
+      orion: { lat: -8, lng: 84, altitude: 1.8 },
+      pleiades: { lat: 24, lng: 58, altitude: 1.9 },
+      andromeda: { lat: 41, lng: 10, altitude: 1.9 },
+      cassiopeia: { lat: 62, lng: -15, altitude: 1.8 },
+    };
+
+    function readPins() {
+      try {
+        const pins = JSON.parse(localStorage.getItem('personalPins') || '[]');
+        return Array.isArray(pins) ? pins : [];
+      } catch {
+        return [];
+      }
+    }
+
+    function createTile(item, type) {
+      const el = document.createElement('div');
+      el.className = 'group rounded-2xl border border-void-700 bg-void-900 p-6 hover:border-void-500 hover:-translate-y-0.5 transition-all duration-200 shadow-sm';
+
+      el.innerHTML = `
+        <div class="flex justify-between items-start">
+          <div>
+            <div class="font-medium text-mist-100 text-lg">${item.name}</div>
+            <div class="mt-2 text-mist-300 text-sm leading-snug">${item.desc}</div>
+          </div>
+          <button class="pin-btn mt-1 px-4 py-1.5 text-xs rounded-full border border-void-600 text-mist-300 hover:bg-emerald-900/30 hover:border-emerald-700 hover:text-emerald-300 active:bg-emerald-900/50 transition-all">Pin this</button>
+        </div>
+      `;
+
+      el.querySelector('.pin-btn').addEventListener('click', (e) => {
+        e.stopImmediatePropagation();
+        const btn = e.currentTarget;
+        const pins = readPins();
+        const sourceEventId = `${type}:${item.id}`;
+        const existing = pins.find((pin) => pin.sourceEventId === sourceEventId);
+
+        if (!existing) {
+          pins.unshift({
+            id: `${Date.now().toString(36)}-${item.id}`,
+            createdAt: new Date().toISOString(),
+            viewState: defaultViews[item.id] || { lat: 0, lng: 0, altitude: 2.4 },
+            label: item.name,
+            note: item.desc,
+            sourceEventId,
+          });
+          localStorage.setItem('personalPins', JSON.stringify(pins));
+        }
+
+        btn.textContent = 'Pinned ✓';
+        btn.disabled = true;
+        btn.classList.add('!border-emerald-700', '!text-emerald-400');
+
+        const toast = document.createElement('div');
+        toast.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#0f1420;border:1px solid #36415a;color:#e9edf5;padding:9px 20px;border-radius:9999px;font-size:13px;';
+        toast.textContent = `${item.name} pinned`;
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 1600);
+      });
+
+      return el;
+    }
+
+    // Render events
+    const eventsGrid = document.getElementById('events-grid');
+    events.forEach(item => eventsGrid.appendChild(createTile(item, 'event')));
+
+    // Render constellations
+    const constGrid = document.getElementById('constellations-grid');
+    constellations.forEach(item => constGrid.appendChild(createTile(item, 'constellation')));
+  </script>
+
+  <div class="mt-12 text-center">
+    <a href={base} class="text-xs text-mist-500 hover:text-mist-300">← back to the main console</a>
+  </div>
+</Base>

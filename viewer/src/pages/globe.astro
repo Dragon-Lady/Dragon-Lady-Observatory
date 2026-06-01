@@ -13,13 +13,14 @@ const GLOBE_MAX = 80;   // glowing markers plotted on the globe (keeps it smooth
 const panelList = conjunctions.slice(0, PANEL_MAX);
 const globeConj = conjunctions.slice(0, GLOBE_MAX);
 ---
+
 <!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="theme-color" content="#05070d" />
-  <title>The Globe · Stars Edition</title>
+  <title>The Globe · Dragon Lady’s Observatory</title>
   <style>
     .flyrow:hover { background:#1a2233; }
     .flyrow.flyrow--active { background:#241019; box-shadow:inset 2px 0 0 #ff5470; }
@@ -30,16 +31,11 @@ const globeConj = conjunctions.slice(0, GLOBE_MAX);
 
   <div style="position:fixed;top:14px;left:14px;z-index:10;background:#0f1420cc;backdrop-filter:blur(8px);border:1px solid #232c40;border-radius:12px;padding:14px 16px;max-width:300px;">
     <div style="display:flex;align-items:baseline;gap:8px;">
-      <span style="font-size:16px;font-weight:600;color:#e9edf5;">Stars Edition</span>
+      <span style="font-size:16px;font-weight:600;color:#e9edf5;">Dragon Lady’s Observatory</span>
       <a href={base} style="color:#6fd3e2;font-size:13px;text-decoration:none;">← console</a>
     </div>
     <p style="margin:6px 0 0;color:#aab4c7;font-size:13px;line-height:1.5;">
-      <span id="count">…</span> real objects, propagated live to where they are
-      <em>right now</em>, over filled countries + US states so you can place them.
-      Drag to spin, scroll to zoom. <span style="color:#ff5470;">●</span> ISS.
-    </p>
-    <p style="margin:8px 0 0;color:#8893a8;font-size:12px;">
-      {s.anomalies} anomalies in the console. Orbital anomalies with elsets plot here as tier-colored markers.
+      <span id="count">…</span> real objects, propagated live.
     </p>
   </div>
 
@@ -50,7 +46,6 @@ const globeConj = conjunctions.slice(0, GLOBE_MAX);
         {conjunctions.length} close approaches ·
         <span style="color:#ff5470;"> {alertCount} active</span> ·
         <span style="color:#aab4c7;"> {closeCount} debris</span>
-        <div style="color:#6fd3e2;margin-top:3px;">tap a row to fly there →</div>
       </div>
     )}
     {panelList.map((c) => (
@@ -98,6 +93,7 @@ const globeConj = conjunctions.slice(0, GLOBE_MAX);
     function load(src){return new Promise((res,rej)=>{const s=document.createElement('script');s.src=src;s.onload=res;s.onerror=rej;document.head.appendChild(s);});}
     const EARTH_R = 6371;
     const esc = (s) => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
     let catalog = [];
     const anomalyCatalog = Array.isArray(markers) ? markers : [];
     const conjunctionCatalog = Array.isArray(conjunctions) ? conjunctions : [];
@@ -108,10 +104,9 @@ const globeConj = conjunctions.slice(0, GLOBE_MAX);
       return '#9fb0c9';
     }
 
-    // current propagated position+label of every flagged marker, keyed by record
-    // id — lets a panel-row click fly the globe to where the dot actually is now.
+    // Current propagated position+label of every flagged marker, keyed by record
+    // id. This lets a panel-row click fly to where the dot actually is now.
     const posById = {};
-    function indexPositions(arr){ for (const d of arr) if (d && d.id) posById[d.id] = d; }
 
     function propagate(when){
       const gmst = satellite.gstime(when);
@@ -156,9 +151,8 @@ const globeConj = conjunctions.slice(0, GLOBE_MAX);
       return pts;
     }
 
-    // A conjunction is point-like at globe scale → ONE tier-styled marker at its
-    // location. bright = ALERT (payload at risk); dim = close pass (debris near-miss).
-    // Label names both objects + miss + TCA (the two-object detail lives on zoom/detail).
+    // A conjunction is point-like at globe scale: one tier-styled marker at its
+    // location. Bright = alert; dim = close pass.
     function propagateConjunctions(when){
       const gmst = satellite.gstime(when);
       const markers = [];
@@ -172,19 +166,17 @@ const globeConj = conjunctions.slice(0, GLOBE_MAX);
           const gd = satellite.eciToGeodetic(pv.position, gmst);
           const lat = satellite.degreesLat(gd.latitude), lng = satellite.degreesLong(gd.longitude);
           if(Number.isNaN(lat)||Number.isNaN(lng)) continue;
-          // Plain-language readout: a calm human sentence, with the raw
-          // numbers kept as a small dim line for anyone who wants them.
           const isAlert = c.alertClass === 'alert';
           const RED = '#ff5470';
           const objs = c.objects || [];
           const nA = (objs[0] && objs[0].name) || 'Object A';
           const nB = (objs[1] && objs[1].name) || 'Object B';
           const missTxt = (c.miss_distance_km != null) ? `${c.miss_distance_km} km` : 'an unknown distance';
-          const when = c.tca ? new Date(c.tca).toUTCString().replace(/:00 GMT$/, ' UTC') : '';
+          const at = c.tca ? new Date(c.tca).toUTCString().replace(/:00 GMT$/, ' UTC') : '';
           const headline = isAlert ? 'Active Pass' : 'Debris Pass';
           const sentence = isAlert
-            ? `${nA} is passing within ${missTxt} of ${nB}${when ? ' at ' + when : ''}.`
-            : `${nA} and ${nB} will pass within ${missTxt}${when ? ' at ' + when : ''}.`;
+            ? `${nA} is passing within ${missTxt} of ${nB}${at ? ' at ' + at : ''}.`
+            : `${nA} and ${nB} will pass within ${missTxt}${at ? ' at ' + at : ''}.`;
           const raw = [
             (c.miss_distance_km != null) ? `${c.miss_distance_km} km miss` : '',
             (c.pc != null) ? `Pc ${Number(c.pc).toExponential(1)}` : '',
@@ -198,7 +190,7 @@ const globeConj = conjunctions.slice(0, GLOBE_MAX);
             size: isAlert ? 15 : 9,
             glow: isAlert ? `0 0 22px ${RED}` : `0 0 10px rgba(255,84,112,0.4)`,
             ring: isAlert ? '2px solid rgba(255,255,255,0.9)' : '1px solid rgba(255,255,255,0.45)',
-            label: `${headline} — ${sentence}`,
+            label: `${headline} - ${sentence}`,
             html: `<div style="font-weight:700;color:${hColor};margin-bottom:3px;">${esc(headline)}</div>`
                 + `<div style="color:#e9edf5;">${esc(sentence)}</div>`
                 + (raw ? `<div style="color:#8893a8;font-size:11px;margin-top:4px;">${esc(raw)}</div>` : ''),
@@ -208,15 +200,18 @@ const globeConj = conjunctions.slice(0, GLOBE_MAX);
       return markers;
     }
 
+    function indexPositions(arr){ for (const d of arr) if (d && d.id) posById[d.id] = d; }
+
     (async () => {
       try {
         await load('https://cdn.jsdelivr.net/npm/satellite.js@5.0.0/dist/satellite.min.js');
         await load('https://cdn.jsdelivr.net/npm/globe.gl');
         catalog = await (await fetch(catalogUrl)).json();
 
-        let pts = propagate(new Date());
-        let hot = propagateMarkers(new Date());
-        let conj = propagateConjunctions(new Date());
+        const now = new Date();
+        let pts = propagate(now);
+        let hot = propagateMarkers(now);
+        let conj = propagateConjunctions(now);
         indexPositions([...hot, ...conj]);
         document.getElementById('count').textContent = pts.length.toLocaleString();
 
@@ -226,9 +221,9 @@ const globeConj = conjunctions.slice(0, GLOBE_MAX);
           .backgroundImageUrl('https://unpkg.com/three-globe/example/img/night-sky.png')
           .pointsData(pts)
           .pointLat('lat').pointLng('lng').pointAltitude('alt')
-          .pointColor(d => d.iss ? '#ff5470' : '#dce6f7')   /* cool silver-white — reads as objects, not blue land */
+          .pointColor(d => d.iss ? '#ff5470' : '#dce6f7')
           .pointRadius(d => d.iss ? 0.6 : 0.16)
-          .pointLabel(d => d.iss ? `${d.name} — crewed` : d.name)
+          .pointLabel(d => d.iss ? `${d.name} - crewed` : d.name)
           .pointsMerge(true)
           .htmlElementsData([...hot, ...conj])
           .htmlLat('lat')
@@ -255,19 +250,15 @@ const globeConj = conjunctions.slice(0, GLOBE_MAX);
           });
 
         world.controls().autoRotate = true;
-        world.controls().autoRotateSpeed = 0.07;   // slow, contemplative drift
-        // pause the spin whenever the pointer is over the globe, so you can
-        // hover/click a marker for intel; resume when you move away
+        world.controls().autoRotateSpeed = 0.07;
         const globeEl = document.getElementById('globe');
-        globeEl.addEventListener('pointerenter', () => { world.controls().autoRotate = false; });
-        globeEl.addEventListener('pointerdown',  () => { world.controls().autoRotate = false; });
-        globeEl.addEventListener('pointerleave', () => { world.controls().autoRotate = true; });
+        globeEl.addEventListener('pointerenter', () => world.controls().autoRotate = false);
+        globeEl.addEventListener('pointerdown',  () => world.controls().autoRotate = false);
+        globeEl.addEventListener('pointerleave', () => world.controls().autoRotate = true);
+
         world.pointOfView({ altitude: 2.8 });
         document.getElementById('loading').remove();
 
-        // Filled land layers so you can pinpoint *where* a dot is — filled
-        // countries worldwide + US state outlines on top. Land lifts out of the
-        // ocean dark; borders/coastlines read clearly. Fails quiet if offline.
         const COUNTRIES = 'https://cdn.jsdelivr.net/gh/martynafford/natural-earth-geojson@master/110m/cultural/ne_110m_admin_0_countries.json';
         const US_STATES = 'https://cdn.jsdelivr.net/gh/PublicaMundi/MappingAPI@master/data/geojson/us-states.json';
         Promise.allSettled([
@@ -285,23 +276,22 @@ const globeConj = conjunctions.slice(0, GLOBE_MAX);
             .polygonCapColor(f => f._kind === 'state' ? 'rgba(0,0,0,0)' : 'rgba(46,74,112,0.30)')
             .polygonSideColor(() => 'rgba(0,0,0,0)')
             .polygonStrokeColor(f => f._kind === 'state'
-              ? 'rgba(150,195,240,0.35)'      // faint state lines
-              : 'rgba(165,205,245,0.65)')     // brighter coastlines / country borders
+              ? 'rgba(150,195,240,0.35)'
+              : 'rgba(165,205,245,0.65)')
             .polygonAltitude(f => f._kind === 'state' ? 0.0075 : 0.007)
             .polygonsTransitionDuration(0);
         });
         document.getElementById('info-x').addEventListener('click', () => { document.getElementById('info').style.display = 'none'; });
 
-        // Panel row click -> fly the globe to that dot's live position + show its data.
         function flyTo(id, rowEl){
           const d = posById[id];
           const info = document.getElementById('info'), txt = document.getElementById('info-text');
           if (!d){
-            txt.textContent = 'That object is below the horizon / not currently propagatable — try again in a moment.';
+            txt.textContent = 'That object is below the horizon / not currently propagatable - try again in a moment.';
             info.style.display = 'block';
             return;
           }
-          world.controls().autoRotate = false;          // hold still so it doesn't drift off
+          world.controls().autoRotate = false;
           world.pointOfView({ lat: d.lat, lng: d.lng, altitude: 1.4 }, 1200);
           if (d.html) txt.innerHTML = d.html; else txt.textContent = d.label || id;
           info.style.display = 'block';
@@ -312,14 +302,248 @@ const globeConj = conjunctions.slice(0, GLOBE_MAX);
           row.addEventListener('click', () => flyTo(row.getAttribute('data-fly'), row));
         });
 
-        // keep the swarm current — re-propagate every 10s (gentle for 15k)
+        // === Personal Pins (P hotkey + context bar + thumbnail capture) ===
+        let thumbnailData = '';
+
+        function createPinPrompt() {
+          const pov = world.pointOfView();
+          const viewState = { lat: pov.lat || 0, lng: pov.lng || 0, altitude: pov.altitude || 2.8 };
+
+          // Capture thumbnail
+          try {
+            const canvas = globeEl.querySelector('canvas');
+            if (canvas) thumbnailData = canvas.toDataURL('image/jpeg', 0.6);
+          } catch(e){}
+
+          const overlay = document.createElement('div');
+          overlay.style.cssText = 'position:fixed;inset:0;background:rgba(5,7,13,0.85);display:flex;align-items:center;justify-content:center;z-index:100;';
+          overlay.innerHTML = `
+            <div style="background:#0f1420;border:1px solid #36415a;border-radius:14px;padding:26px;width:380px;max-width:90vw;box-shadow:0 10px 30px rgba(0,0,0,0.4);">
+              <div style="font-size:15px;font-weight:600;color:#e9edf5;margin-bottom:14px;">Pin this view</div>
+              <input id="pin-label" type="text" placeholder="Label (e.g. My dragon)" style="width:100%;padding:11px;border-radius:10px;border:1px solid #36415a;background:#05070d;color:#e9edf5;font-size:14px;margin-bottom:10px;">
+              <textarea id="pin-note" placeholder="Optional note..." rows="3" style="width:100%;padding:11px;border-radius:10px;border:1px solid #36415a;background:#05070d;color:#e9edf5;font-size:14px;resize:vertical;"></textarea>
+              <div style="margin-top:18px;display:flex;gap:10px;justify-content:flex-end;">
+                <button id="pin-cancel" style="padding:9px 20px;border-radius:10px;border:1px solid #36415a;background:transparent;color:#8893a8;cursor:pointer;">Cancel</button>
+                <button id="pin-save" style="padding:9px 22px;border-radius:10px;border:none;background:#6fd3e2;color:#05070d;font-weight:600;cursor:pointer;">Save Pin</button>
+              </div>
+            </div>
+          `;
+          document.body.appendChild(overlay);
+
+          const labelInput = overlay.querySelector('#pin-label');
+          const noteInput = overlay.querySelector('#pin-note');
+          const saveBtn = overlay.querySelector('#pin-save');
+          const cancelBtn = overlay.querySelector('#pin-cancel');
+          labelInput.focus();
+
+          function close() { overlay.remove(); }
+          cancelBtn.addEventListener('click', close);
+
+          saveBtn.addEventListener('click', () => {
+            const label = labelInput.value.trim() || 'Untitled Pin';
+            const note = noteInput.value.trim() || undefined;
+
+            const pins = JSON.parse(localStorage.getItem('personalPins') || '[]');
+            pins.unshift({
+              id: Date.now().toString(36),
+              createdAt: new Date().toISOString(),
+              viewState,
+              label,
+              note,
+              thumbnailData
+            });
+            localStorage.setItem('personalPins', JSON.stringify(pins));
+            close();
+
+            const toast = document.createElement('div');
+            toast.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#0f1420;border:1px solid #36415a;color:#e9edf5;padding:8px 18px;border-radius:9999px;font-size:13px;';
+            toast.textContent = 'Pin saved';
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 1600);
+          });
+
+          overlay.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); saveBtn.click(); }
+            if (e.key === 'Escape') close();
+          });
+        }
+
+        document.addEventListener('keydown', (e) => {
+          if (e.key.toLowerCase() === 'p') {
+            if (e.target && ['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) return;
+            e.preventDefault();
+            createPinPrompt();
+          }
+        });
+
+        // === S Hotkey (quick capture) ===
+        function captureView() {
+          const pov = world.pointOfView();
+          const capture = {
+            capturedAt: new Date().toISOString(),
+            viewState: { lat: pov.lat || 0, lng: pov.lng || 0, altitude: pov.altitude || 2.8 },
+            note: 'Quick capture via S key'
+          };
+          const captures = JSON.parse(localStorage.getItem('savedCaptures') || '[]');
+          captures.unshift(capture);
+          localStorage.setItem('savedCaptures', JSON.stringify(captures));
+
+          const toast = document.createElement('div');
+          toast.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#0f1420;border:1px solid #36415a;color:#e9edf5;padding:8px 18px;border-radius:9999px;font-size:13px;';
+          toast.textContent = 'View captured';
+          document.body.appendChild(toast);
+          setTimeout(() => toast.remove(), 1600);
+        }
+
+        document.addEventListener('keydown', (e) => {
+          if (e.key.toLowerCase() === 's') {
+            if (e.target && ['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) return;
+            e.preventDefault();
+            captureView();
+          }
+        });
+
+        // === Fly to pin from dashboard (with proper pin identity) ===
+        const pendingFly = localStorage.getItem('flyToPin');
+
+        if (pendingFly) {
+          try {
+            const flyData = JSON.parse(pendingFly);
+            const targetView = flyData.viewState || flyData; // support old format temporarily
+            const targetId = flyData.id || null;
+
+            setTimeout(() => {
+              world.controls().autoRotate = false;
+              world.pointOfView({ 
+                lat: targetView.lat, 
+                lng: targetView.lng, 
+                altitude: targetView.altitude ? Math.max(1.3, targetView.altitude * 0.9) : 1.7 
+              }, 1600);
+
+              // Find the actual pin by ID if we have it
+              const pins = JSON.parse(localStorage.getItem('personalPins') || '[]');
+              let viewedPin = null;
+
+              if (targetId) {
+                viewedPin = pins.find(p => p.id === targetId);
+              }
+
+              // Fallback: if no ID or pin not found, try to match by viewState (for backward compat)
+              if (!viewedPin) {
+                viewedPin = pins.find(p => 
+                  p.viewState.lat === targetView.lat && 
+                  p.viewState.lng === targetView.lng
+                );
+              }
+
+              if (viewedPin) {
+                // Update last viewed
+                viewedPin.updatedAt = new Date().toISOString();
+                localStorage.setItem('personalPins', JSON.stringify(pins));
+
+                // Show warm context bar with proper pin identity
+                const context = document.createElement('div');
+                context.style.cssText = 'position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#0f1420ee;border:1px solid #36415a;color:#aab4c7;padding:9px 22px;border-radius:9999px;font-size:12.5px;display:flex;gap:14px;align-items:center;box-shadow:0 4px 20px rgba(0,0,0,0.35);';
+                context.innerHTML = `
+                  <span>Welcome back to this view</span>
+                  <button id="edit-pin-action" style="background:none;border:none;color:#6fd3e2;font-size:11.5px;cursor:pointer;padding:0 4px;">Edit</button>
+                  <button id="update-position-action" style="background:none;border:none;color:#a3d4f0;font-size:11.5px;cursor:pointer;padding:0 4px;">Update view</button>
+                  <button id="remove-pin-action" style="background:none;border:none;color:#e88a8a;font-size:11.5px;cursor:pointer;padding:0 4px;">Remove</button>
+                  <button id="close-bar" style="background:none;border:none;color:#8893a8;font-size:13px;cursor:pointer;padding:0 2px;">×</button>
+                `;
+                document.body.appendChild(context);
+
+                // Edit label
+                context.querySelector('#edit-pin-action').addEventListener('click', (e) => {
+                  e.stopImmediatePropagation();
+                  context.remove();
+                  const newLabel = prompt('Edit label:', viewedPin.label);
+                  if (newLabel && newLabel.trim()) {
+                    viewedPin.label = newLabel.trim();
+                    localStorage.setItem('personalPins', JSON.stringify(pins));
+                    const toast = document.createElement('div');
+                    toast.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#0f1420;border:1px solid #36415a;color:#e9edf5;padding:8px 18px;border-radius:9999px;font-size:13px;';
+                    toast.textContent = 'Pin updated';
+                    document.body.appendChild(toast);
+                    setTimeout(() => toast.remove(), 1400);
+                  }
+                });
+
+                // Update position
+                context.querySelector('#update-position-action').addEventListener('click', (e) => {
+                  e.stopImmediatePropagation();
+                  const currentPov = world.pointOfView();
+                  viewedPin.viewState = {
+                    lat: currentPov.lat || 0,
+                    lng: currentPov.lng || 0,
+                    altitude: currentPov.altitude || 1.7
+                  };
+                  viewedPin.updatedAt = new Date().toISOString();
+                  localStorage.setItem('personalPins', JSON.stringify(pins));
+
+                  const toast = document.createElement('div');
+                  toast.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#0f1420;border:1px solid #36415a;color:#e9edf5;padding:8px 18px;border-radius:9999px;font-size:13px;';
+                  toast.textContent = 'View updated';
+                  document.body.appendChild(toast);
+                  setTimeout(() => toast.remove(), 1400);
+
+                  // Optionally refresh thumbnail on position update (can be made optional later)
+                  try {
+                    const canvas = document.getElementById('globe').querySelector('canvas');
+                    if (canvas) {
+                      viewedPin.thumbnailData = canvas.toDataURL('image/jpeg', 0.6);
+                      localStorage.setItem('personalPins', JSON.stringify(pins));
+                    }
+                  } catch(e){}
+                });
+
+                // Remove
+                context.querySelector('#remove-pin-action').addEventListener('click', (e) => {
+                  e.stopImmediatePropagation();
+                  if (confirm('Remove this pin?')) {
+                    const updated = pins.filter(p => p.id !== viewedPin.id);
+                    localStorage.setItem('personalPins', JSON.stringify(updated));
+                    context.remove();
+                  }
+                });
+
+                // Close bar
+                context.querySelector('#close-bar').addEventListener('click', (e) => {
+                  e.stopImmediatePropagation();
+                  context.remove();
+                });
+
+                // Clicking the bar itself (outside buttons) closes it
+                context.addEventListener('click', (e) => {
+                  if (!e.target.id.includes('action') && !e.target.id.includes('close')) {
+                    context.remove();
+                  }
+                });
+
+              } else {
+                // Pin no longer exists
+                const toast = document.createElement('div');
+                toast.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#0f1420;border:1px solid #36415a;color:#e9edf5;padding:8px 18px;border-radius:9999px;font-size:13px;';
+                toast.textContent = 'This pin no longer exists';
+                document.body.appendChild(toast);
+                setTimeout(() => toast.remove(), 2000);
+              }
+
+            }, 900);
+            localStorage.removeItem('flyToPin');
+          } catch(e){}
+        }
+
+        // === End of Personal Pins integration ===
+
         setInterval(() => {
-          const now = new Date();
-          world.pointsData(propagate(now));
-          const m = propagateMarkers(now), cj = propagateConjunctions(now);
+          const tick = new Date();
+          world.pointsData(propagate(tick));
+          const m = propagateMarkers(tick), cj = propagateConjunctions(tick);
           indexPositions([...m, ...cj]);
           world.htmlElementsData([...m, ...cj]);
         }, 10000);
+
       } catch(e) {
         document.getElementById('loading').textContent = 'Globe needs network for globe.gl + Earth textures.';
       }

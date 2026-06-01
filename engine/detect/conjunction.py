@@ -112,10 +112,10 @@ def from_cdm(cdm: dict, sources: list[dict],
     # else: not emitted
     if miss_km < _MISS_T1_KM or (either_active and miss_km < _PAYLOAD_T1_KM):
         tier      = 'T1'
-        anom_kind = 'conjunction_high_pc'
+        anom_kind = 'conjunction_close_approach'
     elif both_debris and pc >= _PC_DEBRIS_T2 and miss_km >= _MISS_T1_KM:
         tier      = 'T2'
-        anom_kind = 'conjunction_high_pc'
+        anom_kind = 'conjunction_close_approach'
     else:
         return None  # routine background — not emitted
 

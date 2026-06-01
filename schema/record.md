@@ -30,7 +30,7 @@ One record shape across all four domains, discriminated by `domain`.
 
   "anomalies": [
     {
-      "kind": "maneuver | new_object | conjunction_high_pc | rpo | decay_imminent | neo_close_approach | space_weather_severe | unexpected_brightening | catalog_change",
+      "kind": "maneuver | new_object | conjunction_close_approach | rpo | decay_imminent | neo_close_approach | space_weather_severe | unexpected_brightening | catalog_change",
       "confidence": 0.0,
       "evidence": [
         { "reason": "string", "metric": "delta_v | miss_distance | flux", "value": 0, "source_ref": "...", "observed_at": "ISO" }

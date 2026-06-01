@@ -63,7 +63,7 @@
     "watchlist": false,
     "anomalies": [
       {
-        "kind": "conjunction_high_pc",
+        "kind": "conjunction_close_approach",
         "confidence": 0.9,
         "evidence": [
           { "reason": "miss distance 420 m, Pc above screening threshold", "metric": "miss_distance", "value": 0.42, "source_ref": "space-track", "observed_at": "2026-05-28T20:00:00Z" }
