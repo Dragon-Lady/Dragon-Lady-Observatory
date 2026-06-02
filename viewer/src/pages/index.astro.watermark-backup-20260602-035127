@@ -298,19 +298,10 @@ const catalogCount = loadCatalog().length;
     }
 
     // === Watermark marks (locked rules) ===
-    // CURRENT STATE (no canvas silhouettes — user request to remove them entirely)
-    // User provided two transparent images to "just use" as the watermarks:
-    //   - [Image #1] (horned woman with glitter holding small dragon in hand) → top-right Dragon Lady mark
-    //   - [Image #2] (blue stylized dragon head) → bottom-left dragon mark
-    // These are drawn directly as faint underlays (blended into the dark card bg + veil via canvas globalAlpha).
-    // Transparent (alpha) areas in the PNGs will show the underlying dark card — no checkered layer should appear in the final render.
-    // If checkered pattern shows through, the PNG was likely saved with the editor's checkerboard baked in as pixels instead of real alpha=0; re-export from GIMP/Photoshop with proper transparency.
-    // Canvas silhouette functions and calls have been removed from drawWatermarks (no more "kindergartner crayon squiggles" on top of the actual images).
-    // The provided images ARE the watermarks now.
-    //
     // Default faint dragon (bottom left, always present, cannot be turned off).
     // Personal Dragon Lady mark (Tanya photo-style companion, top right for creator pins).
-    // Pure image-based (user's transparent assets) — no canvas overlay.
+    // Hybrid: soft Imagine JPG underlay (for artistic generated texture) + clean recognizable canvas silhouettes on top (for clear "Dragon" and "Dragon Lady" forms).
+    // The Imagine assets provide the soft quality; the silhouettes (detailed paths) guarantee they read correctly while staying faint. Dragon: snout + 2 horns + multi-finger wing + belly + 3 tail spikes. Lady: head + flowing hair lines + elegant body + small dragon companion.
     //
     // SAVE POINT 2026-06-02 (low credits ~6%, rate limit risk) - UPDATED with new usage info + fixes:
     // - Free credits with SuperGrok: 95% used · Resets Jun 30
@@ -339,114 +330,42 @@ const catalogCount = loadCatalog().length;
     //   Lady mark: head + 3 individual distinct hair bezier flows (different start points/arcs/lengths so clearly strands not mass or tentacles), short neck to shoulder, clear separated feminine torso curve, then GAP + compact separate companion dragon (head/snout/horn/eye + small wing + tail flick + barb) that reads as tiny dragon not blended squiggle.
     //   Silhouette alphas kept ~0.38-0.40, underlay JPG still 0.05 (near invisible, silhouette is definition now). Line widths bumped 2.0/1.8 for readability at faintness.
     //   Text x=160 and positions locked. Hybrid preserved. Ready for sync + live retest on fresh Moon (or other) share card. If still not reading we ask user before any other path.
-    //
-    // NEW FEEDBACK (on iter3 canvas): "well yours is a rather large hump back whale and mine is almost the outside of a woman and a snake line. want me to try on gimp?"
-    //   Interpretation: The current canvas dragon body/wing/tail mass reads as humpback whale (curves + "fin" wing). The lady hair flows + body read as woman outline + single snake/tentacle line instead of 3 distinct hairs + tiny dragon companion.
-    //   Plan: Accept user GIMP offer for the *base Imagine JPGs* (no Grok credits). User will edit the source dragon-watermark.jpg and dragon-lady-mark.jpg in GIMP to produce stronger, clearer, higher-contrast line art that reads as "dragon" and "woman + small dragon" even at small size + low opacity on dark card.
-    //   Guidance given to user: thicken key iconic lines (dragon: long snout, 2 horns, 3 separated wing fingers swept, tail barbs; lady: 3 separate hair strands with visual breaks, clear female head/shoulder/torso, compact chunky small dragon with head/horn/wing/tail separate from the woman form). Keep near-white bg for the existing processImageForTransparentBg.
-    //   After user provides improved JPGs: 
-    //     - Copy new JPGs to live public/watermarks/ + cottage/assets mirror.
-    //     - Bump JPG underlay alpha in drawWatermarks (e.g. 0.12-0.18) so the improved base provides more of the recognition.
-    //     - Tune canvas silhouettes to be *sparser reinforcing outlines* (main outer profile + horns + wing fingers + tail barbs for dragon; head + 3 hair flows + body edge + companion dragon for lady) rather than filled body masses that can misread as whale/snake. Possibly lighter alpha or thinner lw for canvas so base art reads first.
-    //     - Optionally enhance processImageForTransparentBg with extra contrast/unsharp on the line pixels.
-    //     - Re-sync astro + assets, rebuild, hard refresh test.
-    //   This keeps the hybrid "artistic generated + crisp guarantee" while letting human artist (you) fix the recognition problem the soft Imagine lines + our path attempts created. Still pure finish-watermarks scope. If user provides the edited JPGs we execute the copy + code support immediately. Backups of prior assets + astro taken (timestamped _backup_ folders).
-    //
-    // USER PROVIDED NEW REFERENCE IMAGE (right after the GIMP question) — [Image #1]:
-    // A beautiful ethereal mountain scene of a serene blonde woman in a flowing white dress with delicate headpiece, sitting on a rock, with a majestic large white dragon (multiple tall curved horns, striking eye, detailed scaly snout, frills/mane) coiled beside her, looking at her. Misty landscape.
-    // This is the desired "Dragon Lady + her dragon" look.
-    // Immediately performed whole-fn update on both drawDragonSilhouette and drawLadyMarkSilhouette (cottage source) to directly capture the spirit of this ref image:
-    //   Dragon (bottom left): tall multi-horn crown (tall curved like the ref), prominent eye, strong snout with jaw, high elegant neck, substantial body without whale hump, clear wing with 3 fingers, long tail with barbs. More majestic and "white dragon" in feel.
-    //   Lady mark (top right): woman with long voluminous distinct hair flows (multiple strands + volume to suggest waves/braid), small headpiece accent, elegant shoulder + flowing dress with hem volume; companion dragon given real presence (tall horns matching the ref, eye, snout, wing, tail) positioned "with her" like the image, not a snake or tiny blob.
-    // Canvas now tuned to the user's vision. Old soft JPG underlays remain low-alpha (user can still GIMP a cropped/bg-removed version of this new ref into the JPG files for stronger underlay if wanted).
-    // Synced to live + npm run build clean. Ready for hard refresh + fresh telescope pin + Share test on the corners.
-    //
-    // LATEST TEST IMAGE FROM USER (after GIMP attempt):
-    // "I'm glad you liked it, I tried to make it on gimp so you could just use the image, I gave it a go. But it didn't work" + screenshot of the Full Moon share card.
-    // Observed in the card: canvas line-art marks visible (dragon BL, lady+small dragon TR), but text crowding the dragon ("Full Moon · Visible" and pinned line too close/left), marks too small and faint on the dark bg, top-right mark not prominent enough.
-    // Fixes just applied: captionX = 220 (more space for dragon); underlayAlpha = 0.12; silhouette alphas 0.52/0.55; larger draw sizes (dragon 135x100 at adjusted pos, lady 115x95); scale 1.15 on silhouettes; lineWidths 2.4/2.3; positions nudged for better corner presence.
-    // This should make the watermarks larger, bolder, and the text clearly to the right of the dragon in future shares.
-    // The GIMP attempt likely didn't produce a clean cropped near-white JPG (or the full landscape was used), so the canvas (now tuned to the mountain ref) is doing the heavy lifting. Recommend for GIMP: tight crop to woman+dragon only, bg to near-white, artistic soften, overwrite the lady-mark.jpg (and dragon if desired).
-    // Test after hard refresh: new pin + Share. Report on the corners.
-
-    // USER PROVIDED TRANSPARENT ASSETS (2026-06-02):
-    // [Image #1] woman with horns + small dragon in hand (ethereal, glitter, perfect "Dragon Lady" for top-right creator mark) – transparent PNG.
-    // [Image #2] stylized blue dragon head (fierce, detailed, good standalone dragon for bottom-left) – transparent.
-    // User: "these are transparent do they help?"
-    // Yes! These solve the "boxes" problem directly. We load the PNGs natively (no white-bg processing) and draw them directly as the watermarks.
-    // Canvas silhouettes removed entirely from drawWatermarks (per "remove canvas all together").
-    // The images are the watermarks now (faint underlay blended into the dark card).
-    // Plan executed: removed draw*Silhouette calls from drawWatermarks. Only the image draws remain. underlayAlpha ~0.25.
-    // Code still auto-tries .png/.jpg/.webp.
-    // We located the exact images from the conversation in the .grok session images cache and copied them to the folders (old conflicting dragon-watermark.jpg removed to prevent wrong load):
-    // - woman + small dragon (image-2f819d74-7298-4f27-a8ec-3e659a2057bc.jpg) as dragon-lady-mark.jpg
-    // - blue dragon head (image-3c343d39-8abb-4f40-8432-73051ca76ff5.webp) as dragon-watermark.webp
-    // These are the precise files you handed in the chat. The loader now prefers .webp for dragon before .jpg (reordered).
-    // User note about placement and "crayon squiggles": the squiggles were the canvas (now gone). The checkered will blend if the PNGs have real alpha (not baked pattern).
-    // User follow-up: "remove canvas all together and you will have the images but you will have the checkered transparent layer as well showing so that needs to be blended" — addressed by removing canvas; transparency composites over dark bg automatically.
-    // LATEST TEST: dragon perfect but tad faint; lady perfect but checkered bg showing.
-    // Fix: always process; broadened desat gray detection (<35 diff, 40-250 avg) to strip checker. Dragon alpha 0.38, lady 0.25.
-    // User re-reported "same two issues" — these changes address it.
 
     async function loadWatermarkAssets() {
-      // Support the user's transparent images with flexible extensions (.png preferred for transparency, but fall back to .jpg/.webp if user saved with different extension)
-      const possibleDragonSrcs = ['/watermarks/dragon-watermark.png', '/watermarks/dragon-watermark.webp', '/watermarks/dragon-watermark.jpg'];
-      const possibleLadySrcs = ['/watermarks/dragon-lady-mark.jpg', '/watermarks/dragon-lady-mark.png', '/watermarks/dragon-lady-mark.webp'];
+      const dragonImg = new Image();
+      const ladyImg = new Image();
+      const dragonSrc = '/watermarks/dragon-watermark.jpg';
+      const ladySrc = '/watermarks/dragon-lady-mark.jpg';
 
-      let dragonImg = new Image();
-      let ladyImg = new Image();
-      let dragonSrcUsed = null;
-      let ladySrcUsed = null;
+      await Promise.all([
+        new Promise((resolve, reject) => {
+          dragonImg.onload = resolve;
+          dragonImg.onerror = () => {
+            console.warn('Could not load dragon watermark, falling back to simple draw');
+            resolve(); // continue even if fails
+          };
+          dragonImg.src = dragonSrc;
+        }),
+        new Promise((resolve, reject) => {
+          ladyImg.onload = resolve;
+          ladyImg.onerror = () => {
+            console.warn('Could not load dragon lady mark, falling back to simple draw');
+            resolve();
+          };
+          ladyImg.src = ladySrc;
+        })
+      ]);
 
-      // Try to load dragon (prefer png for transparency)
-      for (const src of possibleDragonSrcs) {
-        const img = new Image();
-        const loaded = await new Promise((resolve) => {
-          img.onload = () => resolve(true);
-          img.onerror = () => resolve(false);
-          img.src = src;
-        });
-        if (loaded) {
-          dragonImg = img;
-          dragonSrcUsed = src;
-          break;
-        }
-      }
-      if (!dragonSrcUsed) {
-        console.warn('Could not load any dragon watermark asset, falling back to canvas silhouette only');
-      }
-
-      // Try to load lady mark
-      for (const src of possibleLadySrcs) {
-        const img = new Image();
-        const loaded = await new Promise((resolve) => {
-          img.onload = () => resolve(true);
-          img.onerror = () => resolve(false);
-          img.src = src;
-        });
-        if (loaded) {
-          ladyImg = img;
-          ladySrcUsed = src;
-          break;
-        }
-      }
-      if (!ladySrcUsed) {
-        console.warn('Could not load any lady mark asset, falling back to canvas silhouette only');
-      }
-
-      // Preserve true transparent assets. The Dragon Lady reference is a JPG, so soften its
-      // edges into the card instead of drawing it as a hard photo box.
+      // Client-side processing to remove white-ish backgrounds from the Imagine JPGs
+      // This turns the "boxes" into proper faint transparent watermarks without needing new generations (saves credits)
       const processedDragon = await processImageForTransparentBg(dragonImg);
-      const processedLady = await softenPhotoWatermark(ladyImg);
+      const processedLady = await processImageForTransparentBg(ladyImg);
 
       return { dragonImg: processedDragon, ladyImg: processedLady };
     }
 
-    // Processes a loaded image (JPG or PNG) and returns a new Image with background cleaned.
-    // - Removes near-white (for old JPGs)
-    // - Removes common checkerboard grays (for user-provided transparent PNGs that have the editor's checkered bg baked or visible)
-    // This ensures the handed images blend cleanly into the dark card with no checkered layer.
-    // The actual art (dragon/lady) is preserved with contrast boost for faint use.
+    // Processes a loaded image (typically JPG with white bg from Imagine) and returns a new Image
+    // with near-white pixels made transparent. This fixes the empty box appearance in share cards.
     async function processImageForTransparentBg(originalImg) {
       if (!originalImg || !originalImg.complete || originalImg.naturalWidth === 0) {
         return originalImg; // fallback to original if bad
@@ -460,17 +379,8 @@ const catalogCount = loadCatalog().length;
 
         const imageData = offCtx.getImageData(0, 0, offCanvas.width, offCanvas.height);
         const data = imageData.data;
-        let transparentPixels = 0;
-        for (let i = 3; i < data.length; i += 4) {
-          if (data[i] < 250) transparentPixels += 1;
-        }
-        if (transparentPixels > data.length / 4 * 0.05) {
-          resolve(originalImg);
-          return;
-        }
-
-        const threshold = 240; // slightly less aggressive for mixed sources
-        const softness = 20;
+        const threshold = 245; // more conservative: only remove very pure white bg
+        const softness = 15;
 
         for (let i = 0; i < data.length; i += 4) {
           const r = data[i];
@@ -478,15 +388,7 @@ const catalogCount = loadCatalog().length;
           const b = data[i + 2];
           const avg = (r + g + b) / 3;
 
-          const maxC = Math.max(r, g, b);
-          const minC = Math.min(r, g, b);
-          const isDesaturated = (maxC - minC) < 35; // grayish - broader to catch checkerboard in user PNGs
-
-          if (isDesaturated && avg > 40 && avg < 250) {
-            // checkerboard gray (common in transparent PNG previews/exports from GIMP etc.) -> fully transparent
-            // this blends the "checked background" into the dark card
-            data[i + 3] = 0;
-          } else if (avg > threshold) {
+          if (avg > threshold) {
             // very pure white bg -> transparent
             data[i + 3] = 0;
           } else if (avg > threshold - softness) {
@@ -494,21 +396,11 @@ const catalogCount = loadCatalog().length;
             const fade = Math.max(0, (avg - (threshold - softness)) / softness);
             data[i + 3] = Math.floor(data[i + 3] * (1 - fade));
           } else {
-            // the mark area (the actual dragon/lady art): full opacity + stronger contrast boost.
-            const boost = 0.72;
-            let rr = Math.max(0, Math.min(255, Math.floor(r * boost)));
-            let gg = Math.max(0, Math.min(255, Math.floor(g * boost)));
-            let bb = Math.max(0, Math.min(255, Math.floor(b * boost)));
-            const avgLine = (rr + gg + bb) / 3;
-            if (avgLine < 180) {
-              const extra = 0.88;
-              rr = Math.max(0, Math.min(255, Math.floor(rr * extra)));
-              gg = Math.max(0, Math.min(255, Math.floor(gg * extra)));
-              bb = Math.max(0, Math.min(255, Math.floor(bb * extra)));
-            }
-            data[i] = rr;
-            data[i + 1] = gg;
-            data[i + 2] = bb;
+            // the mark area: keep full opacity, slight darken for better contrast on dark card
+            const boost = 0.85;
+            data[i] = Math.max(0, Math.min(255, Math.floor(r * boost)));
+            data[i + 1] = Math.max(0, Math.min(255, Math.floor(g * boost)));
+            data[i + 2] = Math.max(0, Math.min(255, Math.floor(b * boost)));
             data[i + 3] = 255;
           }
         }
@@ -522,299 +414,219 @@ const catalogCount = loadCatalog().length;
       });
     }
 
-    async function softenPhotoWatermark(originalImg) {
-      if (!originalImg || !originalImg.complete || originalImg.naturalWidth === 0) {
-        return originalImg;
-      }
-
-      return new Promise((resolve) => {
-        const offCanvas = document.createElement('canvas');
-        offCanvas.width = originalImg.naturalWidth || originalImg.width;
-        offCanvas.height = originalImg.naturalHeight || originalImg.height;
-        const offCtx = offCanvas.getContext('2d', { willReadFrequently: true });
-        offCtx.drawImage(originalImg, 0, 0, offCanvas.width, offCanvas.height);
-
-        const imageData = offCtx.getImageData(0, 0, offCanvas.width, offCanvas.height);
-        const data = imageData.data;
-        const fade = Math.max(20, Math.floor(Math.min(offCanvas.width, offCanvas.height) * 0.18));
-
-        for (let y = 0; y < offCanvas.height; y++) {
-          for (let x = 0; x < offCanvas.width; x++) {
-            const i = (y * offCanvas.width + x) * 4;
-            const edgeDistance = Math.min(x, y, offCanvas.width - 1 - x, offCanvas.height - 1 - y);
-            const edgeAlpha = Math.max(0, Math.min(1, edgeDistance / fade));
-            data[i + 3] = Math.floor(data[i + 3] * edgeAlpha);
-          }
-        }
-
-        offCtx.putImageData(imageData, 0, 0);
-
-        const processed = new Image();
-        processed.onload = () => resolve(processed);
-        processed.onerror = () => resolve(originalImg);
-        processed.src = offCanvas.toDataURL('image/png');
-      });
-    }
-
     // Helper: draw a clean, recognizable faint dragon silhouette (side view)
-    // Updated to match the user's new reference image of the majestic white horned dragon (tall curved horns,
-    // striking eye, detailed snout, frills, elegant presence). Avoids "humpback whale" by using more segmented,
-    // high-held head/neck, prominent multi-horn crown, and clear dragon features. Still faint artistic silhouette.
+    // Layered on top of the soft Imagine asset (ultra-low alpha) for definition while keeping artistic feel.
+    // Refined after live giggle feedback ("not a dragon at all", "squid maybe"): iconic side-profile dragon
+    // with long snout + 2 distinct horns, swept-back bat/dragon wing with 3 clearly separate trailing fingers
+    // (not ear-like), belly mass + small leg/claw hint, long tapering tail with 3 dorsal barbed spikes.
+    // More angular/characteristic dragon reading at small faint size.
     function drawDragonSilhouette(ctx, x, y, scale, alpha) {
       ctx.save();
       ctx.globalAlpha = alpha;
       ctx.strokeStyle = '#e9edf5';
       ctx.fillStyle = '#e9edf5';
-      ctx.lineWidth = 2.4 * scale;
+      ctx.lineWidth = 2.0 * scale;
       ctx.lineJoin = 'round';
       ctx.lineCap = 'round';
 
       const s = scale;
 
-      // Body with elegant curve, less rounded hump, more dragon-like presence (inspired by the white dragon ref)
+      // Long low body from tail root (horizontal dragon profile)
       ctx.beginPath();
-      ctx.moveTo(x + 8*s, y + 70*s); // tail root
-      ctx.bezierCurveTo(x + 30*s, y + 58*s, x + 60*s, y + 52*s, x + 90*s, y + 55*s);
-      ctx.bezierCurveTo(x + 115*s, y + 52*s, x + 130*s, y + 48*s, x + 135*s, y + 58*s);
+      ctx.moveTo(x + 5*s, y + 68*s);
+      ctx.bezierCurveTo(x + 25*s, y + 55*s, x + 55*s, y + 48*s, x + 85*s, y + 52*s);
+      ctx.bezierCurveTo(x + 105*s, y + 50*s, x + 118*s, y + 48*s, x + 128*s, y + 54*s);
       ctx.stroke();
 
-      // Belly / underbody for volume (distinct from back)
+      // Belly mass (separate underline for volume)
       ctx.beginPath();
-      ctx.moveTo(x + 12*s, y + 66*s);
-      ctx.bezierCurveTo(x + 45*s, y + 62*s, x + 80*s, y + 60*s, x + 128*s, y + 62*s);
+      ctx.moveTo(x + 10*s, y + 64*s);
+      ctx.bezierCurveTo(x + 40*s, y + 60*s, x + 70*s, y + 58*s, x + 120*s, y + 60*s);
       ctx.stroke();
 
-      // Neck rising proudly (high head like the ref dragon)
+      // Small leg/claw hint (adds quadruped mass, helps dragon read)
       ctx.beginPath();
-      ctx.moveTo(x + 135*s, y + 58*s);
-      ctx.bezierCurveTo(x + 142*s, y + 50*s, x + 145*s, y + 40*s, x + 138*s, y + 32*s);
+      ctx.moveTo(x + 95*s, y + 58*s);
+      ctx.lineTo(x + 100*s, y + 68*s);
+      ctx.moveTo(x + 100*s, y + 68*s);
+      ctx.lineTo(x + 108*s, y + 66*s);
       ctx.stroke();
 
-      // Head with long snout, inspired by the ref (strong jaw, presence)
+      // Neck rising to head
       ctx.beginPath();
-      ctx.moveTo(x + 138*s, y + 32*s);
-      ctx.bezierCurveTo(x + 148*s, y + 26*s, x + 165*s, y + 28*s, x + 168*s, y + 38*s); // upper snout
-      ctx.bezierCurveTo(x + 162*s, y + 46*s, x + 148*s, y + 48*s, x + 138*s, y + 40*s); // jaw
+      ctx.moveTo(x + 128*s, y + 54*s);
+      ctx.bezierCurveTo(x + 135*s, y + 48*s, x + 138*s, y + 40*s, x + 132*s, y + 34*s);
       ctx.stroke();
 
-      // Multiple tall curved horns (matching the prominent horn crown in the user ref image)
+      // Head with long forward snout (upper jaw + jawline distinct)
       ctx.beginPath();
-      ctx.moveTo(x + 145*s, y + 30*s); ctx.lineTo(x + 152*s, y + 16*s); // tall back horn 1
-      ctx.moveTo(x + 148*s, y + 29*s); ctx.lineTo(x + 158*s, y + 18*s); // tall horn 2
-      ctx.moveTo(x + 142*s, y + 31*s); ctx.lineTo(x + 148*s, y + 22*s); // smaller forward horn
+      ctx.moveTo(x + 132*s, y + 34*s);
+      ctx.bezierCurveTo(x + 142*s, y + 28*s, x + 158*s, y + 30*s, x + 162*s, y + 40*s); // upper snout
+      ctx.bezierCurveTo(x + 158*s, y + 46*s, x + 145*s, y + 48*s, x + 132*s, y + 42*s); // lower jaw
       ctx.stroke();
 
-      // Striking eye (like the ref dragon's visible eye)
+      // 2 clear horns from crown (distinct, not merged)
       ctx.beginPath();
-      ctx.arc(x + 150*s, y + 36*s, 2.5*s, 0, Math.PI * 2);
+      ctx.moveTo(x + 138*s, y + 32*s); ctx.lineTo(x + 145*s, y + 20*s); // tall main horn
+      ctx.moveTo(x + 142*s, y + 33*s); ctx.lineTo(x + 150*s, y + 24*s); // second horn
+      ctx.stroke();
+
+      // Eye (small, side of head)
+      ctx.beginPath();
+      ctx.arc(x + 142*s, y + 38*s, 2.2*s, 0, Math.PI * 2);
       ctx.fill();
 
-      // Subtle mouth/teeth hint for character
+      // Wing: shoulder attach mid-back, swept back first then moderate up (bat/dragon not rabbit)
       ctx.beginPath();
-      ctx.moveTo(x + 160*s, y + 40*s); ctx.lineTo(x + 165*s, y + 42*s);
+      ctx.moveTo(x + 72*s, y + 50*s); // attach point
+      ctx.bezierCurveTo(x + 55*s, y + 42*s, x + 48*s, y + 28*s, x + 62*s, y + 18*s); // to wrist
       ctx.stroke();
 
-      // Wing: large, elegant, swept (inspired by the ref's majestic presence)
+      // 3 distinct trailing wing fingers (bony, back-pointing, clearly wing not ears)
       ctx.beginPath();
-      ctx.moveTo(x + 78*s, y + 52*s); // shoulder
-      ctx.bezierCurveTo(x + 60*s, y + 38*s, x + 52*s, y + 22*s, x + 68*s, y + 14*s); // main wing arch
+      ctx.moveTo(x + 58*s, y + 26*s); ctx.lineTo(x + 32*s, y + 8*s); ctx.stroke();  // finger 1 longest
+      ctx.beginPath();
+      ctx.moveTo(x + 60*s, y + 24*s); ctx.lineTo(x + 38*s, y + 14*s); ctx.stroke();  // finger 2
+      ctx.beginPath();
+      ctx.moveTo(x + 62*s, y + 22*s); ctx.lineTo(x + 48*s, y + 18*s); ctx.stroke();  // finger 3
+
+      // subtle membrane between for structure (soft connect)
+      ctx.beginPath();
+      ctx.moveTo(x + 32*s, y + 8*s);
+      ctx.quadraticCurveTo(x + 40*s, y + 14*s, x + 48*s, y + 18*s);
       ctx.stroke();
 
-      // 3 clear wing fingers (bony, trailing)
+      // Tail long tapering + flick + 3 dorsal barbed spikes
       ctx.beginPath();
-      ctx.moveTo(x + 64*s, y + 24*s); ctx.lineTo(x + 38*s, y + 6*s); ctx.stroke();
-      ctx.beginPath();
-      ctx.moveTo(x + 66*s, y + 22*s); ctx.lineTo(x + 44*s, y + 10*s); ctx.stroke();
-      ctx.beginPath();
-      ctx.moveTo(x + 68*s, y + 20*s); ctx.lineTo(x + 52*s, y + 14*s); ctx.stroke();
-
-      // Light membrane
-      ctx.beginPath();
-      ctx.moveTo(x + 38*s, y + 6*s);
-      ctx.quadraticCurveTo(x + 48*s, y + 12*s, x + 56*s, y + 16*s);
+      ctx.moveTo(x + 5*s, y + 68*s);
+      ctx.bezierCurveTo(x - 8*s, y + 78*s, x - 4*s, y + 92*s, x + 22*s, y + 95*s);
       ctx.stroke();
 
-      // Long elegant tail with barbs (serpentine like the ref)
+      // spike 1 (triangular barb)
       ctx.beginPath();
-      ctx.moveTo(x + 8*s, y + 70*s);
-      ctx.bezierCurveTo(x - 6*s, y + 82*s, x + 2*s, y + 95*s, x + 28*s, y + 96*s);
-      ctx.stroke();
-
-      // Dorsal tail spikes/barbs (3)
+      ctx.moveTo(x + 2*s, y + 78*s); ctx.lineTo(x - 1*s, y + 72*s); ctx.lineTo(x + 6*s, y + 77*s); ctx.stroke();
+      // spike 2
       ctx.beginPath();
-      ctx.moveTo(x + 4*s, y + 80*s); ctx.lineTo(x + 0*s, y + 74*s); ctx.lineTo(x + 8*s, y + 79*s); ctx.stroke();
+      ctx.moveTo(x + 6*s, y + 84*s); ctx.lineTo(x + 2*s, y + 79*s); ctx.lineTo(x + 10*s, y + 83*s); ctx.stroke();
+      // spike 3 near tip
       ctx.beginPath();
-      ctx.moveTo(x + 10*s, y + 86*s); ctx.lineTo(x + 6*s, y + 81*s); ctx.lineTo(x + 14*s, y + 85*s); ctx.stroke();
-      ctx.beginPath();
-      ctx.moveTo(x + 18*s, y + 92*s); ctx.lineTo(x + 14*s, y + 87*s); ctx.lineTo(x + 22*s, y + 91*s); ctx.stroke();
+      ctx.moveTo(x + 14*s, y + 91*s); ctx.lineTo(x + 10*s, y + 86*s); ctx.lineTo(x + 18*s, y + 90*s); ctx.stroke();
 
       ctx.restore();
     }
 
     // Helper: draw a clean, recognizable faint "Dragon Lady" personal mark (top-right creator)
-    // Updated to the user's new reference image: the serene blonde woman in flowing white dress with
-    // the majestic white horned dragon as companion. Long voluminous hair (multiple distinct flowing
-    // strands + braid-like volume), small headpiece accent, elegant shoulder/dress, and a substantial
-    // companion dragon with tall curved horns, eye, snout, presence — positioned as "her dragon" not a
-    // snake line or tiny squiggle. The silhouette now evokes the ethereal, calm, magical pair from the ref.
+    // Elegant paired form: graceful woman (head, 3 distinct separate flowing hair strands, neck/shoulders,
+    // clear feminine torso) + small but obviously separate compact dragon companion to the right
+    // (own head/snout/horn/eye + wing + tail with barb). After squid feedback: hair strands clearly
+    // individual (different starts/arcs/ends), torso separated from hair, companion dragon compact
+    // and draconic with gap, not blended lines.
     function drawLadyMarkSilhouette(ctx, x, y, scale, alpha) {
       ctx.save();
       ctx.globalAlpha = alpha;
       ctx.strokeStyle = '#f4e9d8';
       ctx.fillStyle = '#f4e9d8';
-      ctx.lineWidth = 2.3 * scale;
+      ctx.lineWidth = 1.8 * scale;
       ctx.lineJoin = 'round';
       ctx.lineCap = 'round';
 
       const s = scale;
 
-      // Head with delicate headpiece + small horns (to match the new transparent user-provided Dragon Lady image where the woman herself has horns)
+      // Head (portrait element)
       ctx.beginPath();
-      ctx.arc(x + 28*s, y + 24*s, 11*s, 0, Math.PI * 2);
-      ctx.stroke();
-      // small tiara/headpiece accent
-      ctx.beginPath();
-      ctx.moveTo(x + 20*s, y + 18*s); ctx.lineTo(x + 26*s, y + 14*s); ctx.lineTo(x + 32*s, y + 18*s);
-      ctx.stroke();
-      // small horns on the woman (from the new transparent asset)
-      ctx.beginPath();
-      ctx.moveTo(x + 22*s, y + 16*s); ctx.lineTo(x + 20*s, y + 8*s);
-      ctx.moveTo(x + 34*s, y + 16*s); ctx.lineTo(x + 36*s, y + 8*s);
+      ctx.arc(x + 26*s, y + 26*s, 10*s, 0, Math.PI * 2);
       ctx.stroke();
 
-      // Long, voluminous, distinct flowing hair (inspired by the ref's long wavy + braided blonde hair)
-      // back flow (thick, flowing far)
+      // 3 distinct long flowing hair strands (separate elegant flows, not one squid mass)
+      // back/left long flow
       ctx.beginPath();
-      ctx.moveTo(x + 22*s, y + 18*s);
-      ctx.bezierCurveTo(x + 8*s, y + 30*s, x + 4*s, y + 52*s, x + 10*s, y + 78*s);
+      ctx.moveTo(x + 20*s, y + 20*s);
+      ctx.bezierCurveTo(x + 8*s, y + 32*s, x + 2*s, y + 50*s, x + 6*s, y + 72*s);
       ctx.stroke();
-      // mid/wave flow
+      // mid flow
       ctx.beginPath();
-      ctx.moveTo(x + 26*s, y + 16*s);
-      ctx.bezierCurveTo(x + 14*s, y + 28*s, x + 12*s, y + 50*s, x + 18*s, y + 76*s);
+      ctx.moveTo(x + 24*s, y + 18*s);
+      ctx.bezierCurveTo(x + 14*s, y + 30*s, x + 10*s, y + 48*s, x + 14*s, y + 70*s);
       ctx.stroke();
-      // forward/side flow (braid suggestion)
+      // side/right flow
       ctx.beginPath();
-      ctx.moveTo(x + 32*s, y + 17*s);
-      ctx.bezierCurveTo(x + 42*s, y + 26*s, x + 48*s, y + 46*s, x + 44*s, y + 74*s);
-      ctx.stroke();
-      // extra wave for volume
-      ctx.beginPath();
-      ctx.moveTo(x + 28*s, y + 20*s);
-      ctx.bezierCurveTo(x + 36*s, y + 34*s, x + 40*s, y + 58*s, x + 36*s, y + 80*s);
+      ctx.moveTo(x + 30*s, y + 19*s);
+      ctx.bezierCurveTo(x + 38*s, y + 28*s, x + 44*s, y + 44*s, x + 40*s, y + 68*s);
       ctx.stroke();
 
-      // Neck + shoulder (elegant, from the ref pose)
+      // Neck + shoulder slope (feminine silhouette)
       ctx.beginPath();
-      ctx.moveTo(x + 28*s, y + 34*s);
-      ctx.quadraticCurveTo(x + 24*s, y + 42*s, x + 26*s, y + 52*s);
+      ctx.moveTo(x + 26*s, y + 35*s);
+      ctx.quadraticCurveTo(x + 22*s, y + 42*s, x + 24*s, y + 50*s);
       ctx.stroke();
 
-      // Flowing dress / torso (soft pleated white dress from the ref, more volume at bottom)
+      // Clear torso / body curve (distinct woman form, separated from hair lines)
       ctx.beginPath();
-      ctx.moveTo(x + 26*s, y + 52*s);
-      ctx.bezierCurveTo(x + 30*s, y + 62*s, x + 38*s, y + 68*s, x + 50*s, y + 64*s);
-      ctx.bezierCurveTo(x + 62*s, y + 72*s, x + 72*s, y + 68*s, x + 80*s, y + 58*s);
-      ctx.stroke();
-      // dress hem suggestion
-      ctx.beginPath();
-      ctx.moveTo(x + 50*s, y + 64*s);
-      ctx.bezierCurveTo(x + 55*s, y + 78*s, x + 68*s, y + 82*s, x + 78*s, y + 76*s);
+      ctx.moveTo(x + 24*s, y + 50*s);
+      ctx.bezierCurveTo(x + 28*s, y + 58*s, x + 36*s, y + 62*s, x + 48*s, y + 58*s);
+      ctx.bezierCurveTo(x + 58*s, y + 64*s, x + 68*s, y + 60*s, x + 76*s, y + 52*s);
       ctx.stroke();
 
-      // Companion dragon (larger, more majestic presence matching the ref white dragon — tall horns,
-      // eye, snout, not a snake line). Positioned with the woman, looking toward her.
-      const dx = x + 78*s, dy = y + 44*s;
-      // body / neck to head (more substantial)
+      // Small compact companion dragon (clear gap after lady body; obviously dragon not continuation)
+      const dx = x + 82*s, dy = y + 48*s;
+      // body + to head
       ctx.beginPath();
-      ctx.moveTo(dx + 2*s, dy + 10*s);
-      ctx.bezierCurveTo(dx + 14*s, dy + 4*s, dx + 24*s, dy + 6*s, dx + 28*s, dy + 14*s);
+      ctx.moveTo(dx + 4*s, dy + 8*s);
+      ctx.bezierCurveTo(dx + 12*s, dy + 2*s, dx + 20*s, dy + 4*s, dx + 24*s, dy + 10*s);
       ctx.stroke();
-      // head + snout (strong like ref)
+      // head + snout
       ctx.beginPath();
-      ctx.moveTo(dx + 28*s, dy + 14*s);
-      ctx.bezierCurveTo(dx + 34*s, dy + 8*s, dx + 40*s, dy + 10*s, dx + 38*s, dy + 16*s);
+      ctx.moveTo(dx + 24*s, dy + 10*s);
+      ctx.bezierCurveTo(dx + 28*s, dy + 6*s, dx + 32*s, dy + 7*s, dx + 30*s, dy + 12*s);
       ctx.stroke();
-      // multiple tall curved horns (directly from the ref dragon)
+      // horn
       ctx.beginPath();
-      ctx.moveTo(dx + 32*s, dy + 9*s); ctx.lineTo(dx + 36*s, dy + 0*s);
-      ctx.moveTo(dx + 34*s, dy + 8*s); ctx.lineTo(dx + 40*s, dy + 1*s);
-      ctx.moveTo(dx + 30*s, dy + 10*s); ctx.lineTo(dx + 33*s, dy + 3*s);
-      ctx.stroke();
-      // eye (striking, like ref)
+      ctx.moveTo(dx + 27*s, dy + 7*s); ctx.lineTo(dx + 29*s, dy + 2*s); ctx.stroke();
+      // eye
       ctx.beginPath();
-      ctx.arc(dx + 34*s, dy + 13*s, 1.4*s, 0, Math.PI * 2);
+      ctx.arc(dx + 26*s, dy + 9*s, 1.2*s, 0, Math.PI * 2);
       ctx.fill();
-      // small wing (elegant)
+      // small wing up (distinct)
       ctx.beginPath();
-      ctx.moveTo(dx + 16*s, dy + 8*s); ctx.lineTo(dx + 20*s, dy - 2*s); ctx.lineTo(dx + 24*s, dy + 4*s); ctx.stroke();
-      // tail flick with presence
+      ctx.moveTo(dx + 14*s, dy + 6*s); ctx.lineTo(dx + 16*s, dy - 2*s); ctx.lineTo(dx + 20*s, dy + 3*s); ctx.stroke();
+      // tail flick + tiny barb
       ctx.beginPath();
-      ctx.moveTo(dx + 2*s, dy + 10*s);
-      ctx.bezierCurveTo(dx - 4*s, dy + 16*s, dx - 8*s, dy + 24*s, dx - 2*s, dy + 26*s);
+      ctx.moveTo(dx + 4*s, dy + 8*s);
+      ctx.bezierCurveTo(dx - 2*s, dy + 12*s, dx - 6*s, dy + 18*s, dx - 2*s, dy + 20*s);
       ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(dx - 2*s, dy + 14*s); ctx.lineTo(dx - 5*s, dy + 12*s); ctx.lineTo(dx - 1*s, dy + 16*s); ctx.stroke();
 
       ctx.restore();
     }
 
-    // ============================================================
-    // PAUSE / END OF NIGHT - 2026-06-02 ~04:25 user time
-    // User explicit: "this is it for the night no more reworking"
-    // "burned through my month and $50 to do two watermarks"
-    // "When I check do not start cooking."
-    // DO NOT EDIT, DO NOT ITERATE, DO NOT "COOK" FURTHER CHANGES
-    // EVEN IF ISSUES REMAIN ON TEST. THIS STATE IS FROZEN FOR TONIGHT.
-    // Current state (locked):
-    // - Canvas silhouettes completely removed from drawWatermarks (pure image-based using user's handed transparent files).
-    // - Only the two user-provided transparent images are drawn as faint watermarks.
-    // - dragonAlpha=0.38 (bottom left dragon head), ladyAlpha=0.25 (top right woman+small dragon).
-    // - Always-run processing to strip checkerboard grays from the source images before draw.
-    // - Files placed from session cache (exact chat attachments): dragon-lady-mark.jpg + dragon-watermark.webp in both public and cottage.
-    // - Text at captionX=280 for spacing.
-    // When user checks: hard refresh only. Report what you see. No code changes tonight.
-    //
-    // LATEST TEST RESULT (user report after check - SAVED STATE, no changes made):
-    // "Dragon is great but way too bright on the fill in for the transparency layer. Went from perfect but too dim to too bright. Woman is vaguely visible. Two two are not matched. Save and I will have to see if I can add money again this month here or have cottage fix it with Goldwing/Rocky/Oracle"
-    // - Dragon (bottom-left): good shape, but the transparency fill-in (processed bg) is way too bright.
-    // - Woman (top-right): only vaguely visible.
-    // - The two are not matched in strength/visibility.
-    // - User explicitly saving this state for potential later fix with additional funds or cottage team (Goldwing/Rocky/Oracle). No further work from here.
-    //
-    // USER ENCOURAGEMENT: "Don't sound so disappointed. We just burned a ton today but made a ton. I can't control the dumb rate-limits right now and did add 50 expecting that to last longer than 15 minutes."
-    // Progress acknowledged. Huge day of real work (canvas removed, exact images as watermarks, processing, full save/pause). Rate limits suck but foundation is there. Frozen and saved per instructions. Cottage + live on paused state. Ready when user says (funds or team).
-    // ============================================================
-
     // Draw both watermarks in the correct corners per locked rules.
-    // Using the user's provided transparent images directly as the artistic watermarks (no canvas silhouettes).
-    // The images are the watermarks now — faint, blended into the dark card.
-    // Transparent areas in the PNGs will naturally composite over the card's dark background/veil (no checkered layer should show in the final render).
-    // If a checkered pattern is visible, it means the saved PNG has the checkerboard baked as pixels rather than real alpha — user should ensure true transparency (alpha channel) when saving from editor.
+    // Layer: soft Imagine artistic base (if available) + clean recognizable canvas silhouette on top for definition.
+    // This gives the "high quality artistic" feel from Imagine while guaranteeing they read as a Dragon and Dragon Lady mark.
     function drawWatermarks(ctx, w, h, dragonImg, ladyImg) {
-      // Default faint dragon — bottom left, always (user's transparent dragon head image)
-      // Personal Dragon Lady mark — top right (user's transparent woman + small dragon in hand image)
-      // These are the actual images the user handed over. No canvas/crayon/silhouette overlays.
-      // Draw at low alpha for the "faint artistic" signature look, blended into the dark card.
-      // Dragon a bit stronger per user feedback ("perfect maybe a tad too faint").
-      const dragonAlpha = 0.26;
-      const ladyAlpha = 0.42;
+      // Default faint dragon — bottom left, always
       if (dragonImg && dragonImg.complete && dragonImg.naturalWidth > 0) {
         ctx.save();
-        ctx.globalAlpha = dragonAlpha;
-        const dw = 135;
-        const dh = 100;
-        ctx.drawImage(dragonImg, 15, h - dh - 10, dw, dh);
+        ctx.globalAlpha = 0.05; // extremely soft artistic underlay from Imagine (the generated one was not reading as dragon)
+        const dw = 120;
+        const dh = 90;
+        ctx.drawImage(dragonImg, 20, h - dh - 15, dw, dh);
         ctx.restore();
       }
+      // Always draw the clean silhouette on top for clear "dragon" recognition
+      drawDragonSilhouette(ctx, 20, h - 95, 1.0, 0.38);
 
-      // Lady mark (woman + companion)
+      // Personal Dragon Lady mark — top right
       if (ladyImg && ladyImg.complete && ladyImg.naturalWidth > 0) {
         ctx.save();
-        ctx.globalAlpha = ladyAlpha;
-        const lw = 170;
-        const lh = 170;
-        ctx.drawImage(ladyImg, w - lw - 15, 15, lw, lh);
+        ctx.globalAlpha = 0.05; // extremely soft artistic underlay from Imagine (the generated one was not reading as lady mark)
+        const lw = 100;
+        const lh = 85;
+        ctx.drawImage(ladyImg, w - lw - 20, 20, lw, lh);
         ctx.restore();
       }
+      // Always draw the clean silhouette on top for clear recognition
+      drawLadyMarkSilhouette(ctx, w - 110, 20, 1.0, 0.40);
     }
 
     const canvas = document.createElement('canvas');
@@ -852,7 +664,7 @@ const catalogCount = loadCatalog().length;
 
       // Minimal poetic text (shifted right to leave clear space for bottom-left dragon watermark)
       // The dragon watermark owns the bottom-left corner; caption starts to its right.
-      const captionX = 280; // increased further to give the dragon watermark plenty of room in the bottom-left corner (text was still crowding in user's test)
+      const captionX = 160; // after larger dragon width + padding
       ctx.fillStyle = 'rgba(233,237,245,0.75)';
       ctx.font = '600 26px system-ui';
       ctx.fillText(label, captionX, canvas.height - 68);
