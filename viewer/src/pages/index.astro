@@ -48,7 +48,8 @@ const catalogCount = loadCatalog().length;
     <div class="mb-6">
       <!-- Collection Filter Chips -->
       <div class="mb-3 flex flex-wrap gap-2" id="pins-chips">
-        <button data-chip="all" class="chip active px-3 py-1 text-sm rounded-full border border-signal-400 bg-void-800 text-mist-100">All moments</button>
+        <!-- Chips start neutral; JS controls active state on load and clicks -->
+        <button data-chip="all" class="chip px-3 py-1 text-sm rounded-full border border-void-700 bg-void-900 text-mist-300 hover:border-void-500">All moments</button>
         <button data-chip="favorites" class="chip px-3 py-1 text-sm rounded-full border border-void-700 bg-void-900 text-mist-300 hover:border-void-500">Favorites shelf</button>
         <button data-chip="sky-events" class="chip px-3 py-1 text-sm rounded-full border border-void-700 bg-void-900 text-mist-300 hover:border-void-500">From Sky Events</button>
         <button data-chip="quiet" class="chip px-3 py-1 text-sm rounded-full border border-void-700 bg-void-900 text-mist-300 hover:border-void-500">Quiet revisit</button>
@@ -75,13 +76,20 @@ const catalogCount = loadCatalog().length;
             <option value="favorites">Favorites first</option>
           </select>
         </div>
-        <div class="flex gap-2">
-          <button id="export-pins" class="px-3 py-1.5 text-sm rounded-lg border border-void-700 text-mist-300 hover:bg-void-800">Export my pins</button>
-          <label class="px-3 py-1.5 text-sm rounded-lg border border-void-700 text-mist-300 hover:bg-void-800 cursor-pointer">
+        <div class="flex gap-2 text-sm">
+          <button id="save-vault" class="px-3 py-1.5 rounded-lg border border-void-700 text-mist-300 hover:bg-void-800">Save to vault</button>
+          <button id="export-pins" class="px-3 py-1.5 rounded-lg border border-void-700 text-mist-300 hover:bg-void-800">Export my pins</button>
+          <label class="px-3 py-1.5 rounded-lg border border-void-700 text-mist-300 hover:bg-void-800 cursor-pointer">
             Import pins
             <input type="file" id="import-pins" accept=".json" class="hidden" />
           </label>
         </div>
+      </div>
+
+      <!-- Rediscover Strip -->
+      <div id="rediscover-strip" class="hidden mb-5 rounded-xl border border-void-700 bg-void-900 p-4">
+        <div class="text-xs text-mist-400 mb-2">Some quiet views waiting for you</div>
+        <div id="rediscover-items" class="flex flex-wrap gap-3 text-sm"></div>
       </div>
 
       <div id="pins-grid" class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -95,6 +103,8 @@ const catalogCount = loadCatalog().length;
       <div id="pins-no-results" class="hidden col-span-full text-center text-mist-400 text-sm py-6">
         No pins match your search.
       </div>
+
+      <div class="mt-2 text-sm text-mist-400">Last write to the vault wins. Your pins are always yours.</div>
     </div>
   </section>
 
@@ -208,6 +218,8 @@ const catalogCount = loadCatalog().length;
   }
 
   function renderMyPins() {
+    updateChipVisuals();   // safety net: always keep button visuals in sync with activeChip
+
     const grid = document.getElementById('pins-grid');
     const empty = document.getElementById('pins-empty');
     const noResults = document.getElementById('pins-no-results');
@@ -252,7 +264,7 @@ const catalogCount = loadCatalog().length;
       const messages = {
         favorites: 'Your starred views',
         'sky-events': 'Moments you pinned from events',
-        quiet: 'Some views wait patiently for you.'
+        quiet: 'Some views wait patiently for you. They’ve been waiting a while.'
       };
       hint.textContent = messages[activeChip] || '';
       hint.classList.remove('hidden');
@@ -273,6 +285,38 @@ const catalogCount = loadCatalog().length;
       return;
     } else {
       noResults.classList.add('hidden');
+    }
+
+    // Rediscover strip — shown primarily when Quiet revisit chip is active (per handoff intent)
+    const rediscover = document.getElementById('rediscover-strip');
+    const rediscoverItems = document.getElementById('rediscover-items');
+
+    if (activeChip === 'quiet') {
+      const oldest = [...pins].sort((a, b) => new Date(a.updatedAt || a.createdAt) - new Date(b.updatedAt || b.createdAt)).slice(0, 3);
+
+      if (oldest.length > 0) {
+        rediscover.classList.remove('hidden');
+        rediscoverItems.innerHTML = '';
+        oldest.forEach(pin => {
+          const el = document.createElement('div');
+          el.className = 'px-3 py-1 rounded-lg border border-void-700 text-mist-300 hover:border-void-500 cursor-pointer text-sm';
+          el.textContent = pin.label || 'Untitled';
+          el.onclick = (e) => {
+            // Light protection even though not inside main cards
+            e.stopImmediatePropagation?.();
+            localStorage.setItem('flyToPin', JSON.stringify({
+              id: pin.id,
+              viewState: pin.viewState
+            }));
+            window.location.href = base + 'globe';
+          };
+          rediscoverItems.appendChild(el);
+        });
+      } else {
+        rediscover.classList.add('hidden');
+      }
+    } else {
+      rediscover.classList.add('hidden');
     }
 
     sorted.forEach((pin) => {
@@ -402,57 +446,22 @@ const catalogCount = loadCatalog().length;
     });
   }
 
-  async function checkVaultAndShowBanner() {
-    const banner = document.getElementById('vault-banner');
-    if (!banner || localStorage.getItem('vaultMigrationBannerDismissed')) return;
+  function updateChipVisuals() {
+    const chips = document.querySelectorAll('#pins-chips .chip');
+    chips.forEach(c => {
+      const isActive = c.dataset.chip === activeChip;
 
-    try {
-      // Lightweight read endpoint (minimal for this slice)
-      const res = await fetch('/api/vault-pins');
-      if (!res.ok) return;
+      // Clear all state classes first
+      c.classList.remove('active', 'border-signal-400', 'bg-void-800', 'text-mist-100', 'border-void-700', 'text-mist-300');
 
-      const vaultData = await res.json();
-      if (!Array.isArray(vaultData.pins) || vaultData.pins.length === 0) return;
-
-      const localPins = JSON.parse(localStorage.getItem('personalPins') || '[]');
-      const latestLocal = localPins.reduce((max, p) => {
-        const d = new Date(p.updatedAt || p.createdAt || 0);
-        return d > max ? d : max;
-      }, new Date(0));
-      const vaultNewer = vaultData.lastSynced && (!localPins.length || new Date(vaultData.lastSynced) > latestLocal);
-
-      if (vaultNewer || localPins.length === 0) {
-        banner.classList.remove('hidden');
-
-        document.getElementById('bring-home').onclick = (e) => {
-          e.stopImmediatePropagation();
-          let current = JSON.parse(localStorage.getItem('personalPins') || '[]');
-          const existingIds = new Set(current.map(p => p.id));
-          let added = 0;
-
-          vaultData.pins.forEach(pin => {
-            if (pin && pin.id && !existingIds.has(pin.id)) {
-              current.push(pin);
-              existingIds.add(pin.id);
-              added++;
-            }
-          });
-
-          localStorage.setItem('personalPins', JSON.stringify(current));
-          localStorage.setItem('vaultMigrationBannerDismissed', 'true');
-          banner.classList.add('hidden');
-          renderMyPins();
-        };
-
-        document.getElementById('not-now').onclick = (e) => {
-          e.stopImmediatePropagation();
-          localStorage.setItem('vaultMigrationBannerDismissed', 'true');
-          banner.classList.add('hidden');
-        };
+      if (isActive) {
+        // Active appearance
+        c.classList.add('active', 'border-signal-400', 'bg-void-800', 'text-mist-100');
+      } else {
+        // Inactive appearance
+        c.classList.add('border-void-700', 'bg-void-900', 'text-mist-300');
       }
-    } catch (e) {
-      // Vault endpoint not available yet — silent fail for this slice
-    }
+    });
   }
 
   function setupMyPins() {
@@ -461,18 +470,51 @@ const catalogCount = loadCatalog().length;
     chips.forEach(chip => {
       chip.addEventListener('click', () => {
         const chipType = chip.dataset.chip;
+
         if (activeChip === chipType) {
           activeChip = 'all';
-          chips.forEach(c => c.classList.remove('active', 'border-signal-400', 'bg-void-800'));
-          chips[0].classList.add('active', 'border-signal-400', 'bg-void-800');
         } else {
           activeChip = chipType;
-          chips.forEach(c => c.classList.remove('active', 'border-signal-400', 'bg-void-800'));
-          chip.classList.add('active', 'border-signal-400', 'bg-void-800');
         }
+
+        updateChipVisuals();
         renderMyPins();
       });
     });
+
+    // Save to vault (3A-write) — unified to existing /api/vault-pins endpoint
+    const saveVaultBtn = document.getElementById('save-vault');
+    if (saveVaultBtn) {
+      saveVaultBtn.addEventListener('click', async () => {
+        const pins = JSON.parse(localStorage.getItem('personalPins') || '[]');
+        try {
+          const res = await fetch('/api/vault-pins', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ pins, lastSynced: new Date().toISOString() })
+          });
+          if (res.ok) {
+            const toast = document.createElement('div');
+            toast.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#0f1420;border:1px solid #36415a;color:#e9edf5;padding:10px 22px;border-radius:9999px;font-size:13px;';
+            toast.textContent = 'Saved to vault';
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 2400);
+          } else {
+            const toast = document.createElement('div');
+            toast.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#0f1420;border:1px solid #5c3a3a;color:#e9edf5;padding:10px 22px;border-radius:9999px;font-size:13px;';
+            toast.textContent = 'Vault save did not complete';
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+          }
+        } catch (e) {
+          const toast = document.createElement('div');
+          toast.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#0f1420;border:1px solid #5c3a3a;color:#e9edf5;padding:10px 22px;border-radius:9999px;font-size:13px;';
+          toast.textContent = 'Could not reach vault';
+          document.body.appendChild(toast);
+          setTimeout(() => toast.remove(), 3000);
+        }
+      });
+    }
 
     // Export
     const exportBtn = document.getElementById('export-pins');
@@ -504,7 +546,11 @@ const catalogCount = loadCatalog().length;
           try {
             const imported = JSON.parse(event.target.result);
             if (!Array.isArray(imported)) {
-              alert('File does not contain a valid pins array.');
+              const toast = document.createElement('div');
+              toast.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#0f1420;border:1px solid #5c3a3a;color:#e9edf5;padding:10px 22px;border-radius:9999px;font-size:13px;';
+              toast.textContent = 'File does not contain a valid pins array.';
+              document.body.appendChild(toast);
+              setTimeout(() => toast.remove(), 3000);
               return;
             }
 
@@ -535,7 +581,11 @@ const catalogCount = loadCatalog().length;
             setTimeout(() => toast.remove(), 3000);
 
           } catch (err) {
-            alert('Could not read the file. Please make sure it is a valid pins backup.');
+            const toast = document.createElement('div');
+            toast.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#0f1420;border:1px solid #5c3a3a;color:#e9edf5;padding:10px 22px;border-radius:9999px;font-size:13px;';
+            toast.textContent = 'Could not read the file. Please make sure it is a valid pins backup.';
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
           }
         };
         reader.readAsText(file);
@@ -544,6 +594,7 @@ const catalogCount = loadCatalog().length;
     }
 
     renderMyPins();
+    updateChipVisuals();       // force correct initial highlighting
     checkVaultAndShowBanner();
 
     const searchInput = document.getElementById('pins-search');
@@ -564,6 +615,66 @@ const catalogCount = loadCatalog().length;
     if (sortSelect) {
       sortSelect.addEventListener('change', () => renderMyPins());
     }
+  }
+
+  async function checkVaultAndShowBanner() {
+    const banner = document.getElementById('vault-banner');
+    if (!banner || localStorage.getItem('vaultMigrationBannerDismissed')) return;
+
+    try {
+      const res = await fetch('/api/vault-pins');
+      if (!res.ok) return;
+
+      const vaultData = await res.json();
+      if (!Array.isArray(vaultData.pins) || vaultData.pins.length === 0) return;
+
+      const localPins = JSON.parse(localStorage.getItem('personalPins') || '[]');
+
+      // Restored robust max-date scan (no more fragile pins[0] reliance)
+      const latestLocal = localPins.reduce((max, p) => {
+        const d = new Date(p.updatedAt || p.createdAt || 0);
+        return d > max ? d : max;
+      }, new Date(0));
+
+      const vaultNewer = vaultData.lastSynced && (!localPins.length || new Date(vaultData.lastSynced) > latestLocal);
+
+      if (vaultNewer || localPins.length === 0) {
+        banner.classList.remove('hidden');
+
+        const bringHome = document.getElementById('bring-home');
+        const notNow = document.getElementById('not-now');
+
+        if (bringHome) {
+          bringHome.onclick = (e) => {
+            e.stopImmediatePropagation();
+            let current = JSON.parse(localStorage.getItem('personalPins') || '[]');
+            const existingIds = new Set(current.map(p => p.id));
+            let added = 0;
+
+            vaultData.pins.forEach(pin => {
+              if (pin && pin.id && !existingIds.has(pin.id)) {
+                current.push(pin);
+                existingIds.add(pin.id);
+                added++;
+              }
+            });
+
+            localStorage.setItem('personalPins', JSON.stringify(current));
+            localStorage.setItem('vaultMigrationBannerDismissed', 'true');
+            banner.classList.add('hidden');
+            renderMyPins();
+          };
+        }
+
+        if (notNow) {
+          notNow.onclick = (e) => {
+            e.stopImmediatePropagation();
+            localStorage.setItem('vaultMigrationBannerDismissed', 'true');
+            banner.classList.add('hidden');
+          };
+        }
+      }
+    } catch (e) {}
   }
 
   setupMyPins();
