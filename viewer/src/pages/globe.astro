@@ -5,13 +5,16 @@ const s = stats();
 const base = import.meta.env.BASE_URL;
 const catalogUrl = (base.endsWith('/') ? base : base + '/') + 'catalog/tle.json';
 const markers = orbitalMarkers();
-const conjunctions = conjunctionMarkers();        // sorted: alert-first, tightest-first
-const alertCount = conjunctions.filter((c) => c.alertClass === 'alert').length;
-const closeCount = conjunctions.length - alertCount;
-const PANEL_MAX = 14;   // rows listed in the side panel
-const GLOBE_MAX = 80;   // glowing markers plotted on the globe (keeps it smooth)
-const panelList = conjunctions.slice(0, PANEL_MAX);
-const globeConj = conjunctions.slice(0, GLOBE_MAX);
+// Globe is a quiet contemplative view. We use the top conjunctions (debris pairs / anomaly close passes) 
+// as the gentle dim markers so their pair names (e.g. "SL-3 R/B x PSLV R/B") appear as the permanent labels.
+// GLOBE_MAX controls the max dim markers shown (used by quiet helpers for both init and live updates).
+const conjunctions = conjunctionMarkers();  
+const alertCount = 0;
+const closeCount = 0;
+const PANEL_MAX = 0;
+const GLOBE_MAX = 5;   // very few for contemplative mode — now consistently enforced in getQuiet* helpers
+const panelList = [];
+const globeConj = conjunctions;  // pass the conjs so client can render their positions + names as the dim markers
 ---
 
 <!doctype html>
@@ -22,8 +25,7 @@ const globeConj = conjunctions.slice(0, GLOBE_MAX);
   <meta name="theme-color" content="#05070d" />
   <title>The Globe · Dragon Lady’s Observatory</title>
   <style>
-    .flyrow:hover { background:#1a2233; }
-    .flyrow.flyrow--active { background:#241019; box-shadow:inset 2px 0 0 #ff5470; }
+    /* flyrow styles removed - globe is now minimal contemplative view, no noisy lists */
   </style>
 </head>
 <body style="margin:0;background:#05070d;overflow:hidden;">
@@ -35,53 +37,27 @@ const globeConj = conjunctions.slice(0, GLOBE_MAX);
       <a href={base} style="color:#6fd3e2;font-size:13px;text-decoration:none;">← console</a>
     </div>
     <p style="margin:6px 0 0;color:#aab4c7;font-size:13px;line-height:1.5;">
-      <span id="count">…</span> real objects, propagated live.
+      A quiet observatory of the living sky.
     </p>
   </div>
 
-  <div style="position:fixed;top:14px;right:14px;z-index:10;width:300px;max-width:calc(100vw - 28px);background:#0f1420f2;backdrop-filter:blur(8px);border:1px solid #36415a;border-radius:12px;padding:12px 14px;max-height:72vh;overflow:auto;">
-    <div style="font-size:13px;font-weight:600;color:#e9edf5;margin-bottom:2px;">What's happening up there</div>
-    {conjunctions.length > 0 && (
-      <div style="font-size:11px;color:#8893a8;margin-bottom:6px;line-height:1.45;">
-        {conjunctions.length} close approaches ·
-        <span style="color:#ff5470;"> {alertCount} active</span> ·
-        <span style="color:#aab4c7;"> {closeCount} debris</span>
-      </div>
-    )}
-    {panelList.map((c) => (
-      <div class="flyrow" data-fly={c.id} style="display:flex;gap:8px;align-items:flex-start;padding:7px 6px;margin:0 -6px;border-top:1px solid #1b2430;cursor:pointer;border-radius:6px;">
-        <span style={`flex:0 0 auto;width:9px;height:9px;border-radius:9999px;margin-top:4px;background:${c.alertClass === 'alert' ? '#ff5470' : 'rgba(255,84,112,0.5)'};`}></span>
-        <div style="font-size:12px;line-height:1.45;">
-          <div style={`font-weight:600;color:${c.alertClass === 'alert' ? '#ff5470' : '#aab4c7'};`}>{c.alertClass === 'alert' ? 'Close pass' : 'Passing by'}</div>
-          <div style="color:#cdd5e3;">{c.objects.map((o) => o.name).join(' × ')}</div>
-          <div style="color:#8893a8;">{c.miss_distance_km != null ? `${c.miss_distance_km} km miss` : ''}{c.tca ? ` · TCA ${c.tca}` : ''}</div>
-        </div>
-      </div>
-    ))}
-    {conjunctions.length > PANEL_MAX && (
-      <div style="font-size:11px;color:#8893a8;padding:7px 0 2px;border-top:1px solid #1b2430;">
-        + {conjunctions.length - PANEL_MAX} more close approaches{conjunctions.length > GLOBE_MAX ? ` · globe plots the ${GLOBE_MAX} most significant` : ''}
-      </div>
-    )}
-    {markers.map((m) => (
-      <div class="flyrow" data-fly={m.id} style="display:flex;gap:8px;align-items:flex-start;padding:7px 6px;margin:0 -6px;border-top:1px solid #1b2430;cursor:pointer;border-radius:6px;">
-        <span style={`flex:0 0 auto;width:9px;height:9px;border-radius:9999px;margin-top:4px;background:${m.tier === 'T1' ? '#ff5470' : m.tier === 'T2' ? '#ffc247' : '#9fb0c9'};`}></span>
-        <div style="font-size:12px;line-height:1.45;">
-          <div style="font-weight:600;color:#e9edf5;">{m.tier} · {m.name}</div>
-          <div style="color:#8893a8;">{m.anomalyKinds.join(', ')}</div>
-        </div>
-      </div>
-    ))}
-    {conjunctions.length === 0 && markers.length === 0 && (<div style="font-size:12px;color:#8893a8;">Quiet up there at the moment.</div>)}
-    {conjunctions.length > 0 && (
-      <div style="font-size:11px;color:#6b7790;margin-top:9px;padding-top:8px;border-top:1px solid #1b2430;line-height:1.5;font-style:italic;">
-        Sometimes things pass close by. We notice the ones that feel worth a quiet look from down here.
-      </div>
-    )}
+  <!-- Observatory Window text box – affirmed beautiful by user ("Beautiful babe") 2026-06-03.
+       Fonts tuned 14/13/13px, 280px wide, padded for presence without overwhelming the quiet globe view.
+       The whole vibe is the contemplative heart of the personal observatory.
+       The gentle points now have clearer explanatory text (user was curious about one appearing as "little island" N of Antarctica / SE of Africa — it's a marker for a tracked anomalous object).
+       2026-06-03 label text fix: tiny permanent labels now pull direct d.name so they match the exact input text from the land mass spot image (and other areas labeled in the image). -->
+  <div style="position:fixed;top:14px;right:14px;z-index:10;width:280px;max-width:calc(100vw - 28px);background:#0f1420f2;backdrop-filter:blur(8px);border:1px solid #36415a;border-radius:12px;padding:12px 14px;">
+    <div style="font-size:14px;font-weight:600;color:#e9edf5;margin-bottom:5px;">Observatory Window</div>
+    <div style="font-size:13px;color:#8893a8;line-height:1.45;">
+      A quiet, contemplative view of the living Earth and the sky above it. The old tiered alerts and noise are set aside — this is a place for slow looking, for wonder, for the personal sky that belongs to us.
+    </div>
+    <div style="margin-top:9px;font-size:13px;color:#6b7790;">
+      The few gentle glowing points mark the current positions of notable objects with detected anomalies (mostly debris pairs in predicted close passes). Each has a small label right next to its dot so you can see the name instantly (e.g. "SL-3 R/B x PSLV R/B"). Hover or click the dot for full identity &amp; details. The Telescope is for the deep, calm, personal gazing.
+    </div>
   </div>
 
   <div id="loading" style="position:fixed;inset:0;display:flex;align-items:center;justify-content:center;color:#8893a8;font-family:system-ui;z-index:5;">
-    Loading the catalog &amp; propagating orbits…
+    A quiet sky is loading…
   </div>
 
   <div id="info" style="position:fixed;bottom:14px;left:14px;z-index:10;max-width:360px;background:#0f1420f2;backdrop-filter:blur(8px);border:1px solid #36415a;border-radius:10px;padding:11px 13px;font-size:13px;line-height:1.5;color:#cdd5e3;display:none;">
@@ -89,7 +65,7 @@ const globeConj = conjunctions.slice(0, GLOBE_MAX);
     <span id="info-text"></span>
   </div>
 
-  <script is:inline define:vars={{ catalogUrl, markers, conjunctions: globeConj }}>
+  <script is:inline define:vars={{ catalogUrl, markers, conjunctions: globeConj, globeMax: GLOBE_MAX }}>
     function load(src){return new Promise((res,rej)=>{const s=document.createElement('script');s.src=src;s.onload=res;s.onerror=rej;document.head.appendChild(s);});}
     const EARTH_R = 6371;
     const esc = (s) => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -185,6 +161,7 @@ const globeConj = conjunctions.slice(0, GLOBE_MAX);
           const hColor = isAlert ? RED : '#aab4c7';
           markers.push({
             id: c.id,
+            name: c.name || `${nA} x ${nB}`,  // the pair name like "SL-3 R/B x PSLV R/B" for the permanent label text
             lat, lng, alt: Math.max(0, gd.height)/EARTH_R,
             color: isAlert ? RED : 'rgba(255,84,112,0.45)',
             size: isAlert ? 15 : 9,
@@ -202,6 +179,21 @@ const globeConj = conjunctions.slice(0, GLOBE_MAX);
 
     function indexPositions(arr){ for (const d of arr) if (d && d.id) posById[d.id] = d; }
 
+    // Quiet contemplative filters (applied both at init and in the live update loop)
+    // Globe should stay beautiful + sparse: single bright ISS point + at most a handful of dim markers. No full catalog dump.
+    const QUIET_MAX = (typeof globeMax === 'number' && globeMax > 0) ? globeMax : 5;
+    function getQuietPoints(when) {
+      return propagate(when).filter(p => p.iss);
+    }
+    function getQuietMarkers(when) {
+      // Use conjunctions (the debris pair / anomaly close passes) as the source for the 5 gentle dim markers.
+      // This gives us the pair names like "SL-3 R/B x PSLV R/B" as the permanent on-globe labels.
+      return propagateConjunctions(when).slice(0, QUIET_MAX);
+    }
+    function getQuietConjunctions(when) {
+      return []; // explicitly no conjunction spam — this is a quiet sky for looking, not tracking
+    }
+
     (async () => {
       try {
         await load('https://cdn.jsdelivr.net/npm/satellite.js@5.0.0/dist/satellite.min.js');
@@ -209,11 +201,13 @@ const globeConj = conjunctions.slice(0, GLOBE_MAX);
         catalog = await (await fetch(catalogUrl)).json();
 
         const now = new Date();
-        let pts = propagate(now);
-        let hot = propagateMarkers(now);
-        let conj = propagateConjunctions(now);
+        // Use the quiet helpers so initial render matches what the update loop will maintain.
+        // Keeps the globe beautiful and sparse: one bright ISS + ≤5 dim markers, zero conj spam.
+        const pts = getQuietPoints(now);
+        const hot = getQuietMarkers(now);
+        const conj = getQuietConjunctions(now);
         indexPositions([...hot, ...conj]);
-        document.getElementById('count').textContent = pts.length.toLocaleString();
+        // count element removed for cleaner contemplative globe
 
         const world = Globe()(document.getElementById('globe'))
           .globeImageUrl('https://unpkg.com/three-globe/example/img/earth-night.jpg')
@@ -222,31 +216,76 @@ const globeConj = conjunctions.slice(0, GLOBE_MAX);
           .pointsData(pts)
           .pointLat('lat').pointLng('lng').pointAltitude('alt')
           .pointColor(d => d.iss ? '#ff5470' : '#dce6f7')
-          .pointRadius(d => d.iss ? 0.6 : 0.16)
+          .pointRadius(d => d.iss ? 0.8 : 0.12)
           .pointLabel(d => d.iss ? `${d.name} - crewed` : d.name)
           .pointsMerge(true)
-          .htmlElementsData([...hot, ...conj])
+          .htmlElementsData(hot)  // only the few quiet markers, no conj spam
           .htmlLat('lat')
           .htmlLng('lng')
           .htmlAltitude('alt')
           .htmlElement(d => {
-            const el = document.createElement('div');
-            const sz = d.size || 10;
-            el.style.width = sz + 'px';
-            el.style.height = sz + 'px';
-            el.style.borderRadius = '9999px';
-            el.style.background = d.color;
-            el.style.boxShadow = d.glow || `0 0 16px ${d.color}`;
-            el.style.border = d.ring || '2px solid rgba(255,255,255,0.8)';
-            el.style.cursor = 'pointer';
-            el.title = d.label;
-            el.addEventListener('click', (ev) => {
+            // Render each gentle marker as a small glowing dot + readable label.
+            // Container expanded to include the label so it doesn't clip (was causing "no text" on some views).
+            // Boosted size/glow/border/label for visibility on the hushed night earth while staying contemplative.
+            // 2026-06-03 follow-up: labels use d.name directly so text = exact input from your land mass spot image
+            // (e.g. first of the 5 is "SL-3 R/B x PSLV R/B" for the little island spot) + other labeled areas.
+            const sz = d.size || 14;  // boosted for visibility during test
+            const labelExtra = 200; // room for long names like "SL-3 R/B x PSLV R/B" without clipping
+            const container = document.createElement('div');
+            container.style.position = 'relative';
+            container.style.width = (sz + 4 + labelExtra) + 'px';
+            container.style.height = Math.max(sz, 20) + 'px';
+            container.style.cursor = 'pointer';
+            const dot = document.createElement('div');
+            dot.style.position = 'absolute';
+            dot.style.left = '0';
+            dot.style.top = '0';
+            dot.style.width = sz + 'px';
+            dot.style.height = sz + 'px';
+            dot.style.borderRadius = '9999px';
+            dot.style.background = d.color;
+            dot.style.boxShadow = d.glow || `0 0 24px ${d.color}, 0 0 40px ${d.color}`;
+            dot.style.border = d.ring || '2px solid rgba(255,255,255,0.85)';
+            dot.title = d.label;
+            dot.addEventListener('click', (ev) => {
               ev.stopPropagation();
               const t = document.getElementById('info-text');
               if (d.html) t.innerHTML = d.html; else t.textContent = d.label;
               document.getElementById('info').style.display = 'block';
             });
-            return el;
+            container.appendChild(dot);
+
+            if (d.label) {
+              const lbl = document.createElement('div');
+              // 2026-06-03 follow-up fix: prefer d.name (the direct curated input name from the anomaly record)
+              // for the tiny on-globe permanent label. This ensures it reflects the exact input text
+              // provided via the land mass spot image (and other labeled areas) for at-a-glance ID
+              // of the 5 dim markers without relying on label string splitting. The "little island"
+              // visual (marker + label over what reads as land mass on the quiet globe) now uses the
+              // intended abbreviated names (e.g. "SL-3 R/B x PSLV R/B" and the other four).
+              // Short extraction kept as fallback only.
+              const short = d.name || (d.label.split(' · ')[1] || d.label.split(' · ')[0] || d.label).trim();
+              lbl.textContent = short;
+              lbl.style.position = 'absolute';
+              lbl.style.left = (sz + 5) + 'px';
+              lbl.style.top = '-1px';
+              lbl.style.fontSize = '13px';  // made larger for test visibility
+              lbl.style.color = '#fff';
+              lbl.style.opacity = '1';
+              lbl.style.fontFamily = 'system-ui, sans-serif';
+              lbl.style.fontWeight = '600';
+              lbl.style.lineHeight = '1';
+              lbl.style.pointerEvents = 'none';
+              lbl.style.padding = '2px 8px';
+              lbl.style.borderRadius = '5px';
+              lbl.style.background = 'rgba(5,7,13,0.95)';
+              lbl.style.whiteSpace = 'nowrap';
+              lbl.style.textShadow = '0 0 6px rgba(0,0,0,1), 0 1px 2px #000';
+              lbl.style.boxShadow = '0 0 4px rgba(0,0,0,0.6)';
+              container.appendChild(lbl);
+            }
+
+            return container;
           });
 
         world.controls().autoRotate = true;
@@ -256,7 +295,18 @@ const globeConj = conjunctions.slice(0, GLOBE_MAX);
         globeEl.addEventListener('pointerdown',  () => world.controls().autoRotate = false);
         globeEl.addEventListener('pointerleave', () => world.controls().autoRotate = true);
 
+        // Initial view: aim at the first dim marker (e.g. the SL-3 R/B x PSLV R/B land mass spot)
+        // so its glowing highlight + permanent label text is immediately visible on load.
+        // Then slow auto-rotate lets you see the others. Drag to explore.
         world.pointOfView({ altitude: 2.8 });
+        if (typeof hot !== 'undefined' && hot.length > 0) {
+          const target = hot[0];
+          setTimeout(() => {
+            try {
+              world.pointOfView({ lat: target.lat, lng: target.lng, altitude: 1.9 }, 900);
+            } catch(e){}
+          }, 250);
+        }
         document.getElementById('loading').remove();
 
         const COUNTRIES = 'https://cdn.jsdelivr.net/gh/martynafford/natural-earth-geojson@master/110m/cultural/ne_110m_admin_0_countries.json';
@@ -273,11 +323,13 @@ const globeConj = conjunctions.slice(0, GLOBE_MAX);
           if (!feats.length) return;
           world
             .polygonsData(feats)
-            .polygonCapColor(f => f._kind === 'state' ? 'rgba(0,0,0,0)' : 'rgba(46,74,112,0.30)')
+            // Very subtle for the hushed, contemplative vibe — faint suggestions of land, not prominent lines.
+            // The glowing markers (the "little islands") are the points of interest now.
+            .polygonCapColor(f => f._kind === 'state' ? 'rgba(0,0,0,0)' : 'rgba(46,74,112,0.12)')
             .polygonSideColor(() => 'rgba(0,0,0,0)')
             .polygonStrokeColor(f => f._kind === 'state'
-              ? 'rgba(150,195,240,0.35)'
-              : 'rgba(165,205,245,0.65)')
+              ? 'rgba(150,195,240,0.15)'
+              : 'rgba(165,205,245,0.22)')
             .polygonAltitude(f => f._kind === 'state' ? 0.0075 : 0.007)
             .polygonsTransitionDuration(0);
         });
@@ -538,8 +590,12 @@ const globeConj = conjunctions.slice(0, GLOBE_MAX);
 
         setInterval(() => {
           const tick = new Date();
-          world.pointsData(propagate(tick));
-          const m = propagateMarkers(tick), cj = propagateConjunctions(tick);
+          // Always apply the same quiet filters on every update tick.
+          // This prevents the full catalog from "exploding" into pale/white points and extra markers after a few seconds.
+          const qPts = getQuietPoints(tick);
+          world.pointsData(qPts);
+          const m = getQuietMarkers(tick);
+          const cj = getQuietConjunctions(tick);
           indexPositions([...m, ...cj]);
           world.htmlElementsData([...m, ...cj]);
         }, 10000);

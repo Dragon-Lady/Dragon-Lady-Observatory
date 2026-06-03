@@ -1,0 +1,136 @@
+---
+import type { CameraSource } from '../lib/cameraSources';
+
+interface Props {
+  source: CameraSource;
+}
+
+const { source } = Astro.props;
+const isLatestImage = source.kind === 'latest-image';
+const isLatestVideo = source.kind === 'latest-video';
+---
+
+<div class="camera-panel bg-[#05070d] border border-white/10 rounded-2xl p-4">
+  <div class="flex items-center justify-between mb-3">
+    <div>
+      <div class="text-mist-100 font-medium">{source.name}</div>
+      <div class="text-mist-400 text-sm">{source.credit}</div>
+    </div>
+    
+    <button 
+      id="refresh-btn"
+      class="px-4 py-1.5 text-xs bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-mist-300 transition-colors flex items-center gap-1.5"
+    >
+      <span>↻</span>
+      <span>Refresh</span>
+    </button>
+  </div>
+
+  <div class="relative bg-black/40 rounded-xl overflow-hidden aspect-video flex items-center justify-center border border-white/5">
+    {isLatestVideo ? (
+      <video
+        id="live-video"
+        src={source.videoUrl}
+        poster={source.posterUrl}
+        class="w-full h-full object-contain"
+        controls
+        muted
+        playsinline
+        preload="metadata"
+      ></video>
+    ) : isLatestImage ? (
+      <img 
+        id="live-image"
+        src={source.imageUrl}
+        alt={source.name}
+        class="w-full h-full object-contain"
+        onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+      />
+    ) : (
+      <div id="image-container" class="w-full h-full flex items-center justify-center">
+        <div class="text-center text-mist-400 text-sm">
+          <div class="mb-1">📷</div>
+          <div>Live camera view</div>
+          <div class="text-[10px] mt-1 opacity-60">Waiting for source...</div>
+        </div>
+      </div>
+    )}
+    <!-- Fallback when image fails to load -->
+    <div id="fallback" class="hidden w-full h-full flex items-center justify-center text-center text-mist-400 text-sm">
+      <div>
+        <div class="mb-1">📷</div>
+        <div>Camera feed unavailable</div>
+        <div class="text-[10px] mt-1 opacity-60">Please check the URL</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mt-2 text-[10px] text-mist-500 flex items-center gap-2">
+    <span>Updated just now</span>
+    <span class="flex-1 h-px bg-white/10"></span>
+    <span id="last-updated">—</span>
+  </div>
+</div>
+
+<script>
+  const refreshBtn = document.getElementById('refresh-btn');
+  const lastUpdated = document.getElementById('last-updated');
+  const liveImage = document.getElementById('live-image');
+  const liveVideo = document.getElementById('live-video');
+  const fallback = document.getElementById('fallback');
+  const isVideoSource = Boolean(liveVideo);
+  
+  let lastRefreshTime = Date.now();
+
+  function updateTimestamp() {
+    if (!lastUpdated) return;
+    const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    lastUpdated.textContent = `Last updated ${now}`;
+  }
+
+  function refreshImage() {
+    if (!refreshBtn) return;
+    
+    refreshBtn.style.opacity = '0.6';
+    refreshBtn.style.pointerEvents = 'none';
+    
+    // Add cache-busting timestamp
+    const timestamp = Date.now();
+    const media = liveImage || liveVideo;
+    if (media) {
+      const baseSrc = media.dataset.baseSrc || media.getAttribute('src') || '';
+      const sep = baseSrc.includes('?') ? '&' : '?';
+      media.dataset.baseSrc = baseSrc;
+      media.setAttribute('src', `${baseSrc}${sep}t=${timestamp}`);
+      if (liveVideo) liveVideo.load();
+    }
+    
+    lastRefreshTime = timestamp;
+    updateTimestamp();
+    
+    // Reset button after a moment
+    setTimeout(() => {
+      if (refreshBtn) {
+        refreshBtn.style.opacity = '1';
+        refreshBtn.style.pointerEvents = 'auto';
+      }
+    }, 800);
+  }
+
+  if (refreshBtn && (liveImage || liveVideo)) {
+    refreshBtn.addEventListener('click', refreshImage);
+
+    if (!isVideoSource) {
+      // Auto-refresh still images only. Videos stay manual to avoid flashing/reload loops.
+      setInterval(() => {
+        const timeSinceLastRefresh = Date.now() - lastRefreshTime;
+        if (timeSinceLastRefresh > 55000) { // refresh ~5s before the 60s mark
+          refreshImage();
+        }
+      }, 10000); // check every 10 seconds
+    }
+  }
+
+  // Initial timestamp
+  updateTimestamp();
+</script>

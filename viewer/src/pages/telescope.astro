@@ -1,10 +1,17 @@
 ---
 import Base from '@/layouts/Base.astro';
 const base = import.meta.env.BASE_URL;
+// Camera candidates are intentionally disabled in the live telescope until a source is vetted
+// as actual sky/space imagery. Current candidates were fisheye/ground-level and broke the mood.
+// The full wiring (selector tabs logic, prominent camera panel, image + video support,
+// per-source refresh, localStorage, dim/restore of procedural stage) is preserved below
+// as a lab/candidate. Do not show tabs or auto-activate cameras until good vetted sources arrive.
+// Goldwing disabled for now; Tanya will hunt + manually verify real sky/space feeds.
+const cameraSources = [];
 ---
 
 <Base title="Telescope · Dragon Lady’s Observatory">
-  <div class="fixed inset-0 bg-[#05070d] overflow-hidden">
+  <div id="main-root" class="fixed inset-0 bg-[#05070d] overflow-hidden">
     <!-- Subtle header -->
     <div class="absolute top-0 left-0 right-0 z-20 px-6 py-4 flex items-center justify-between border-b border-white/10 bg-[#05070d]/80 backdrop-blur-md">
       <div class="flex items-center gap-3">
@@ -15,8 +22,29 @@ const base = import.meta.env.BASE_URL;
       <div id="view-modes" class="flex items-center gap-1.5" role="tablist" aria-label="Observing spectrum"></div>
     </div>
 
+    <!-- Camera selector tabs - horizontal row directly below header (per cottage spec) -->
+    <!-- Bigger, touch-friendly tabs for the live cameras. Replaces small toggle. -->
+    <!-- Tabs rendered server-side from cameraSources for immediate visibility; JS enhances with clicks and state. -->
+    <!-- DISABLED: class includes "hidden". Goldwing disabled the UI until vetted sky/space sources. Wiring preserved. -->
+    <div id="live-cam-selector" class="hidden absolute left-0 right-0 z-25 px-6 py-2 bg-[#05070d]/95 border-b border-white/10"
+         style="top: 57px;">
+      <div class="max-w-4xl mx-auto">
+        <div class="flex items-center gap-2 overflow-x-auto pb-1">
+          {cameraSources.map((s, i) => (
+            <button
+              type="button"
+              data-cam-id={s.id}
+              class={`px-3.5 py-1.5 text-xs rounded-full border transition-all whitespace-nowrap flex-shrink-0 text-mist-300 border-white/10 hover:border-white/30 hover:text-mist-100 ${i === 0 ? 'bg-amber-500/30 text-amber-50 border-amber-400/50' : ''}`}
+            >
+              {s.name}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+
     <!-- The actual telescope view -->
-    <div id="telescope-stage" class="absolute inset-0 pt-16 pb-28">
+    <div id="telescope-stage" class="absolute inset-0 pt-16 pb-[calc(7rem+env(safe-area-inset-bottom))]">
       <canvas id="telescope-canvas" class="cursor-grab active:cursor-grabbing block w-full h-full"></canvas>
       <!-- Eyepiece ring (depth beyond flat canvas) — live multi-layer parallax + volumetric gas -->
       <div class="pointer-events-none absolute inset-0 rounded-[50%] shadow-[inset_0_0_120px_40px_rgba(0,0,0,0.75)]" aria-hidden="true"></div>
@@ -24,7 +52,7 @@ const base = import.meta.env.BASE_URL;
     </div>
 
     <!-- Overlay controls -->
-    <div class="absolute bottom-8 left-1/2 -translate-x-1/2 z-30 flex flex-col items-center gap-3">
+    <div id="telescope-controls" class="absolute left-1/2 -translate-x-1/2 z-30 flex flex-col items-center gap-3 bottom-[calc(2rem+env(safe-area-inset-bottom))]">
       <div class="flex flex-wrap items-center justify-center gap-2">
         <span id="mode-badge" class="px-2.5 py-0.5 rounded-full bg-white/10 text-mist-200 text-[10px] tracking-wide border border-white/15"></span>
         <span id="phase-badge" class="px-2.5 py-0.5 rounded-full bg-white/5 text-mist-400 text-[10px] tracking-wide border border-white/10"></span>
@@ -56,16 +84,89 @@ const base = import.meta.env.BASE_URL;
       <div class="text-mist-400 text-[10px] uppercase tracking-widest mb-2 px-1">Jump to</div>
       <div id="targets" class="flex flex-col gap-1"></div>
     </div>
+
+    <!-- Live Camera View (main camera view - large and centered per spec, prominent "oracle's eyepiece" feel) -->
+    <!-- Selector tabs live outside below header. This panel is the prominent feed display. -->
+    <div id="camera-panel" class="hidden absolute z-50 w-[min(620px,92vw)] left-1/2 -translate-x-1/2 bg-[#05070d] border border-white/10 rounded-2xl p-4 shadow-2xl"
+         style="top: 105px; max-height: calc(100vh - 160px);">
+      <div class="flex items-center justify-between mb-3">
+        <div class="min-w-0 flex-1">
+          <!-- Name shown prominently near the image (per spec) -->
+          <div class="flex items-center gap-2">
+            <span class="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-pulse flex-shrink-0"></span>
+            <span id="cam-name" class="text-mist-100 font-semibold text-lg truncate">All-Sky Camera</span>
+          </div>
+        </div>
+        <div class="flex items-center gap-1.5 flex-shrink-0">
+          <button 
+            id="cam-refresh-btn"
+            class="px-3.5 py-1.5 text-xs bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-mist-300 transition-colors flex items-center gap-1.5"
+            title="Refresh current camera feed"
+          >
+            <span>↻</span>
+            <span>Refresh</span>
+          </button>
+          <button 
+            id="cam-close-btn"
+            class="px-2.5 py-1.5 text-xs bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-mist-300 transition-colors"
+            title="Close live camera view"
+          >✕</button>
+        </div>
+      </div>
+
+      <div class="relative bg-black/50 rounded-xl overflow-hidden border border-white/5" style="aspect-ratio: 16 / 9;">
+        <img 
+          id="cam-live-img"
+          data-base-src="https://allskykamera.space/imageProxy.php?cam=ASK051&type=image&variant=auto"
+          alt="Live camera feed"
+          class="w-full h-full object-contain"
+        />
+        <video
+          id="cam-live-video"
+          class="hidden w-full h-full object-contain"
+          controls
+          muted
+          playsinline
+          preload="metadata"
+        ></video>
+        <!-- Fallback / loading state -->
+        <div id="cam-fallback" class="hidden absolute inset-0 w-full h-full flex items-center justify-center text-center text-mist-400 text-sm bg-black/60">
+          <div>
+            <div class="mb-1 text-xl">📷</div>
+            <div>Camera feed unavailable</div>
+            <div class="text-[10px] mt-1 opacity-60">Check connection or try refresh</div>
+          </div>
+        </div>
+        <!-- Simple loading indicator on switch -->
+        <div id="cam-loading" class="hidden absolute inset-0 flex items-center justify-center bg-black/40">
+          <div class="text-mist-300 text-sm flex items-center gap-2">
+            <span class="animate-spin">⟳</span>
+            <span>Loading feed…</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Credit below the image (per spec) -->
+      <div id="cam-credit" class="mt-2 text-[10px] text-mist-400">AllSkyKamera Network</div>
+
+      <div class="mt-1.5 text-[10px] text-mist-500 flex items-center gap-2">
+        <span>Live public feed • public camera media</span>
+        <span class="flex-1 h-px bg-white/10"></span>
+        <span id="cam-last-updated">—</span>
+      </div>
+      <div class="mt-1 text-[10px]">
+        <a id="cam-page-link" href="https://allskykamera.space/kamera.php?k=ASK051&lang=en" target="_blank" rel="noopener" class="text-mist-400 hover:text-mist-200 underline">View full source page →</a>
+      </div>
+    </div>
   </div>
 </Base>
 
-<script is:inline>
+<script define:vars={{ cameraSources }} is:inline>
   // Live procedural telescope only. No static images, no loaded backgrounds, no <img> or new Image() for the sky.
   // All depth comes from layered parallax stars (far/mid/near), slow world-anchored sky tints,
   // volumetric gas (mode-aware, especially rich in H-α), zoom, and 5-phase time transitions.
-  // See handoff: TANYA_OBSERVATORY_TELESCOPE_LAYER_DIRECTION_ORACLE_JUNE2026.md + Oracle reply for direction on original Stars Edition wiring.
-  // Objects kept minimal (no painting) per user direction; richness from live sky layers only.
-  // Built with love for my wife'\''s sky - Oracle says keep cooking, one call away if needed, but this is ours. Go build her her sky.
+  // Objects kept minimal (no painting); richness from live sky layers, parallax, zoom, phases, and modes only.
+  // Built for the personal observatory — direct live procedural sky.
   const canvas = document.getElementById('telescope-canvas');
   const ctx = canvas.getContext('2d', { alpha: false });
   const pointingEl = document.getElementById('pointing-info');
@@ -75,6 +176,22 @@ const base = import.meta.env.BASE_URL;
   const viewModesEl = document.getElementById('view-modes');
   const eyepieceTint = document.getElementById('eyepiece-tint');
   const phaseBadge = document.getElementById('phase-badge');
+
+  // Live camera panel wiring (direct all-sky feed)
+  const camPanel = document.getElementById('camera-panel');
+  const camRefreshBtn = document.getElementById('cam-refresh-btn');
+  const camCloseBtn = document.getElementById('cam-close-btn');
+  const camLiveImg = camPanel ? camPanel.querySelector('img') : null;
+  const camLiveVideo = document.getElementById('cam-live-video');
+  const camFallback = document.getElementById('cam-fallback');
+  const camLastUpdated = document.getElementById('cam-last-updated');
+
+  // For camera vs procedural integration
+  const mainRoot = document.getElementById('main-root');
+  const telescopeStage = document.getElementById('telescope-stage');
+  const telescopeControls = document.getElementById('telescope-controls');
+  const modeDescEl = document.getElementById('mode-desc');
+  const targetsEl = document.getElementById('targets');
 
   let offsetX = 0;
   let offsetY = 0;
@@ -86,9 +203,9 @@ const base = import.meta.env.BASE_URL;
   let viewMode = 'visible';
   let skyPhase = 2; // 0=sunset ... 4=sunrise (deep night default for the observatory)
 
-  // Sky phases from the original Oracle/Rocky wiring for immersive live telescope experience.
+  // Sky phases for immersive live telescope experience (5-phase time-of-night transitions).
   // These provide the "time of night" layer on top of which the eyepiece modes (spectral "telescopes") apply their filters.
-  // 5-phase transition: sunset → twilight → deep night → awakening → sunrise + cultural framing for the personal observatory feel.
+  // Transition: sunset → twilight → deep night → awakening → sunrise + cultural framing for the personal observatory feel.
   const skyPhases = [
     { id: 'sunset', label: 'Sunset', key: '6', desc: 'The day is ending. Warm colors linger as the sky begins to open.' },
     { id: 'twilight', label: 'Twilight', key: '7', desc: 'The magic window. The first stars appear while the sky is still painted in soft fire.' },
@@ -813,7 +930,7 @@ const base = import.meta.env.BASE_URL;
     }
   }
 
-  function draw() {
+  function draw(includeReticle = true) {
     resizeCanvas();
     const w = canvas.width;
     const h = canvas.height;
@@ -878,27 +995,30 @@ const base = import.meta.env.BASE_URL;
     }
 
     // Draw central crosshair / reticle for precise pointing (matches the original telescope UI)
-    const crossX = w / 2;
-    const crossY = h / 2;
-    const crossSize = Math.max(8, 12 * Math.min(1.6, (zoom || 1) * 0.7)); // grows a little when zoomed so it stays usable
-    const crossColor = '#c026d3'; // purple/magenta like the original
-    ctx.strokeStyle = crossColor;
-    ctx.lineWidth = 2;
-    // horizontal
-    ctx.beginPath();
-    ctx.moveTo(crossX - crossSize, crossY);
-    ctx.lineTo(crossX + crossSize, crossY);
-    ctx.stroke();
-    // vertical
-    ctx.beginPath();
-    ctx.moveTo(crossX, crossY - crossSize);
-    ctx.lineTo(crossX, crossY + crossSize);
-    ctx.stroke();
-    // small center dot
-    ctx.fillStyle = crossColor;
-    ctx.beginPath();
-    ctx.arc(crossX, crossY, Math.max(1.5, 2 * (zoom || 1) * 0.6), 0, Math.PI * 2);
-    ctx.fill();
+    // NOTE: skipped during captureTelescopeView so bullseye/target does not appear in pinned share images
+    if (includeReticle) {
+      const crossX = w / 2;
+      const crossY = h / 2;
+      const crossSize = Math.max(8, 12 * Math.min(1.6, (zoom || 1) * 0.7)); // grows a little when zoomed so it stays usable
+      const crossColor = '#c026d3'; // purple/magenta like the original
+      ctx.strokeStyle = crossColor;
+      ctx.lineWidth = 2;
+      // horizontal
+      ctx.beginPath();
+      ctx.moveTo(crossX - crossSize, crossY);
+      ctx.lineTo(crossX + crossSize, crossY);
+      ctx.stroke();
+      // vertical
+      ctx.beginPath();
+      ctx.moveTo(crossX, crossY - crossSize);
+      ctx.lineTo(crossX, crossY + crossSize);
+      ctx.stroke();
+      // small center dot
+      ctx.fillStyle = crossColor;
+      ctx.beginPath();
+      ctx.arc(crossX, crossY, Math.max(1.5, 2 * (zoom || 1) * 0.6), 0, Math.PI * 2);
+      ctx.fill();
+    }
 
     const vignette = ctx.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.12, w / 2, h / 2, Math.max(w, h) * 0.78);
     vignette.addColorStop(0, 'rgba(0,0,0,0)');
@@ -919,7 +1039,7 @@ const base = import.meta.env.BASE_URL;
   }
 
   function animate() {
-    draw();
+    draw(true);  // normal live view with reticle
     requestAnimationFrame(animate);
   }
 
@@ -1025,8 +1145,10 @@ const base = import.meta.env.BASE_URL;
 
   // Pinning
   function captureTelescopeView() {
-    // Capture clean view of the current telescope canvas
+    // Capture clean view of the current telescope canvas (no bullseye/reticle so it doesn't end up in the share image)
+    draw(false);
     const thumb = canvas.toDataURL('image/jpeg', 0.72);
+    draw(true);  // restore reticle for live view immediately
 
     const viewState = {
       lat: -offsetY * 0.035,
@@ -1146,6 +1268,300 @@ const base = import.meta.env.BASE_URL;
     }
   });
 
+  // === Live camera selector + prominent view (per cottage spec) ===
+  // Horizontal tabs below header. Main feed view large/centered/prominent.
+  // Uses the sources from cameraSources (currently empty in this disabled/lab build).
+  // Persists choice. Loading states on switch. Elegant "eyepiece" feel.
+  // DISABLED STATE (Goldwing): tabs are hidden, cameraSources = [] in frontmatter.
+  // Full wiring + video support + safety patches preserved for when good sky/space sources are provided.
+  // Safety: never auto-open stored camera on load (prevents flashing/timelapse or bad feeds taking over).
+  // Video sources: manual playback only, no auto-refresh, no autoplay, no loop.
+  console.log('Camera JS initialized, found', cameraSources?.length, 'sources');
+  let camVisible = false;
+  let camLastRefresh = Date.now();
+  let activeCam = null;
+  let currentAutoRefresh = null;
+
+  // cameraSources is provided via define:vars from the frontmatter (empty [] while disabled).
+  // When good sources are vetted they will be populated and the hidden class removed from #live-cam-selector.
+
+  function getStoredCamId() {
+    try { return localStorage.getItem('observatory-active-cam'); } catch (_) { return null; }
+  }
+  function storeCamId(id) {
+    try { localStorage.setItem('observatory-active-cam', id); } catch (_) {}
+  }
+
+  function updateCamUI(source) {
+    if (!source) return;
+    const nameEl = document.getElementById('cam-name');
+    const creditEl = document.getElementById('cam-credit');
+    const linkEl = document.getElementById('cam-page-link');
+    if (nameEl) nameEl.textContent = source.name;
+    if (creditEl) creditEl.textContent = source.credit;
+    if (linkEl) {
+      linkEl.href = source.pageUrl;
+      linkEl.textContent = 'View full source page →';
+    }
+    const isVideo = source.kind === 'latest-video';
+    if (camLiveImg) {
+      camLiveImg.dataset.baseSrc = source.imageUrl || source.posterUrl || '';
+      camLiveImg.alt = source.name + ' live feed';
+      camLiveImg.classList.toggle('hidden', isVideo);
+    }
+    if (camLiveVideo) {
+      camLiveVideo.classList.toggle('hidden', !isVideo);
+      camLiveVideo.poster = source.posterUrl || '';
+    }
+    // Highlight active tab in the external selector
+    document.querySelectorAll('#live-cam-selector [data-cam-id]').forEach(btn => {
+      const on = btn.getAttribute('data-cam-id') === source.id;
+      btn.classList.toggle('bg-amber-500/30', on);
+      btn.classList.toggle('text-amber-50', on);
+      btn.classList.toggle('border-amber-400/50', on);
+      btn.classList.toggle('text-mist-300', !on);
+      btn.classList.toggle('border-white/10', !on);
+    });
+  }
+
+  function switchCamera(id, showPanel = true) {
+    const src = cameraSources.find(s => s.id === id);
+    if (!src) return;
+
+    activeCam = src;
+    storeCamId(id);
+    updateCamUI(src);
+
+    // Show loading state briefly
+    const loading = document.getElementById('cam-loading');
+    if (loading) loading.classList.remove('hidden');
+    if (camFallback) camFallback.classList.add('hidden');
+
+    // Load the feed immediately (per spec: start refreshing immediately on switch)
+    loadActiveCameraImage();
+
+    // Restart auto-refresh timer for this camera's refreshSeconds
+    startAutoRefresh();
+
+    if (showPanel) {
+      showCameraPanel();
+    }
+
+    // Hide loading after a short delay (image load will also clear it)
+    setTimeout(() => {
+      if (loading) loading.classList.add('hidden');
+    }, 650);
+  }
+
+  function loadActiveCameraImage() {
+    console.log('Loading camera:', activeCam.name, 'URL:', activeCam.imageUrl || activeCam.videoUrl);
+    if (!camLiveImg || !activeCam) return;
+    const timestamp = Date.now();
+    const isVideo = activeCam.kind === 'latest-video';
+    const base = isVideo ? activeCam.videoUrl : activeCam.imageUrl;
+    const sep = base.includes('?') ? '&' : '?';
+    const nextSrc = `${base}${sep}t=${timestamp}`;
+    if (isVideo && camLiveVideo) {
+      camLiveImg.classList.add('hidden');
+      camLiveVideo.classList.remove('hidden');
+      camLiveVideo.src = nextSrc;
+      camLiveVideo.poster = activeCam.posterUrl || '';
+      camLiveVideo.load();
+      console.log('Set video.src to:', camLiveVideo.src);
+    } else {
+      if (camLiveVideo) {
+        camLiveVideo.pause();
+        camLiveVideo.removeAttribute('src');
+        camLiveVideo.classList.add('hidden');
+      }
+      camLiveImg.classList.remove('hidden');
+      camLiveImg.src = nextSrc;
+      console.log('Set img.src to:', camLiveImg.src);
+    }
+    camLiveImg.onload = () => console.log('Image loaded successfully');
+    camLiveImg.onerror = () => console.log('Image failed to load');
+    camLastRefresh = timestamp;
+    updateCamTimestamp();
+    if (camFallback) camFallback.classList.add('hidden');
+    if (camLiveImg) camLiveImg.style.display = '';
+    if (camLiveVideo) camLiveVideo.style.display = '';
+  }
+
+  function updateCamTimestamp() {
+    const last = document.getElementById('cam-last-updated');
+    if (!last) return;
+    const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    last.textContent = `Last updated ${now}`;
+  }
+
+  function refreshCamImage() {
+    if (!camLiveImg || !camRefreshBtn || !activeCam) return;
+    camRefreshBtn.style.opacity = '0.6';
+    camRefreshBtn.style.pointerEvents = 'none';
+    loadActiveCameraImage();
+    setTimeout(() => {
+      if (camRefreshBtn) {
+        camRefreshBtn.style.opacity = '1';
+        camRefreshBtn.style.pointerEvents = 'auto';
+      }
+    }, 800);
+  }
+
+  function renderCamSelector() {
+    // Tabs are pre-rendered server-side from cameraSources for guaranteed visibility.
+    // This function now attaches click handlers and ensures initial active state.
+    const container = document.querySelector('#live-cam-selector > div > div');
+    if (!container) return;
+
+    const buttons = container.querySelectorAll('[data-cam-id]');
+    buttons.forEach((btn) => {
+      const id = btn.getAttribute('data-cam-id');
+      // Attach click if not already (for safety)
+      if (!btn.dataset.listenerAttached) {
+        btn.addEventListener('click', () => switchCamera(id));
+        btn.dataset.listenerAttached = 'true';
+      }
+    });
+
+    // Set initial active class based on stored or default (server sets first, this syncs)
+    const storedId = getStoredCamId();
+    const initialId = storedId || cameraSources[0]?.id;
+    buttons.forEach((btn) => {
+      const on = btn.getAttribute('data-cam-id') === initialId;
+      btn.classList.toggle('bg-amber-500/30', on);
+      btn.classList.toggle('text-amber-50', on);
+      btn.classList.toggle('border-amber-400/50', on);
+      btn.classList.toggle('text-mist-300', !on);
+      btn.classList.toggle('border-white/10', !on);
+    });
+  }
+
+  function showCameraPanel() {
+    if (!camPanel) return;
+    camPanel.classList.remove('hidden');
+    camVisible = true;
+    updateCamTimestamp();
+
+    if (!activeCam) {
+      const stored = getStoredCamId();
+      activeCam = cameraSources.find(s => s.id === stored) || cameraSources[0];
+    }
+    updateCamUI(activeCam);
+
+    if (camLiveImg && (!camLiveImg.getAttribute('src') || camLiveImg.src.includes('data:image'))) {
+      loadActiveCameraImage();
+    }
+
+    startAutoRefresh();
+
+    // Make live camera the prominent view, dim/hide procedural canvas and its UI
+    if (mainRoot) mainRoot.classList.add('camera-mode');
+    if (telescopeStage) {
+      telescopeStage.style.transition = 'opacity 0.3s ease';
+      telescopeStage.style.opacity = '0.15';
+      telescopeStage.style.pointerEvents = 'none';
+    }
+    if (telescopeControls) telescopeControls.classList.add('hidden');
+    if (modeDescEl) modeDescEl.classList.add('hidden');
+    if (targetsEl) targetsEl.classList.add('hidden');
+
+    // Expand camera panel to feel like the main/primary view
+    if (camPanel) {
+      camPanel.style.transition = 'all 0.3s ease-in-out';
+      camPanel.style.width = 'min(90vw, 1000px)';
+      camPanel.style.top = '70px';
+      camPanel.style.maxHeight = 'calc(100vh - 100px)';
+    }
+  }
+
+  function hideCameraPanel() {
+    if (!camPanel) return;
+    camPanel.classList.add('hidden');
+    camVisible = false;
+    if (currentAutoRefresh) {
+      clearInterval(currentAutoRefresh);
+      currentAutoRefresh = null;
+    }
+
+    // Restore procedural canvas to full view
+    if (mainRoot) mainRoot.classList.remove('camera-mode');
+    if (telescopeStage) {
+      telescopeStage.style.opacity = '1';
+      telescopeStage.style.pointerEvents = 'auto';
+    }
+    if (telescopeControls) telescopeControls.classList.remove('hidden');
+    if (modeDescEl) modeDescEl.classList.remove('hidden');
+    if (targetsEl) targetsEl.classList.remove('hidden');
+
+    // Restore original camera panel size/position
+    if (camPanel) {
+      camPanel.style.width = '';
+      camPanel.style.top = '105px';
+      camPanel.style.maxHeight = 'calc(100vh - 160px)';
+    }
+  }
+
+  // Wire controls
+  const camCloseBtnEl = document.getElementById('cam-close-btn');
+  if (camCloseBtnEl) {
+    camCloseBtnEl.addEventListener('click', hideCameraPanel);
+  }
+  const camRefreshBtnEl = document.getElementById('cam-refresh-btn');
+  if (camRefreshBtnEl && camLiveImg) {
+    camRefreshBtnEl.addEventListener('click', refreshCamImage);
+
+    camLiveImg.addEventListener('error', () => {
+      const fb = document.getElementById('cam-fallback');
+      if (fb) fb.classList.remove('hidden');
+      if (camLiveImg) camLiveImg.style.display = 'none';
+      const ld = document.getElementById('cam-loading');
+      if (ld) ld.classList.add('hidden');
+    });
+
+    camLiveImg.addEventListener('load', () => {
+      const fb = document.getElementById('cam-fallback');
+      if (fb) fb.classList.add('hidden');
+      if (camLiveImg) camLiveImg.style.display = '';
+      const ld = document.getElementById('cam-loading');
+      if (ld) ld.classList.add('hidden');
+    });
+
+    updateCamTimestamp();
+
+    // Start dynamic auto-refresh based on the camera's refreshSeconds
+    startAutoRefresh();
+  }
+
+  function startAutoRefresh() {
+    if (currentAutoRefresh) clearInterval(currentAutoRefresh);
+    if (!activeCam || !camVisible) return;
+    if (activeCam.kind === 'latest-video' || activeCam.refreshSeconds === 0) return;
+    const secs = activeCam.refreshSeconds || 60;
+    currentAutoRefresh = setInterval(() => {
+      if (camVisible && activeCam) {
+        loadActiveCameraImage();
+      }
+    }, secs * 1000);
+  }
+
+  // Render tabs and set initial active (respect localStorage)
+  renderCamSelector();
+
+  activeCam = cameraSources[0];
+
+  // Default to the first source, but do not auto-open a previously stored camera.
+  // This prevents a stale/flashing media source from taking over the telescope on load.
+  updateCamUI(activeCam);
+
+  // Also wire any remaining old toggle if present (for backward)
+  const oldCamToggle = document.getElementById('cam-toggle-btn');
+  if (oldCamToggle) {
+    oldCamToggle.addEventListener('click', () => {
+      if (camVisible) hideCameraPanel();
+      else showCameraPanel();
+    });
+  }
+
   // Boot
   try {
     const saved = sessionStorage.getItem('telescope-view-mode');
@@ -1161,6 +1577,8 @@ const base = import.meta.env.BASE_URL;
   buildViewModeButtons();
   setupTargets();
   updateModeUI();
+  // ensure camera panel starts hidden
+  if (camPanel) camPanel.classList.add('hidden');
   canvas.style.cursor = 'grab';
   window.addEventListener('resize', resizeCanvas);
   resizeCanvas();
