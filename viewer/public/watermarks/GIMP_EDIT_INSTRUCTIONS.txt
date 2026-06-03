@@ -1,4 +1,17 @@
-GIMP EDIT INSTRUCTIONS FOR DRAGON LADY WATERMARKS (credit-safe collab)
+WATERMARKS COMPLETE — NO FURTHER EDITS OR RECREATION (2026-06-03)
+The fixed assets are already delivered and final in this folder:
+  dragon-lady-mark.jpg
+  dragon-watermark.png
+  dragon-watermark.webp
+
+Code task ONLY: load these exact files from /watermarks/ and preserve them exactly as-is.
+Draw faintly in corners (dragon bottom-left, lady top-right). Nothing else.
+Do not regenerate, do not process, do not "improve", do not run GIMP on them again.
+
+All prior GIMP instructions below are historical only.
+
+================================================================================
+GIMP EDIT INSTRUCTIONS FOR DRAGON LADY WATERMARKS (credit-safe collab) [ARCHIVE]
 Date: 2026-06-02
 Context: Current soft Imagine line-art JPGs + canvas silhouettes are reading as "large hump back whale" (dragon/bottom-left) and "outside of a woman and a snake line" (lady mark/top-right) on the share cards at the required faint alphas + small sizes.
 
