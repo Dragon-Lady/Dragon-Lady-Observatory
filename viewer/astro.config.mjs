@@ -8,5 +8,8 @@ export default defineConfig({
   base: process.env.BASE_PATH || '/',
   trailingSlash: 'ignore',
   adapter: node({ mode: 'standalone' }),
+  // Hide the bottom-center Astro dev toolbar — it was intercepting clicks meant
+  // for centered UI underneath it. (It never appeared in production anyway.)
+  devToolbar: { enabled: false },
   vite: { plugins: [tailwindcss()] },
 });
