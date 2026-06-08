@@ -42,7 +42,7 @@ const VIEWS = [
     </div>
 
     <!-- Stage: both engines mounted, one visible at a time -->
-    <div class="relative h-[68dvh] min-h-[420px] w-full overflow-hidden rounded-2xl border border-void-800 bg-black shadow-2xl">
+    <div id="sky-stage" class="relative h-[68dvh] min-h-[420px] w-full overflow-hidden rounded-2xl border border-void-800 bg-black shadow-2xl">
 
       <!-- WorldWide Telescope (research app embed). Pannable/zoomable real sky + gyroscope-ready for the Android build. -->
       <div data-stage="wwt" class="absolute inset-0">
@@ -69,9 +69,36 @@ const VIEWS = [
       </div>
 
       <!-- Tiny live "now showing" chip -->
-      <div class="pointer-events-none absolute left-3 top-3 rounded-full border border-white/10 bg-black/60 px-3 py-1 text-xs text-mist-300 backdrop-blur">
+      <div id="now-chip" class="pointer-events-none absolute left-3 top-3 rounded-full border border-white/10 bg-black/60 px-3 py-1 text-xs text-mist-300 backdrop-blur">
         <span class="mr-1.5 inline-block h-2 w-2 animate-pulse rounded-full bg-emerald-400"></span>
         <span id="now-showing">Explore</span>
+      </div>
+
+      <!-- Top-center control group: our own buttons, clear of both engines' corner controls. -->
+      <div id="sky-controls" class="absolute left-1/2 top-3 z-[700] flex -translate-x-1/2 items-center gap-2">
+        <!-- One-tap snapshot of the Atlas (Aladin) view. Hidden on Explore (WWT iframe is cross-origin). -->
+        <button
+          id="sky-snapshot"
+          type="button"
+          title="Save a snapshot of this view (PNG)"
+          aria-label="Save a snapshot of this view"
+          class="hidden items-center gap-1.5 rounded-full border border-white/10 bg-black/60 px-3 py-1 text-xs text-mist-300 backdrop-blur transition-colors hover:border-signal-400/50 hover:text-mist-100"
+        >
+          <span class="text-sm leading-none">📸</span>
+          <span>Snapshot</span>
+        </button>
+        <!-- Expand to full window. Fullscreens the whole stage (not the engine's iframe-bound button)
+             so the engines' left/right control rails never clip. -->
+        <button
+          id="sky-expand"
+          type="button"
+          title="Expand to full screen"
+          aria-label="Expand to full screen"
+          class="flex items-center gap-1.5 rounded-full border border-white/10 bg-black/60 px-3 py-1 text-xs text-mist-300 backdrop-blur transition-colors hover:border-signal-400/50 hover:text-mist-100"
+        >
+          <span id="sky-expand-icon" class="text-sm leading-none">⛶</span>
+          <span id="sky-expand-label">Full screen</span>
+        </button>
       </div>
     </div>
 
@@ -80,6 +107,16 @@ const VIEWS = [
       CDS Strasbourg, showing DSS &amp; 2MASS survey imagery. Observation only.
     </p>
   </section>
+
+  <!-- When the stage is fullscreen, drop the box styling so the engine gets the entire viewport
+       and its edge controls (Atlas snapshot menu, zoom, layers) have room — no left/right clipping. -->
+  <style is:inline>
+    #sky-stage:fullscreen { height: 100dvh; min-height: 0; border-radius: 0; border: 0; }
+    #sky-stage:-webkit-full-screen { height: 100dvh; min-height: 0; border-radius: 0; border: 0; }
+    /* In full screen the engines own the corners — hide our info chip so it doesn't cover their controls. */
+    #sky-stage:fullscreen #now-chip { display: none; }
+    #sky-stage:-webkit-full-screen #now-chip { display: none; }
+  </style>
 
   <!-- Aladin engine (external CDN) — keep inline so Astro doesn't try to bundle the global. -->
   <script is:inline src="https://aladin.cds.unistra.fr/AladinLite/api/v3/latest/aladin.js" charset="utf-8"></script>
@@ -151,11 +188,21 @@ const VIEWS = [
         tab.setAttribute('aria-selected', on ? 'true' : 'false');
       }
 
+      var snapshotBtn = document.getElementById('sky-snapshot');
+      var currentView = 'wwt';
+
       function show(view) {
+        currentView = view;
         stages.forEach(function (s) { s.classList.toggle('hidden', s.dataset.stage !== view); });
         tabs.forEach(function (t) { activeStyle(t, t.dataset.view === view); });
         if (nowShowing) nowShowing.textContent = LABELS[view] || view;
         if (view === 'aladin') bootAladin();
+        // Snapshot is available on both lenses — Atlas uses a native canvas grab; Explore (WWT) uses
+        // screen-frame capture since its iframe is cross-origin.
+        if (snapshotBtn) {
+          snapshotBtn.classList.remove('hidden');
+          snapshotBtn.classList.add('flex');
+        }
         try { localStorage.setItem(STORAGE_KEY, view); } catch (e) {}
       }
 
@@ -167,6 +214,335 @@ const VIEWS = [
       try { initial = localStorage.getItem(STORAGE_KEY) || 'wwt'; } catch (e) {}
       if (!LABELS[initial]) initial = 'wwt';
       show(initial);
+
+      // --- Expand to full window ---------------------------------------------------
+      // Fullscreen the whole stage so each engine fills the viewport. The engines render
+      // their control rails at the screen edges; inside the boxed column those edges fall
+      // outside the visible area and clip. Fullscreening the stage gives them the full width.
+      var stage = document.getElementById('sky-stage');
+      var expandBtn = document.getElementById('sky-expand');
+      var expandIcon = document.getElementById('sky-expand-icon');
+      var expandLabel = document.getElementById('sky-expand-label');
+
+      function isFs() {
+        return document.fullscreenElement === stage || document.webkitFullscreenElement === stage;
+      }
+
+      function enterFs() {
+        if (!stage) return;
+        var req = stage.requestFullscreen || stage.webkitRequestFullscreen;
+        if (req) { try { req.call(stage); } catch (e) {} }
+      }
+      function exitFs() {
+        var exit = document.exitFullscreen || document.webkitExitFullscreen;
+        if (exit) { try { exit.call(document); } catch (e) {} }
+      }
+
+      if (expandBtn) {
+        expandBtn.addEventListener('click', function () { isFs() ? exitFs() : enterFs(); });
+      }
+
+      function onFsChange() {
+        var on = isFs();
+        if (expandIcon) expandIcon.textContent = on ? '⤢' : '⛶';
+        if (expandLabel) expandLabel.textContent = on ? 'Exit full screen' : 'Full screen';
+        // Engines size to their container — nudge them to re-measure after the box changes.
+        try { window.dispatchEvent(new Event('resize')); } catch (e) {}
+        if (window.__aladin && typeof window.__aladin.requestRedraw === 'function') {
+          try { window.__aladin.requestRedraw(); } catch (e) {}
+        }
+      }
+      document.addEventListener('fullscreenchange', onFsChange);
+      document.addEventListener('webkitfullscreenchange', onFsChange);
+
+      // --- One-tap snapshot (Atlas / Aladin only) ----------------------------------
+      // getViewDataURL renders ONLY the sky canvas — so it bakes in the reticle and misses HTML
+      // overlays like the SIMBAD info box. We fix both: hide the reticle for the capture, then
+      // composite the SIMBAD box (a floating DOM element) onto the sky image before saving.
+      function saveSnap(url) {
+        if (!url) return;
+        var name = 'observatory-' + new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19) + '.png';
+        var link = document.createElement('a');
+        link.href = url;
+        link.download = name;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+      }
+
+      function roundRect(cx, x, y, w, h, r) {
+        cx.beginPath();
+        cx.moveTo(x + r, y);
+        cx.arcTo(x + w, y, x + w, y + h, r);
+        cx.arcTo(x + w, y + h, x, y + h, r);
+        cx.arcTo(x, y + h, x, y, r);
+        cx.arcTo(x, y, x + w, y, r);
+        cx.closePath();
+      }
+
+      // Find a visible SIMBAD/object popup inside the Aladin container, if one is open.
+      function findPopup(div) {
+        if (!div) return null;
+        var cand = div.querySelectorAll('[class*="popup"], [class*="Popup"]');
+        for (var i = 0; i < cand.length; i++) {
+          var el = cand[i];
+          if (el.offsetParent !== null && el.innerText && el.innerText.trim().length) return el;
+        }
+        return null;
+      }
+
+      // Draw the popup's text into the snapshot at the same on-screen position.
+      function drawPopup(cx, div, imgW) {
+        var pop = findPopup(div);
+        if (!pop) return;
+        var dRect = div.getBoundingClientRect();
+        var pRect = pop.getBoundingClientRect();
+        var scale = imgW / dRect.width; // CSS px -> image px (≈ devicePixelRatio)
+        var x = (pRect.left - dRect.left) * scale;
+        var y = (pRect.top - dRect.top) * scale;
+        var w = Math.max(pRect.width * scale, 140 * scale);
+        var pad = 9 * scale;
+        var fontPx = 13 * scale;
+        var lines = pop.innerText.split('\n').map(function (s) { return s.trim(); }).filter(Boolean);
+        var h = pad * 2 + lines.length * fontPx * 1.38;
+        cx.fillStyle = 'rgba(5,7,13,0.9)';
+        cx.strokeStyle = 'rgba(255,255,255,0.2)';
+        cx.lineWidth = Math.max(1, 1.5 * scale);
+        roundRect(cx, x, y, w, h, 9 * scale);
+        cx.fill();
+        cx.stroke();
+        cx.textBaseline = 'top';
+        var ly = y + pad;
+        for (var j = 0; j < lines.length; j++) {
+          cx.font = (j === 0 ? '600 ' : '') + fontPx + 'px system-ui, -apple-system, sans-serif';
+          cx.fillStyle = j === 0 ? '#f4f7fc' : '#c4ccda';
+          cx.fillText(lines[j], x + pad, ly);
+          ly += fontPx * 1.38;
+        }
+      }
+
+      function compositeAndSave(url, div, imgW) {
+        var img = new Image();
+        img.onload = function () {
+          var cv = document.createElement('canvas');
+          cv.width = img.naturalWidth;
+          cv.height = img.naturalHeight;
+          var cx = cv.getContext('2d');
+          cx.drawImage(img, 0, 0);
+          try { drawPopup(cx, div, img.naturalWidth); } catch (e) {}
+          try { stampWatermarks(cx, cv.width, cv.height); } catch (e) {}
+          try { saveSnap(cv.toDataURL('image/png')); } catch (e) { saveSnap(url); }
+        };
+        img.onerror = function () { saveSnap(url); };
+        img.src = url;
+      }
+
+      // --- Watermarks: brand every shared image as Dragon Lady Observatory ---------
+      // Reuses the locked assets + corner rules from the home share-card (index.astro):
+      //   dragon (bottom-left): /watermarks/dragon-watermark.png  (fallback .webp)
+      //   Dragon Lady (top-right): /watermarks/dragon-lady-mark.jpg  (brightened 1.15x)
+      // Preloaded once on page load; stamped onto both Atlas and Explore snapshots before save.
+      var wmDragon = null, wmLady = null;
+
+      function loadImg(src) {
+        return new Promise(function (resolve) {
+          var im = new Image();
+          im.onload = function () { resolve(im); };
+          im.onerror = function () { resolve(null); };
+          im.src = src;
+        });
+      }
+
+      // Light prep so the fixed assets read as faint watermarks on a dark sky (strip near-white box,
+      // soft-fade light edges, mildly darken — or brighten, factor > 1 — the subject). Ported from index.astro.
+      function prepareWatermarkForDarkBg(originalImg, darkenFactor) {
+        return new Promise(function (resolve) {
+          if (!originalImg || !originalImg.complete || originalImg.naturalWidth === 0) { resolve(originalImg); return; }
+          try {
+            var off = document.createElement('canvas');
+            off.width = originalImg.naturalWidth;
+            off.height = originalImg.naturalHeight;
+            var octx = off.getContext('2d', { willReadFrequently: true });
+            octx.drawImage(originalImg, 0, 0, off.width, off.height);
+            var id = octx.getImageData(0, 0, off.width, off.height);
+            var d = id.data;
+            for (var i = 0; i < d.length; i += 4) {
+              var r = d[i], g = d[i + 1], b = d[i + 2], origA = d[i + 3];
+              var avg = (r + g + b) / 3;
+              var desat = (Math.max(r, g, b) - Math.min(r, g, b)) < 30;
+              if ((desat && avg > 40 && avg < 250) || avg > 235) {
+                d[i + 3] = 0;
+              } else if (avg > 210) {
+                var fade = Math.max(0, (avg - 210) / 25);
+                d[i + 3] = Math.floor((origA || 255) * (1 - fade));
+              } else {
+                d[i] = Math.floor(r * darkenFactor);
+                d[i + 1] = Math.floor(g * darkenFactor);
+                d[i + 2] = Math.floor(b * darkenFactor);
+                d[i + 3] = (origA < 250) ? Math.max(20, Math.floor(origA * 0.9)) : 255;
+              }
+            }
+            octx.putImageData(id, 0, 0);
+            var processed = new Image();
+            processed.onload = function () { resolve(processed); };
+            processed.onerror = function () { resolve(originalImg); };
+            processed.src = off.toDataURL('image/png');
+          } catch (e) { resolve(originalImg); }
+        });
+      }
+
+      (function loadWatermarks() {
+        loadImg('/watermarks/dragon-watermark.png')
+          .then(function (d) { return d || loadImg('/watermarks/dragon-watermark.webp'); })
+          .then(function (d) { if (d) prepareWatermarkForDarkBg(d, 0.8).then(function (p) { wmDragon = p; }); });
+        loadImg('/watermarks/dragon-lady-mark.jpg')
+          .then(function (l) { if (l) prepareWatermarkForDarkBg(l, 1.15).then(function (p) { wmLady = p; }); });
+      })();
+
+      // Stamp both marks in their corners, sized proportional to the image so they look right at any
+      // capture resolution. Alphas match the home card (dragon 0.40, lady 0.45). Dragon is always
+      // bottom-left; the Dragon Lady mark is top-right by default, but ladyBottomRight drops it to the
+      // bottom-right for Explore — WWT's own zoom/settings controls sit top-right and get baked into
+      // that capture, so the mark would otherwise collide with them.
+      function stampWatermarks(cx, w, h, ladyBottomRight) {
+        var margin = Math.round(w * 0.012);
+        if (wmDragon && wmDragon.complete && wmDragon.naturalWidth > 0) {
+          var dw = Math.round(w * 0.11), dh = Math.round(dw * (100 / 135));
+          cx.save();
+          cx.globalAlpha = 0.40;
+          cx.drawImage(wmDragon, margin, h - dh - margin, dw, dh);
+          cx.restore();
+        }
+        if (wmLady && wmLady.complete && wmLady.naturalWidth > 0) {
+          var lw = Math.round(w * 0.095), lh = Math.round(lw * (95 / 115));
+          var ly = ladyBottomRight ? (h - lh - margin) : margin;
+          cx.save();
+          cx.globalAlpha = 0.45;
+          cx.drawImage(wmLady, w - lw - margin, ly, lw, lh);
+          cx.restore();
+        }
+      }
+
+      // Hide marker/selection overlays (e.g. the magenta SIMBAD circle) for a clean capture, then restore.
+      var hiddenOverlays = [];
+      function hideMarkers(a) {
+        hiddenOverlays = [];
+        try {
+          var ovs = (typeof a.getOverlays === 'function') ? a.getOverlays() : null;
+          if (ovs && ovs.forEach) {
+            ovs.forEach(function (o) {
+              try { if (o.isShowing !== false && typeof o.hide === 'function') { o.hide(); hiddenOverlays.push(o); } } catch (e) {}
+            });
+          }
+        } catch (e) {}
+      }
+      function restoreMarkers() {
+        hiddenOverlays.forEach(function (o) { try { if (typeof o.show === 'function') o.show(); } catch (e) {} });
+        hiddenOverlays = [];
+      }
+
+      // Atlas (Aladin): native canvas capture, with reticle + selection markers hidden, SIMBAD box composited in.
+      function captureAladin() {
+        var a = window.__aladin;
+        if (!a) { alert('Atlas is still loading — give it a moment, then try again.'); return; }
+        var div = document.getElementById('aladin-lite-div');
+        try { if (typeof a.showReticle === 'function') a.showReticle(false); } catch (e) {}
+        hideMarkers(a);
+        try { if (typeof a.requestRedraw === 'function') a.requestRedraw(); } catch (e) {}
+        setTimeout(function () {
+          function done() {
+            try { if (typeof a.showReticle === 'function') a.showReticle(true); } catch (e) {}
+            restoreMarkers();
+            try { if (typeof a.requestRedraw === 'function') a.requestRedraw(); } catch (e) {}
+          }
+          try {
+            if (typeof a.getViewDataURL === 'function') {
+              var res = a.getViewDataURL({ format: 'image/png' });
+              if (res && typeof res.then === 'function') { res.then(function (u) { compositeAndSave(u, div); done(); }); return; }
+              if (typeof res === 'string') { compositeAndSave(res, div); done(); return; }
+            }
+            if (typeof a.exportAsPNG === 'function') { a.exportAsPNG(); done(); return; }
+            done();
+            alert('Snapshot is not available in this Atlas build.');
+          } catch (e) {
+            done();
+            alert('Could not capture the view: ' + (e && e.message ? e.message : 'unknown error'));
+          }
+        }, 120);
+      }
+
+      // Explore (WorldWide Telescope): cross-origin iframe — pixels can't be read with a canvas grab.
+      // Use the browser's screen-capture API (one permission prompt), then crop to the sky view and save.
+      function captureExplore() {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
+          alert('This browser can’t capture the Explore view directly. Use Windows Snip (Win+Shift+S) for now.');
+          return;
+        }
+        var controls = document.getElementById('sky-controls');
+        var chip = document.getElementById('now-chip');
+        // cursor: 'never' asks the browser to leave the mouse pointer out of the captured frame.
+        navigator.mediaDevices.getDisplayMedia({ video: { displaySurface: 'browser', cursor: 'never' }, audio: false, preferCurrentTab: true })
+          .then(function (stream) {
+            // Second attempt at dropping the pointer — some browsers honor it at the track level.
+            try {
+              var vtrack = stream.getVideoTracks()[0];
+              if (vtrack && vtrack.applyConstraints) vtrack.applyConstraints({ cursor: 'never' });
+            } catch (e) {}
+            var video = document.createElement('video');
+            video.srcObject = stream;
+            video.muted = true;
+            video.play();
+            video.addEventListener('loadedmetadata', function () {
+              // Hide our own overlay UI + the page cursor so neither is baked into the shot.
+              if (controls) controls.style.visibility = 'hidden';
+              if (chip) chip.style.visibility = 'hidden';
+              var prevCursor = document.documentElement.style.cursor;
+              document.documentElement.style.cursor = 'none';
+              // Settle so the first captured frame is painted with our UI already hidden.
+              setTimeout(function () {
+                try {
+                  // Crop to WWT's sky iframe (falls back to the stage). Works whether or not full screen
+                  // survived the share prompt — we map page coords to the captured frame and CLAMP to its
+                  // bounds so we never sample past the edge (that overflow is what saved out as a white block).
+                  var target = document.getElementById('wwt-frame') || stage;
+                  var rect = target.getBoundingClientRect();
+                  var sx = video.videoWidth / window.innerWidth;
+                  var sy = video.videoHeight / window.innerHeight;
+                  var srcX = Math.max(0, Math.round(rect.left * sx));
+                  var srcY = Math.max(0, Math.round(rect.top * sy));
+                  var srcW = Math.max(1, Math.min(video.videoWidth - srcX, Math.round(rect.width * sx)));
+                  var srcH = Math.max(1, Math.min(video.videoHeight - srcY, Math.round(rect.height * sy)));
+                  var cv = document.createElement('canvas');
+                  cv.width = srcW;
+                  cv.height = srcH;
+                  var cx = cv.getContext('2d');
+                  cx.drawImage(video, srcX, srcY, srcW, srcH, 0, 0, srcW, srcH);
+                  // ladyBottomRight: WWT's controls live top-right in this capture, so move the mark clear.
+                  try { stampWatermarks(cx, cv.width, cv.height, true); } catch (e) {}
+                  saveSnap(cv.toDataURL('image/png'));
+                } catch (e) {
+                  alert('Capture failed: ' + (e && e.message ? e.message : 'unknown error'));
+                } finally {
+                  if (controls) controls.style.visibility = '';
+                  if (chip) chip.style.visibility = '';
+                  document.documentElement.style.cursor = prevCursor;
+                  stream.getTracks().forEach(function (t) { t.stop(); });
+                }
+              }, 300);
+            });
+          })
+          .catch(function (e) {
+            if (e && e.name === 'NotAllowedError') return; // user cancelled the share prompt
+            alert('Could not start screen capture: ' + (e && e.message ? e.message : 'unknown error'));
+          });
+      }
+
+      if (snapshotBtn) {
+        snapshotBtn.addEventListener('click', function () {
+          if (currentView === 'aladin') captureAladin();
+          else captureExplore();
+        });
+      }
     })();
   </script>
 </Base>
