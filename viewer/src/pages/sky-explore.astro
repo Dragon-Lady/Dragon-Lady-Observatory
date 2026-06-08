@@ -1,0 +1,171 @@
+---
+// sky-explore.astro — "The Eyepiece"
+// Interactive deep-sky exploration for the Dragon Lady Observatory.
+// Two real engines, switchable (James's selector pattern, fed real views this time):
+//   - Explore (WorldWide Telescope): fly/pan/zoom the real sky + 3D solar system.
+//   - Atlas   (Aladin Lite v3): fast survey atlas; search any object and it flies you there.
+// Both render REAL telescope survey imagery (DSS/2MASS/etc.) — not webcams, not canvas doodles.
+// Standalone prototype: does NOT touch telescope.astro. Mansion can fold the proven
+// wiring into his page if/when he wants it.
+import Base from '../layouts/Base.astro';
+
+const VIEWS = [
+  { id: 'wwt',    label: 'Explore',  icon: '🌌', hint: 'Fly through the real universe' },
+  { id: 'aladin', label: 'Atlas',    icon: '🔭', hint: 'Search any object, jump to it' },
+];
+---
+
+<Base title="The Eyepiece" description="Explore the real sky — pan, zoom, and fly to galaxies and nebulae from real telescope survey imagery.">
+  <section class="space-y-4">
+    <div class="flex flex-col gap-1">
+      <h1 class="text-xl font-semibold tracking-tight text-mist-100">The Eyepiece</h1>
+      <p class="text-sm text-mist-400">
+        Real sky, real survey imagery. Pan, zoom, and fly to galaxies and nebulae —
+        no telescope, no cop-car fisheye. Pick a lens below.
+      </p>
+    </div>
+
+    <!-- View selector: big, touch-friendly tabs (James's spec) -->
+    <div id="lens-selector" class="flex flex-wrap gap-2" role="tablist" aria-label="Sky view">
+      {VIEWS.map((v) => (
+        <button
+          type="button"
+          data-view={v.id}
+          role="tab"
+          class="lens-tab group flex items-center gap-2 rounded-xl border border-void-800 bg-void-900/70 px-4 py-2.5 text-sm text-mist-300 transition-colors hover:border-signal-400/50 hover:text-mist-100"
+        >
+          <span class="text-base leading-none">{v.icon}</span>
+          <span class="font-medium">{v.label}</span>
+          <span class="hidden text-xs text-mist-500 sm:inline">· {v.hint}</span>
+        </button>
+      ))}
+    </div>
+
+    <!-- Stage: both engines mounted, one visible at a time -->
+    <div class="relative h-[68dvh] min-h-[420px] w-full overflow-hidden rounded-2xl border border-void-800 bg-black shadow-2xl">
+
+      <!-- WorldWide Telescope (research app embed). Pannable/zoomable real sky + gyroscope-ready for the Android build. -->
+      <div data-stage="wwt" class="absolute inset-0">
+        <iframe
+          id="wwt-frame"
+          title="WorldWide Telescope"
+          class="h-full w-full border-0"
+          src="https://web.wwtassets.org/research/latest/"
+          allow="accelerometer; gyroscope; clipboard-write; fullscreen"
+          allowfullscreen
+          loading="lazy"
+        ></iframe>
+      </div>
+
+      <!-- Aladin Lite v3 atlas. Init is lazy — only boots when this lens is first selected. -->
+      <div data-stage="aladin" class="absolute inset-0 hidden">
+        <div id="aladin-lite-div" class="h-full w-full"></div>
+        <!-- Survey toggle: best of both worlds — deep zoomable color vs painted Milky Way -->
+        <div class="absolute left-1/2 top-3 z-[600] flex -translate-x-1/2 gap-1 rounded-full border border-white/10 bg-black/70 p-1 backdrop-blur">
+          <button type="button" data-survey="P/DSS2/color" class="survey-btn rounded-full px-3 py-1 text-xs font-medium text-mist-300 transition-colors hover:text-mist-100">Deep Sky</button>
+          <button type="button" data-survey="P/Mellinger/color" class="survey-btn rounded-full px-3 py-1 text-xs font-medium text-mist-300 transition-colors hover:text-mist-100">Milky Way</button>
+        </div>
+      </div>
+
+      <!-- Tiny live "now showing" chip -->
+      <div class="pointer-events-none absolute left-3 top-3 rounded-full border border-white/10 bg-black/60 px-3 py-1 text-xs text-mist-300 backdrop-blur">
+        <span class="mr-1.5 inline-block h-2 w-2 animate-pulse rounded-full bg-emerald-400"></span>
+        <span id="now-showing">Explore</span>
+      </div>
+    </div>
+
+    <p class="text-xs text-mist-500">
+      Explore: WorldWide Telescope (American Astronomical Society). Atlas: Aladin Lite v3 /
+      CDS Strasbourg, showing DSS &amp; 2MASS survey imagery. Observation only.
+    </p>
+  </section>
+
+  <!-- Aladin engine (external CDN) — keep inline so Astro doesn't try to bundle the global. -->
+  <script is:inline src="https://aladin.cds.unistra.fr/AladinLite/api/v3/latest/aladin.js" charset="utf-8"></script>
+
+  <script is:inline>
+    (function () {
+      const STORAGE_KEY = 'dlo-sky-lens';
+      const LABELS = { wwt: 'Explore', aladin: 'Atlas' };
+      const tabs = Array.from(document.querySelectorAll('.lens-tab'));
+      const stages = Array.from(document.querySelectorAll('[data-stage]'));
+      const nowShowing = document.getElementById('now-showing');
+      const surveyBtns = Array.from(document.querySelectorAll('.survey-btn'));
+      let aladinBooted = false;
+      let currentSurvey = 'P/DSS2/color';
+
+      function bootAladin() {
+        if (aladinBooted || typeof A === 'undefined') return;
+        aladinBooted = true;
+        A.init.then(function () {
+          window.__aladin = A.aladin('#aladin-lite-div', {
+            survey: currentSurvey,
+            fov: 18,
+            target: 'M42',
+            cooFrame: 'equatorial',
+            projection: 'SIN',
+            showReticle: true,
+            showZoomControl: true,
+            showFullscreenControl: true,
+            showLayersControl: true,
+            showGotoControl: true,
+            showSimbadPointerControl: true,
+          });
+        });
+      }
+
+      function styleSurvey() {
+        surveyBtns.forEach(function (b) {
+          var on = b.dataset.survey === currentSurvey;
+          b.classList.toggle('bg-signal-400/20', on);
+          b.classList.toggle('text-mist-100', on);
+        });
+      }
+
+      function setSurvey(id) {
+        currentSurvey = id;
+        styleSurvey();
+        var a = window.__aladin;
+        if (!a) return; // not booted yet — bootAladin will use currentSurvey
+        try {
+          if (typeof a.setBaseImageLayer === 'function' && typeof A !== 'undefined' && A.imageHiPS) {
+            a.setBaseImageLayer(A.imageHiPS(id));
+          } else if (typeof a.setImageSurvey === 'function') {
+            a.setImageSurvey(id);
+          }
+        } catch (e) {
+          if (typeof a.setImageSurvey === 'function') a.setImageSurvey(id);
+        }
+      }
+
+      surveyBtns.forEach(function (b) {
+        b.addEventListener('click', function () { setSurvey(b.dataset.survey); });
+      });
+      styleSurvey();
+
+      function activeStyle(tab, on) {
+        tab.classList.toggle('border-signal-400', on);
+        tab.classList.toggle('text-mist-100', on);
+        tab.classList.toggle('bg-void-800', on);
+        tab.setAttribute('aria-selected', on ? 'true' : 'false');
+      }
+
+      function show(view) {
+        stages.forEach(function (s) { s.classList.toggle('hidden', s.dataset.stage !== view); });
+        tabs.forEach(function (t) { activeStyle(t, t.dataset.view === view); });
+        if (nowShowing) nowShowing.textContent = LABELS[view] || view;
+        if (view === 'aladin') bootAladin();
+        try { localStorage.setItem(STORAGE_KEY, view); } catch (e) {}
+      }
+
+      tabs.forEach(function (t) {
+        t.addEventListener('click', function () { show(t.dataset.view); });
+      });
+
+      let initial = 'wwt';
+      try { initial = localStorage.getItem(STORAGE_KEY) || 'wwt'; } catch (e) {}
+      if (!LABELS[initial]) initial = 'wwt';
+      show(initial);
+    })();
+  </script>
+</Base>
