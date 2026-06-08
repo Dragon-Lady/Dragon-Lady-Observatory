@@ -60,8 +60,9 @@ const VIEWS = [
       <!-- Aladin Lite v3 atlas. Init is lazy — only boots when this lens is first selected. -->
       <div data-stage="aladin" class="absolute inset-0 hidden">
         <div id="aladin-lite-div" class="h-full w-full"></div>
-        <!-- Survey toggle: best of both worlds — deep zoomable color vs painted Milky Way -->
-        <div class="absolute left-1/2 top-3 z-[600] flex -translate-x-1/2 gap-1 rounded-full border border-white/10 bg-black/70 p-1 backdrop-blur">
+        <!-- Survey toggle: best of both worlds — deep zoomable color vs painted Milky Way.
+             Anchored bottom-center so it never collides with Aladin's centered object popups. -->
+        <div class="absolute bottom-3 left-1/2 z-[600] flex -translate-x-1/2 gap-1 rounded-full border border-white/10 bg-black/70 p-1 backdrop-blur">
           <button type="button" data-survey="P/DSS2/color" class="survey-btn rounded-full px-3 py-1 text-xs font-medium text-mist-300 transition-colors hover:text-mist-100">Deep Sky</button>
           <button type="button" data-survey="P/Mellinger/color" class="survey-btn rounded-full px-3 py-1 text-xs font-medium text-mist-300 transition-colors hover:text-mist-100">Milky Way</button>
         </div>
