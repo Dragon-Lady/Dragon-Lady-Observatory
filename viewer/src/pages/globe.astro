@@ -1,20 +1,7 @@
 ---
 import '@/styles/global.css';
-import { orbitalMarkers, conjunctionMarkers, stats } from '@/lib/store';
-const s = stats();
+
 const base = import.meta.env.BASE_URL;
-const catalogUrl = (base.endsWith('/') ? base : base + '/') + 'catalog/tle.json';
-const markers = orbitalMarkers();
-// Globe is a quiet contemplative view. We use the top conjunctions (debris pairs / anomaly close passes) 
-// as the gentle dim markers so their pair names (e.g. "SL-3 R/B x PSLV R/B") appear as the permanent labels.
-// GLOBE_MAX controls the max dim markers shown (used by quiet helpers for both init and live updates).
-const conjunctions = conjunctionMarkers();  
-const alertCount = 0;
-const closeCount = 0;
-const PANEL_MAX = 0;
-const GLOBE_MAX = 5;   // very few for contemplative mode — now consistently enforced in getQuiet* helpers
-const panelList = [];
-const globeConj = conjunctions;  // pass the conjs so client can render their positions + names as the dim markers
 ---
 
 <!doctype html>
@@ -24,585 +11,533 @@ const globeConj = conjunctions;  // pass the conjs so client can render their po
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="theme-color" content="#05070d" />
   <title>The Globe · Dragon Lady’s Observatory</title>
+  <script is:inline src="https://web.wwtassets.org/engine/7/wwtsdk.js"></script>
   <style>
-    /* flyrow styles removed - globe is now minimal contemplative view, no noisy lists */
-  </style>
-</head>
-<body style="margin:0;background:#05070d;overflow:hidden;">
-  <div id="globe" style="position:fixed;inset:0;"></div>
+    :root {
+      color-scheme: dark;
+      --mist: #e9edf5;
+      --soft: #aab4c7;
+      --dim: #6b7790;
+      --panel: rgba(8, 12, 22, 0.78);
+      --line: rgba(137, 231, 255, 0.24);
+      --signal: #6fd3e2;
+    }
 
-  <div style="position:fixed;top:14px;left:14px;z-index:10;background:#0f1420cc;backdrop-filter:blur(8px);border:1px solid #232c40;border-radius:12px;padding:14px 16px;max-width:300px;">
-    <div style="display:flex;align-items:baseline;gap:8px;">
-      <span style="font-size:16px;font-weight:600;color:#e9edf5;">Dragon Lady’s Observatory</span>
-      <a href={base} style="color:#6fd3e2;font-size:13px;text-decoration:none;">← console</a>
+    html,
+    body {
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: #05070d;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    .stage {
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(circle at 14% 18%, rgba(111, 211, 226, 0.17), transparent 24%),
+        radial-gradient(circle at 84% 78%, rgba(106, 90, 205, 0.20), transparent 28%),
+        #05070d;
+    }
+
+    #wwt-canvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      background: #000;
+    }
+
+    .aurora {
+      pointer-events: none;
+      position: absolute;
+      inset: -12%;
+      background:
+        conic-gradient(from 218deg at 50% 50%,
+          transparent 0deg,
+          rgba(82, 255, 210, 0.14) 42deg,
+          rgba(95, 141, 255, 0.18) 76deg,
+          transparent 116deg,
+          transparent 208deg,
+          rgba(146, 92, 255, 0.14) 252deg,
+          rgba(91, 231, 255, 0.11) 292deg,
+          transparent 340deg);
+      filter: blur(34px) saturate(1.3);
+      opacity: 0.72;
+      mix-blend-mode: screen;
+    }
+
+    .topbar {
+      position: fixed;
+      left: 16px;
+      right: 16px;
+      top: 14px;
+      z-index: 20;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .brand,
+    .controls,
+    .side-panel {
+      border: 1px solid var(--line);
+      background: var(--panel);
+      backdrop-filter: blur(12px);
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.32);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-height: 42px;
+      padding: 0 13px;
+      color: var(--mist);
+    }
+
+    .brand strong {
+      display: block;
+      font-size: 14px;
+      font-weight: 650;
+      letter-spacing: 0;
+      line-height: 1.1;
+    }
+
+    .brand a {
+      color: var(--signal);
+      font-size: 12px;
+      text-decoration: none;
+    }
+
+    .controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px;
+    }
+
+    button,
+    input {
+      height: 34px;
+      border-radius: 6px;
+      border: 1px solid rgba(170, 180, 199, 0.22);
+      background: rgba(5, 7, 13, 0.76);
+      color: var(--mist);
+      font: inherit;
+      font-size: 12px;
+      letter-spacing: 0;
+    }
+
+    button {
+      cursor: pointer;
+      padding: 0 12px;
+      font-weight: 600;
+    }
+
+    button:hover {
+      border-color: rgba(111, 211, 226, 0.7);
+      color: #ffffff;
+    }
+
+    button.primary {
+      border-color: rgba(111, 211, 226, 0.72);
+      background: rgba(111, 211, 226, 0.18);
+      color: #dffaff;
+    }
+
+    input {
+      width: 96px;
+      padding: 0 9px;
+      color: var(--soft);
+    }
+
+    .side-panel {
+      position: fixed;
+      left: 16px;
+      top: 76px;
+      z-index: 20;
+      width: min(330px, calc(100vw - 32px));
+      box-sizing: border-box;
+      padding: 14px;
+      color: var(--soft);
+    }
+
+    .panel-title {
+      color: var(--mist);
+      font-size: 13px;
+      font-weight: 650;
+      line-height: 1.2;
+      margin-bottom: 10px;
+    }
+
+    .field-stack {
+      display: grid;
+      gap: 8px;
+    }
+
+    .wide-input,
+    .side-panel input {
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    .input-row,
+    .button-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .button-row button,
+    .input-row input {
+      min-width: 0;
+    }
+
+    .panel-note {
+      margin-top: 10px;
+      color: var(--dim);
+      font-size: 11px;
+      line-height: 1.35;
+    }
+
+    .pinned-list {
+      display: grid;
+      gap: 6px;
+      margin-top: 10px;
+      max-height: 188px;
+      overflow: auto;
+      padding-right: 2px;
+    }
+
+    :global(.pin-row) {
+      height: auto;
+      min-height: 34px;
+      width: 100%;
+      padding: 7px 9px;
+      text-align: left;
+      line-height: 1.25;
+      white-space: normal;
+    }
+
+    :global(.pin-row small) {
+      display: block;
+      color: var(--dim);
+      font-size: 10px;
+      margin-top: 2px;
+    }
+
+    .status {
+      position: fixed;
+      left: 16px;
+      bottom: 16px;
+      z-index: 20;
+      max-width: min(520px, calc(100vw - 32px));
+      border: 1px solid rgba(170, 180, 199, 0.18);
+      background: rgba(8, 12, 22, 0.72);
+      color: var(--soft);
+      padding: 9px 12px;
+      font-size: 12px;
+      line-height: 1.4;
+      backdrop-filter: blur(12px);
+    }
+
+    .status strong {
+      color: var(--mist);
+      font-weight: 650;
+    }
+
+    @media (max-width: 760px) {
+      .topbar {
+        align-items: stretch;
+        flex-direction: column;
+      }
+
+      .brand,
+      .controls {
+        width: 100%;
+        box-sizing: border-box;
+      }
+
+      .controls {
+        flex-wrap: wrap;
+      }
+
+	      input {
+	        flex: 1 1 104px;
+	      }
+
+	      .side-panel {
+	        top: 132px;
+	      }
+	    }
+	  </style>
+	</head>
+<body>
+  <main class="stage">
+    <div id="wwt-canvas" aria-label="WorldWide Telescope Earth viewer"></div>
+    <div class="aurora" aria-hidden="true"></div>
+  </main>
+
+  <div class="topbar">
+    <div class="brand">
+      <strong>The Globe</strong>
+      <a href={base}>console</a>
+      <a href={base + 'observatory'}>observatory</a>
     </div>
-    <p style="margin:6px 0 0;color:#aab4c7;font-size:13px;line-height:1.5;">
-      A quiet observatory of the living sky.
-    </p>
-  </div>
 
-  <!-- Observatory Window text box – affirmed beautiful by user ("Beautiful babe") 2026-06-03.
-       Fonts tuned 14/13/13px, 280px wide, padded for presence without overwhelming the quiet globe view.
-       The whole vibe is the contemplative heart of the personal observatory.
-       The gentle points now have clearer explanatory text (user was curious about one appearing as "little island" N of Antarctica / SE of Africa — it's a marker for a tracked anomalous object).
-       2026-06-03 label text fix: tiny permanent labels now pull direct d.name so they match the exact input text from the land mass spot image (and other areas labeled in the image). -->
-  <div style="position:fixed;top:14px;right:14px;z-index:10;width:280px;max-width:calc(100vw - 28px);background:#0f1420f2;backdrop-filter:blur(8px);border:1px solid #36415a;border-radius:12px;padding:12px 14px;">
-    <div style="font-size:14px;font-weight:600;color:#e9edf5;margin-bottom:5px;">Observatory Window</div>
-    <div style="font-size:13px;color:#8893a8;line-height:1.45;">
-      A quiet, contemplative view of the living Earth and the sky above it. The old tiered alerts and noise are set aside — this is a place for slow looking, for wonder, for the personal sky that belongs to us.
-    </div>
-    <div style="margin-top:9px;font-size:13px;color:#6b7790;">
-      The few gentle glowing points mark the current positions of notable objects with detected anomalies (mostly debris pairs in predicted close passes). Each has a small label right next to its dot so you can see the name instantly (e.g. "SL-3 R/B x PSLV R/B"). Hover or click the dot for full identity &amp; details. The Telescope is for the deep, calm, personal gazing.
-    </div>
-  </div>
+	    <div class="controls">
+	      <button id="earth-btn" class="primary" type="button">Earth</button>
+	      <button id="full-btn" type="button">Full</button>
+	    </div>
+	  </div>
 
-  <div id="loading" style="position:fixed;inset:0;display:flex;align-items:center;justify-content:center;color:#8893a8;font-family:system-ui;z-index:5;">
-    A quiet sky is loading…
-  </div>
+	  <aside class="side-panel" aria-label="Location search">
+	    <div class="panel-title">Location Search</div>
+	    <div class="field-stack">
+	      <input id="loc-name" class="wide-input" type="search" autocomplete="off" placeholder="city, state, country" aria-label="Search for a location" />
+	      <div class="button-row">
+	        <button id="resolve-btn" class="primary" type="button">Resolve</button>
+	        <button id="sky-btn" type="button">Sky Here</button>
+	      </div>
+	      <div class="input-row">
+	        <input id="lat-input" type="number" inputmode="decimal" step="0.0001" min="-90" max="90" placeholder="lat" aria-label="Latitude" />
+	        <input id="lng-input" type="number" inputmode="decimal" step="0.0001" min="-180" max="180" placeholder="lng" aria-label="Longitude" />
+	      </div>
+	    </div>
+	    <div id="location-status" class="panel-note">Search a place, enter coordinates, or choose a saved pin.</div>
+	    <div id="pinned-list" class="pinned-list" aria-label="Saved pinned locations"></div>
+	  </aside>
 
-  <div id="info" style="position:fixed;bottom:14px;left:14px;z-index:10;max-width:360px;background:#0f1420f2;backdrop-filter:blur(8px);border:1px solid #36415a;border-radius:10px;padding:11px 13px;font-size:13px;line-height:1.5;color:#cdd5e3;display:none;">
-    <button id="info-x" style="float:right;background:none;border:none;color:#8893a8;cursor:pointer;font-size:14px;">×</button>
-    <span id="info-text"></span>
-  </div>
+	  <div id="status" class="status"><strong>Loading WWT.</strong> Preparing the Earth view.</div>
 
-  <script is:inline define:vars={{ catalogUrl, markers, conjunctions: globeConj, globeMax: GLOBE_MAX }}>
-    function load(src){return new Promise((res,rej)=>{const s=document.createElement('script');s.src=src;s.onload=res;s.onerror=rej;document.head.appendChild(s);});}
-    const EARTH_R = 6371;
-    const esc = (s) => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  <script is:inline define:vars={{ base }}>
+    (function () {
+      const EARTH_IMAGESET = 'Bing Maps Aerial';
+      const status = document.getElementById('status');
+      const canvas = document.getElementById('wwt-canvas');
+      const earthBtn = document.getElementById('earth-btn');
+      const skyBtn = document.getElementById('sky-btn');
+	      const fullBtn = document.getElementById('full-btn');
+	      const latInput = document.getElementById('lat-input');
+	      const lngInput = document.getElementById('lng-input');
+	      const locName = document.getElementById('loc-name');
+	      const resolveBtn = document.getElementById('resolve-btn');
+	      const locationStatus = document.getElementById('location-status');
+	      const pinnedList = document.getElementById('pinned-list');
+	      let scriptInterface = null;
+	      let wwt = null;
 
-    let catalog = [];
-    const anomalyCatalog = Array.isArray(markers) ? markers : [];
-    const conjunctionCatalog = Array.isArray(conjunctions) ? conjunctions : [];
+      function setStatus(title, detail) {
+        if (!status) return;
+        status.innerHTML = '<strong>' + title + '</strong>' + (detail ? ' ' + detail : '');
+      }
 
-    function tierColor(tier){
-      if (tier === 'T1') return '#ff5470';
-      if (tier === 'T2') return '#ffc247';
-      return '#9fb0c9';
-    }
+	      function parseNumber(input, min, max) {
+	        const value = Number(input.value);
+	        if (!Number.isFinite(value) || value < min || value > max) return null;
+	        return value;
+	      }
 
-    // Current propagated position+label of every flagged marker, keyed by record
-    // id. This lets a panel-row click fly to where the dot actually is now.
-    const posById = {};
+	      function setLocationStatus(message) {
+	        if (locationStatus) locationStatus.textContent = message;
+	      }
 
-    function propagate(when){
-      const gmst = satellite.gstime(when);
-      const pts = [];
-      for (const t of catalog){
+	      function setLocation(lat, lng, label) {
+	        if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+	        latInput.value = lat.toFixed(4);
+	        lngInput.value = lng.toFixed(4);
+	        if (label && locName) locName.value = label;
+	        setLocationStatus('Ready: ' + lat.toFixed(4) + ', ' + lng.toFixed(4));
+	      }
+
+	      function readUrlLocation() {
+	        try {
+	          const url = new URL(window.location.href);
+	          if (url.searchParams.has('lat') && url.searchParams.has('lng')) {
+	            const lat = Number(url.searchParams.get('lat'));
+	            const lng = Number(url.searchParams.get('lng'));
+	            if (Number.isFinite(lat) && Number.isFinite(lng)) {
+	              setLocation(lat, lng, 'Location handoff');
+	            }
+	          }
+	        } catch (_) {}
+
         try {
-          const rec = satellite.twoline2satrec(t.tle1, t.tle2);
-          const pv = satellite.propagate(rec, when);
-          if(!pv || !pv.position) continue;
-          const gd = satellite.eciToGeodetic(pv.position, gmst);
-          const lat = satellite.degreesLat(gd.latitude), lng = satellite.degreesLong(gd.longitude);
-          if(Number.isNaN(lat)||Number.isNaN(lng)) continue;
-          pts.push({ lat, lng, alt: Math.max(0, gd.height)/EARTH_R, name: t.name, iss: t.norad_id===25544 });
-        } catch(e){}
-      }
-      return pts;
-    }
+          const fly = localStorage.getItem('flyToPin');
+          if (!fly) return;
+          const parsed = JSON.parse(fly);
+          if (parsed && parsed.viewState) {
+            const lat = Number(parsed.viewState.lat);
+	            const lng = Number(parsed.viewState.lng);
+	            if (Number.isFinite(lat) && Number.isFinite(lng)) {
+	              setLocation(lat, lng, parsed.title || parsed.name || 'Saved pin');
+	            }
+	            localStorage.removeItem('flyToPin');
+	          }
+	        } catch (_) {}
+	      }
 
-    function propagateMarkers(when){
-      const gmst = satellite.gstime(when);
-      const pts = [];
-      for (const t of anomalyCatalog){
+	      async function resolveLocationName() {
+	        const query = locName ? locName.value.trim() : '';
+	        if (!query) {
+	          setLocationStatus('Enter a place name first.');
+	          return;
+	        }
+
+	        setLocationStatus('Resolving location...');
+	        try {
+	          const response = await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + encodeURIComponent(query));
+	          if (!response.ok) throw new Error('Search failed with HTTP ' + response.status);
+	          const results = await response.json();
+	          const match = Array.isArray(results) ? results[0] : null;
+	          if (!match) {
+	            setLocationStatus('No match found. Try a city, state, or country.');
+	            return;
+	          }
+
+	          const lat = Number(match.lat);
+	          const lng = Number(match.lon);
+	          if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+	            setLocationStatus('That match did not include usable coordinates.');
+	            return;
+	          }
+
+	          setLocation(lat, lng, match.display_name || query);
+	          setStatus('Location resolved.', 'Use Sky Here to open the observatory view for this position.');
+	        } catch (error) {
+	          console.error('[globe] Location search failed', error);
+	          setLocationStatus('Location search failed. Manual lat/lng still works.');
+	        }
+	      }
+
+	      async function loadSavedPins() {
+	        if (!pinnedList) return;
+	        pinnedList.textContent = 'Loading saved pins...';
+
+	        try {
+	          const apiBase = base || '/';
+	          const response = await fetch(apiBase + 'api/vault-pins');
+	          const data = await response.json();
+	          const pins = ((data && data.pins) || (Array.isArray(data) ? data : []))
+	            .filter((pin) => pin && pin.viewState && Number.isFinite(Number(pin.viewState.lat)) && Number.isFinite(Number(pin.viewState.lng)))
+	            .slice(0, 8);
+
+	          pinnedList.innerHTML = '';
+	          if (!pins.length) {
+	            pinnedList.textContent = 'No saved pins found yet.';
+	            return;
+	          }
+
+	          pins.forEach((pin) => {
+	            const lat = Number(pin.viewState.lat);
+	            const lng = Number(pin.viewState.lng);
+	            const label = pin.title || pin.name || pin.label || (pin.id ? 'Pin ' + String(pin.id).slice(0, 8) : 'Saved pin');
+	            const row = document.createElement('button');
+	            const coords = document.createElement('small');
+	            row.type = 'button';
+	            row.className = 'pin-row';
+	            row.textContent = label;
+	            coords.textContent = lat.toFixed(4) + ', ' + lng.toFixed(4);
+	            row.appendChild(coords);
+	            row.addEventListener('click', () => setLocation(lat, lng, label));
+	            pinnedList.appendChild(row);
+	          });
+	        } catch (error) {
+	          console.error('[globe] Saved pins unavailable', error);
+	          pinnedList.textContent = 'Saved pins unavailable. Manual search still works.';
+	        }
+	      }
+
+      function activateEarthMode() {
+        if (!wwt) {
+          setStatus('Still loading.', 'WWT is not ready yet.');
+          return;
+        }
+
         try {
-          const rec = satellite.twoline2satrec(t.tle1, t.tle2);
-          const pv = satellite.propagate(rec, when);
-          if(!pv || !pv.position) continue;
-          const gd = satellite.eciToGeodetic(pv.position, gmst);
-          const lat = satellite.degreesLat(gd.latitude), lng = satellite.degreesLong(gd.longitude);
-          if(Number.isNaN(lat)||Number.isNaN(lng)) continue;
-          pts.push({
-            id: t.id,
-            lat,
-            lng,
-            alt: Math.max(0, gd.height)/EARTH_R,
-            name: t.name,
-            tier: t.tier,
-            color: tierColor(t.tier),
-            label: `${t.tier} · ${t.name} · ${t.anomalyKinds.join(', ')}`,
-          });
-        } catch(e){}
+          wwt.setBackgroundImageByName(EARTH_IMAGESET);
+          if (typeof wwt.setForegroundImageByName === 'function') {
+            wwt.setForegroundImageByName(EARTH_IMAGESET);
+          }
+          setStatus('Earth mode requested.', 'Using WWT background "' + EARTH_IMAGESET + '". Drag to spin; wheel to zoom.');
+        } catch (error) {
+          console.error('[globe] Could not switch WWT to Earth mode', error);
+          setStatus('Earth mode failed.', error && error.message ? error.message : 'Check the console.');
+        }
       }
-      return pts;
-    }
 
-    // A conjunction is point-like at globe scale: one tier-styled marker at its
-    // location. Bright = alert; dim = close pass.
-    function propagateConjunctions(when){
-      const gmst = satellite.gstime(when);
-      const markers = [];
-      for (const c of conjunctionCatalog){
-        const o = (c.objects || [])[0];
-        if (!o || !o.tle1 || !o.tle2) continue;
+	      function openSkyHere() {
+	        const lat = parseNumber(latInput, -90, 90);
+	        const lng = parseNumber(lngInput, -180, 180);
+	        if (lat === null || lng === null) {
+	          setStatus('Set a location.', 'Enter latitude and longitude first.');
+	          setLocationStatus('Latitude must be -90 to 90. Longitude must be -180 to 180.');
+	          return;
+	        }
+
+        window.location.href = base + 'observatory?lat=' + lat.toFixed(4) + '&lng=' + lng.toFixed(4);
+      }
+
+      function toggleFullscreen() {
+        const target = document.documentElement;
+        if (document.fullscreenElement) {
+          document.exitFullscreen().catch(() => {});
+          return;
+        }
+        target.requestFullscreen().catch(() => {});
+      }
+
+      function onReady() {
+        wwt = window.wwtlib && window.wwtlib.WWTControl ? window.wwtlib.WWTControl.singleton : null;
+        if (!wwt) {
+          setStatus('WWT loaded without a control.', 'The hosted engine did not expose WWTControl.');
+          return;
+        }
+
+        setStatus('WWT ready.', 'Switching to Earth mode.');
+        activateEarthMode();
+      }
+
+	      function init() {
+	        readUrlLocation();
+	        loadSavedPins();
+
+	        if (!window.wwtlib || !window.wwtlib.WWTControlBuilder) {
+	          setStatus('WWT engine did not load.', 'Check network access to web.wwtassets.org.');
+          return;
+        }
+
         try {
-          const rec = satellite.twoline2satrec(o.tle1, o.tle2);
-          const pv = satellite.propagate(rec, when);
-          if(!pv || !pv.position) continue;
-          const gd = satellite.eciToGeodetic(pv.position, gmst);
-          const lat = satellite.degreesLat(gd.latitude), lng = satellite.degreesLong(gd.longitude);
-          if(Number.isNaN(lat)||Number.isNaN(lng)) continue;
-          const isAlert = c.alertClass === 'alert';
-          const RED = '#ff5470';
-          const objs = c.objects || [];
-          const nA = (objs[0] && objs[0].name) || 'Object A';
-          const nB = (objs[1] && objs[1].name) || 'Object B';
-          const missTxt = (c.miss_distance_km != null) ? `${c.miss_distance_km} km` : 'an unknown distance';
-          const at = c.tca ? new Date(c.tca).toUTCString().replace(/:00 GMT$/, ' UTC') : '';
-          const headline = isAlert ? 'Active Pass' : 'Debris Pass';
-          const sentence = isAlert
-            ? `${nA} is passing within ${missTxt} of ${nB}${at ? ' at ' + at : ''}.`
-            : `${nA} and ${nB} will pass within ${missTxt}${at ? ' at ' + at : ''}.`;
-          const raw = [
-            (c.miss_distance_km != null) ? `${c.miss_distance_km} km miss` : '',
-            (c.pc != null) ? `Pc ${Number(c.pc).toExponential(1)}` : '',
-            c.tca ? `TCA ${c.tca}` : '',
-          ].filter(Boolean).join(' · ');
-          const hColor = isAlert ? RED : '#aab4c7';
-          markers.push({
-            id: c.id,
-            name: c.name || `${nA} x ${nB}`,  // the pair name like "SL-3 R/B x PSLV R/B" for the permanent label text
-            lat, lng, alt: Math.max(0, gd.height)/EARTH_R,
-            color: isAlert ? RED : 'rgba(255,84,112,0.45)',
-            size: isAlert ? 15 : 9,
-            glow: isAlert ? `0 0 22px ${RED}` : `0 0 10px rgba(255,84,112,0.4)`,
-            ring: isAlert ? '2px solid rgba(255,255,255,0.9)' : '1px solid rgba(255,255,255,0.45)',
-            label: `${headline} - ${sentence}`,
-            html: `<div style="font-weight:700;color:${hColor};margin-bottom:3px;">${esc(headline)}</div>`
-                + `<div style="color:#e9edf5;">${esc(sentence)}</div>`
-                + (raw ? `<div style="color:#8893a8;font-size:11px;margin-top:4px;">${esc(raw)}</div>` : ''),
-          });
-        } catch(e){}
+          const builder = new window.wwtlib.WWTControlBuilder('wwt-canvas');
+          builder.startRenderLoop(true);
+          scriptInterface = builder.create();
+          if (scriptInterface && typeof scriptInterface.add_ready === 'function') {
+            scriptInterface.add_ready(onReady);
+          } else {
+            setTimeout(onReady, 1400);
+          }
+        } catch (error) {
+          console.error('[globe] WWT initialization failed', error);
+          setStatus('WWT initialization failed.', error && error.message ? error.message : 'Check the console.');
+        }
       }
-      return markers;
-    }
 
-    function indexPositions(arr){ for (const d of arr) if (d && d.id) posById[d.id] = d; }
+	      earthBtn.addEventListener('click', activateEarthMode);
+	      skyBtn.addEventListener('click', openSkyHere);
+	      fullBtn.addEventListener('click', toggleFullscreen);
+	      resolveBtn.addEventListener('click', resolveLocationName);
+	      locName.addEventListener('keydown', (event) => {
+	        if (event.key === 'Enter') {
+	          event.preventDefault();
+	          resolveLocationName();
+	        }
+	      });
 
-    // Quiet contemplative filters (applied both at init and in the live update loop)
-    // Globe should stay beautiful + sparse: single bright ISS point + at most a handful of dim markers. No full catalog dump.
-    const QUIET_MAX = (typeof globeMax === 'number' && globeMax > 0) ? globeMax : 5;
-    function getQuietPoints(when) {
-      return propagate(when).filter(p => p.iss);
-    }
-    function getQuietMarkers(when) {
-      // Use conjunctions (the debris pair / anomaly close passes) as the source for the 5 gentle dim markers.
-      // This gives us the pair names like "SL-3 R/B x PSLV R/B" as the permanent on-globe labels.
-      return propagateConjunctions(when).slice(0, QUIET_MAX);
-    }
-    function getQuietConjunctions(when) {
-      return []; // explicitly no conjunction spam — this is a quiet sky for looking, not tracking
-    }
-
-    (async () => {
-      try {
-        await load('https://cdn.jsdelivr.net/npm/satellite.js@5.0.0/dist/satellite.min.js');
-        await load('https://cdn.jsdelivr.net/npm/globe.gl');
-        catalog = await (await fetch(catalogUrl)).json();
-
-        const now = new Date();
-        // Use the quiet helpers so initial render matches what the update loop will maintain.
-        // Keeps the globe beautiful and sparse: one bright ISS + ≤5 dim markers, zero conj spam.
-        const pts = getQuietPoints(now);
-        const hot = getQuietMarkers(now);
-        const conj = getQuietConjunctions(now);
-        indexPositions([...hot, ...conj]);
-        // count element removed for cleaner contemplative globe
-
-        const world = Globe()(document.getElementById('globe'))
-          .globeImageUrl('https://unpkg.com/three-globe/example/img/earth-night.jpg')
-          .bumpImageUrl('https://unpkg.com/three-globe/example/img/earth-topology.png')
-          .backgroundImageUrl('https://unpkg.com/three-globe/example/img/night-sky.png')
-          .pointsData(pts)
-          .pointLat('lat').pointLng('lng').pointAltitude('alt')
-          .pointColor(d => d.iss ? '#ff5470' : '#dce6f7')
-          .pointRadius(d => d.iss ? 0.8 : 0.12)
-          .pointLabel(d => d.iss ? `${d.name} - crewed` : d.name)
-          .pointsMerge(true)
-          .htmlElementsData(hot)  // only the few quiet markers, no conj spam
-          .htmlLat('lat')
-          .htmlLng('lng')
-          .htmlAltitude('alt')
-          .htmlElement(d => {
-            // Render each gentle marker as a small glowing dot + readable label.
-            // Container expanded to include the label so it doesn't clip (was causing "no text" on some views).
-            // Boosted size/glow/border/label for visibility on the hushed night earth while staying contemplative.
-            // 2026-06-03 follow-up: labels use d.name directly so text = exact input from your land mass spot image
-            // (e.g. first of the 5 is "SL-3 R/B x PSLV R/B" for the little island spot) + other labeled areas.
-            const sz = d.size || 14;  // boosted for visibility during test
-            const labelExtra = 200; // room for long names like "SL-3 R/B x PSLV R/B" without clipping
-            const container = document.createElement('div');
-            container.style.position = 'relative';
-            container.style.width = (sz + 4 + labelExtra) + 'px';
-            container.style.height = Math.max(sz, 20) + 'px';
-            container.style.cursor = 'pointer';
-            const dot = document.createElement('div');
-            dot.style.position = 'absolute';
-            dot.style.left = '0';
-            dot.style.top = '0';
-            dot.style.width = sz + 'px';
-            dot.style.height = sz + 'px';
-            dot.style.borderRadius = '9999px';
-            dot.style.background = d.color;
-            dot.style.boxShadow = d.glow || `0 0 24px ${d.color}, 0 0 40px ${d.color}`;
-            dot.style.border = d.ring || '2px solid rgba(255,255,255,0.85)';
-            dot.title = d.label;
-            dot.addEventListener('click', (ev) => {
-              ev.stopPropagation();
-              const t = document.getElementById('info-text');
-              if (d.html) t.innerHTML = d.html; else t.textContent = d.label;
-              document.getElementById('info').style.display = 'block';
-            });
-            container.appendChild(dot);
-
-            if (d.label) {
-              const lbl = document.createElement('div');
-              // 2026-06-03 follow-up fix: prefer d.name (the direct curated input name from the anomaly record)
-              // for the tiny on-globe permanent label. This ensures it reflects the exact input text
-              // provided via the land mass spot image (and other labeled areas) for at-a-glance ID
-              // of the 5 dim markers without relying on label string splitting. The "little island"
-              // visual (marker + label over what reads as land mass on the quiet globe) now uses the
-              // intended abbreviated names (e.g. "SL-3 R/B x PSLV R/B" and the other four).
-              // Short extraction kept as fallback only.
-              const short = d.name || (d.label.split(' · ')[1] || d.label.split(' · ')[0] || d.label).trim();
-              lbl.textContent = short;
-              lbl.style.position = 'absolute';
-              lbl.style.left = (sz + 5) + 'px';
-              lbl.style.top = '-1px';
-              lbl.style.fontSize = '13px';  // made larger for test visibility
-              lbl.style.color = '#fff';
-              lbl.style.opacity = '1';
-              lbl.style.fontFamily = 'system-ui, sans-serif';
-              lbl.style.fontWeight = '600';
-              lbl.style.lineHeight = '1';
-              lbl.style.pointerEvents = 'none';
-              lbl.style.padding = '2px 8px';
-              lbl.style.borderRadius = '5px';
-              lbl.style.background = 'rgba(5,7,13,0.95)';
-              lbl.style.whiteSpace = 'nowrap';
-              lbl.style.textShadow = '0 0 6px rgba(0,0,0,1), 0 1px 2px #000';
-              lbl.style.boxShadow = '0 0 4px rgba(0,0,0,0.6)';
-              container.appendChild(lbl);
-            }
-
-            return container;
-          });
-
-        world.controls().autoRotate = true;
-        world.controls().autoRotateSpeed = 0.07;
-        const globeEl = document.getElementById('globe');
-        globeEl.addEventListener('pointerenter', () => world.controls().autoRotate = false);
-        globeEl.addEventListener('pointerdown',  () => world.controls().autoRotate = false);
-        globeEl.addEventListener('pointerleave', () => world.controls().autoRotate = true);
-
-        // Initial view: aim at the first dim marker (e.g. the SL-3 R/B x PSLV R/B land mass spot)
-        // so its glowing highlight + permanent label text is immediately visible on load.
-        // Then slow auto-rotate lets you see the others. Drag to explore.
-        world.pointOfView({ altitude: 2.8 });
-        if (typeof hot !== 'undefined' && hot.length > 0) {
-          const target = hot[0];
-          setTimeout(() => {
-            try {
-              world.pointOfView({ lat: target.lat, lng: target.lng, altitude: 1.9 }, 900);
-            } catch(e){}
-          }, 250);
-        }
-        document.getElementById('loading').remove();
-
-        const COUNTRIES = 'https://cdn.jsdelivr.net/gh/martynafford/natural-earth-geojson@master/110m/cultural/ne_110m_admin_0_countries.json';
-        const US_STATES = 'https://cdn.jsdelivr.net/gh/PublicaMundi/MappingAPI@master/data/geojson/us-states.json';
-        Promise.allSettled([
-          fetch(COUNTRIES).then(r => r.json()),
-          fetch(US_STATES).then(r => r.json()),
-        ]).then(([c, s]) => {
-          const feats = [];
-          if (c.status === 'fulfilled' && c.value?.features)
-            for (const f of c.value.features) feats.push(Object.assign({}, f, { _kind: 'country' }));
-          if (s.status === 'fulfilled' && s.value?.features)
-            for (const f of s.value.features) feats.push(Object.assign({}, f, { _kind: 'state' }));
-          if (!feats.length) return;
-          world
-            .polygonsData(feats)
-            // Very subtle for the hushed, contemplative vibe — faint suggestions of land, not prominent lines.
-            // The glowing markers (the "little islands") are the points of interest now.
-            .polygonCapColor(f => f._kind === 'state' ? 'rgba(0,0,0,0)' : 'rgba(46,74,112,0.12)')
-            .polygonSideColor(() => 'rgba(0,0,0,0)')
-            .polygonStrokeColor(f => f._kind === 'state'
-              ? 'rgba(150,195,240,0.15)'
-              : 'rgba(165,205,245,0.22)')
-            .polygonAltitude(f => f._kind === 'state' ? 0.0075 : 0.007)
-            .polygonsTransitionDuration(0);
-        });
-        document.getElementById('info-x').addEventListener('click', () => { document.getElementById('info').style.display = 'none'; });
-
-        function flyTo(id, rowEl){
-          const d = posById[id];
-          const info = document.getElementById('info'), txt = document.getElementById('info-text');
-          if (!d){
-            txt.textContent = 'That object is below the horizon / not currently propagatable - try again in a moment.';
-            info.style.display = 'block';
-            return;
-          }
-          world.controls().autoRotate = false;
-          world.pointOfView({ lat: d.lat, lng: d.lng, altitude: 1.4 }, 1200);
-          if (d.html) txt.innerHTML = d.html; else txt.textContent = d.label || id;
-          info.style.display = 'block';
-          document.querySelectorAll('.flyrow--active').forEach(e => e.classList.remove('flyrow--active'));
-          if (rowEl) rowEl.classList.add('flyrow--active');
-        }
-        document.querySelectorAll('.flyrow').forEach(row => {
-          row.addEventListener('click', () => flyTo(row.getAttribute('data-fly'), row));
-        });
-
-        // === Personal Pins (P hotkey + context bar + thumbnail capture) ===
-        let thumbnailData = '';
-
-        function createPinPrompt() {
-          const pov = world.pointOfView();
-          const viewState = { lat: pov.lat || 0, lng: pov.lng || 0, altitude: pov.altitude || 2.8 };
-
-          // Capture thumbnail
-          try {
-            const canvas = globeEl.querySelector('canvas');
-            if (canvas) thumbnailData = canvas.toDataURL('image/jpeg', 0.6);
-          } catch(e){}
-
-          const overlay = document.createElement('div');
-          overlay.style.cssText = 'position:fixed;inset:0;background:rgba(5,7,13,0.85);display:flex;align-items:center;justify-content:center;z-index:100;';
-          overlay.innerHTML = `
-            <div style="background:#0f1420;border:1px solid #36415a;border-radius:14px;padding:26px;width:380px;max-width:90vw;box-shadow:0 10px 30px rgba(0,0,0,0.4);">
-              <div style="font-size:15px;font-weight:600;color:#e9edf5;margin-bottom:14px;">Pin this view</div>
-              <input id="pin-label" type="text" placeholder="Label (e.g. My dragon)" style="width:100%;padding:11px;border-radius:10px;border:1px solid #36415a;background:#05070d;color:#e9edf5;font-size:14px;margin-bottom:10px;">
-              <textarea id="pin-note" placeholder="Optional note..." rows="3" style="width:100%;padding:11px;border-radius:10px;border:1px solid #36415a;background:#05070d;color:#e9edf5;font-size:14px;resize:vertical;"></textarea>
-              <div style="margin-top:18px;display:flex;gap:10px;justify-content:flex-end;">
-                <button id="pin-cancel" style="padding:9px 20px;border-radius:10px;border:1px solid #36415a;background:transparent;color:#8893a8;cursor:pointer;">Cancel</button>
-                <button id="pin-save" style="padding:9px 22px;border-radius:10px;border:none;background:#6fd3e2;color:#05070d;font-weight:600;cursor:pointer;">Save Pin</button>
-              </div>
-            </div>
-          `;
-          document.body.appendChild(overlay);
-
-          const labelInput = overlay.querySelector('#pin-label');
-          const noteInput = overlay.querySelector('#pin-note');
-          const saveBtn = overlay.querySelector('#pin-save');
-          const cancelBtn = overlay.querySelector('#pin-cancel');
-          labelInput.focus();
-
-          function close() { overlay.remove(); }
-          cancelBtn.addEventListener('click', close);
-
-          saveBtn.addEventListener('click', () => {
-            const label = labelInput.value.trim() || 'Untitled Pin';
-            const note = noteInput.value.trim() || undefined;
-
-            const pins = JSON.parse(localStorage.getItem('personalPins') || '[]');
-            pins.unshift({
-              id: Date.now().toString(36),
-              createdAt: new Date().toISOString(),
-              viewState,
-              label,
-              note,
-              thumbnailData
-            });
-            localStorage.setItem('personalPins', JSON.stringify(pins));
-            close();
-
-            const toast = document.createElement('div');
-            toast.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#0f1420;border:1px solid #36415a;color:#e9edf5;padding:8px 18px;border-radius:9999px;font-size:13px;';
-            toast.textContent = 'Pin saved';
-            document.body.appendChild(toast);
-            setTimeout(() => toast.remove(), 1600);
-          });
-
-          overlay.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); saveBtn.click(); }
-            if (e.key === 'Escape') close();
-          });
-        }
-
-        document.addEventListener('keydown', (e) => {
-          if (e.key.toLowerCase() === 'p') {
-            if (e.target && ['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) return;
-            e.preventDefault();
-            createPinPrompt();
-          }
-        });
-
-        // === S Hotkey (quick capture) ===
-        function captureView() {
-          const pov = world.pointOfView();
-          const capture = {
-            capturedAt: new Date().toISOString(),
-            viewState: { lat: pov.lat || 0, lng: pov.lng || 0, altitude: pov.altitude || 2.8 },
-            note: 'Quick capture via S key'
-          };
-          const captures = JSON.parse(localStorage.getItem('savedCaptures') || '[]');
-          captures.unshift(capture);
-          localStorage.setItem('savedCaptures', JSON.stringify(captures));
-
-          const toast = document.createElement('div');
-          toast.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#0f1420;border:1px solid #36415a;color:#e9edf5;padding:8px 18px;border-radius:9999px;font-size:13px;';
-          toast.textContent = 'View captured';
-          document.body.appendChild(toast);
-          setTimeout(() => toast.remove(), 1600);
-        }
-
-        document.addEventListener('keydown', (e) => {
-          if (e.key.toLowerCase() === 's') {
-            if (e.target && ['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) return;
-            e.preventDefault();
-            captureView();
-          }
-        });
-
-        // === Fly to pin from dashboard (with proper pin identity) ===
-        const pendingFly = localStorage.getItem('flyToPin');
-
-        if (pendingFly) {
-          try {
-            const flyData = JSON.parse(pendingFly);
-            const targetView = flyData.viewState || flyData; // support old format temporarily
-            const targetId = flyData.id || null;
-
-            setTimeout(() => {
-              world.controls().autoRotate = false;
-              world.pointOfView({ 
-                lat: targetView.lat, 
-                lng: targetView.lng, 
-                altitude: targetView.altitude ? Math.max(1.3, targetView.altitude * 0.9) : 1.7 
-              }, 1600);
-
-              // Find the actual pin by ID if we have it
-              const pins = JSON.parse(localStorage.getItem('personalPins') || '[]');
-              let viewedPin = null;
-
-              if (targetId) {
-                viewedPin = pins.find(p => p.id === targetId);
-              }
-
-              // Fallback: if no ID or pin not found, try to match by viewState (for backward compat)
-              if (!viewedPin) {
-                viewedPin = pins.find(p => 
-                  p.viewState.lat === targetView.lat && 
-                  p.viewState.lng === targetView.lng
-                );
-              }
-
-              if (viewedPin) {
-                // Update last viewed
-                viewedPin.updatedAt = new Date().toISOString();
-                localStorage.setItem('personalPins', JSON.stringify(pins));
-
-                // Show warm context bar with proper pin identity
-                const context = document.createElement('div');
-                context.style.cssText = 'position:fixed;bottom:20px;right:20px;background:#0f1420ee;border:1px solid #36415a;color:#aab4c7;padding:9px 22px;border-radius:9999px;font-size:12.5px;display:flex;gap:14px;align-items:center;box-shadow:0 4px 20px rgba(0,0,0,0.35);';
-                context.innerHTML = `
-                  <span>Welcome back to this view</span>
-                  <button id="edit-pin-action" style="background:none;border:none;color:#6fd3e2;font-size:11.5px;cursor:pointer;padding:0 4px;">Edit</button>
-                  <button id="update-position-action" style="background:none;border:none;color:#a3d4f0;font-size:11.5px;cursor:pointer;padding:0 4px;">Update view</button>
-                  <button id="remove-pin-action" style="background:none;border:none;color:#e88a8a;font-size:11.5px;cursor:pointer;padding:0 4px;">Remove</button>
-                  <button id="close-bar" style="background:none;border:none;color:#8893a8;font-size:13px;cursor:pointer;padding:0 2px;">×</button>
-                `;
-                document.body.appendChild(context);
-
-                // Edit label
-                context.querySelector('#edit-pin-action').addEventListener('click', (e) => {
-                  e.stopImmediatePropagation();
-                  context.remove();
-                  const newLabel = prompt('Edit label:', viewedPin.label);
-                  if (newLabel && newLabel.trim()) {
-                    viewedPin.label = newLabel.trim();
-                    localStorage.setItem('personalPins', JSON.stringify(pins));
-                    const toast = document.createElement('div');
-                    toast.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#0f1420;border:1px solid #36415a;color:#e9edf5;padding:8px 18px;border-radius:9999px;font-size:13px;';
-                    toast.textContent = 'Pin updated';
-                    document.body.appendChild(toast);
-                    setTimeout(() => toast.remove(), 1400);
-                  }
-                });
-
-                // Update position
-                context.querySelector('#update-position-action').addEventListener('click', (e) => {
-                  e.stopImmediatePropagation();
-                  const currentPov = world.pointOfView();
-                  viewedPin.viewState = {
-                    lat: currentPov.lat || 0,
-                    lng: currentPov.lng || 0,
-                    altitude: currentPov.altitude || 1.7
-                  };
-                  viewedPin.updatedAt = new Date().toISOString();
-                  localStorage.setItem('personalPins', JSON.stringify(pins));
-
-                  const toast = document.createElement('div');
-                  toast.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#0f1420;border:1px solid #36415a;color:#e9edf5;padding:8px 18px;border-radius:9999px;font-size:13px;';
-                  toast.textContent = 'View updated';
-                  document.body.appendChild(toast);
-                  setTimeout(() => toast.remove(), 1400);
-
-                  // Optionally refresh thumbnail on position update (can be made optional later)
-                  try {
-                    const canvas = document.getElementById('globe').querySelector('canvas');
-                    if (canvas) {
-                      viewedPin.thumbnailData = canvas.toDataURL('image/jpeg', 0.6);
-                      localStorage.setItem('personalPins', JSON.stringify(pins));
-                    }
-                  } catch(e){}
-                });
-
-                // Remove
-                context.querySelector('#remove-pin-action').addEventListener('click', (e) => {
-                  e.stopImmediatePropagation();
-                  if (confirm('Remove this pin?')) {
-                    const updated = pins.filter(p => p.id !== viewedPin.id);
-                    localStorage.setItem('personalPins', JSON.stringify(updated));
-                    context.remove();
-                  }
-                });
-
-                // Close bar
-                context.querySelector('#close-bar').addEventListener('click', (e) => {
-                  e.stopImmediatePropagation();
-                  context.remove();
-                });
-
-                // Clicking the bar itself (outside buttons) closes it
-                context.addEventListener('click', (e) => {
-                  if (!e.target.id.includes('action') && !e.target.id.includes('close')) {
-                    context.remove();
-                  }
-                });
-
-              } else {
-                // Pin no longer exists
-                const toast = document.createElement('div');
-                toast.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#0f1420;border:1px solid #36415a;color:#e9edf5;padding:8px 18px;border-radius:9999px;font-size:13px;';
-                toast.textContent = 'This pin no longer exists';
-                document.body.appendChild(toast);
-                setTimeout(() => toast.remove(), 2000);
-              }
-
-            }, 900);
-            localStorage.removeItem('flyToPin');
-          } catch(e){}
-        }
-
-        // === End of Personal Pins integration ===
-
-        setInterval(() => {
-          const tick = new Date();
-          // Always apply the same quiet filters on every update tick.
-          // This prevents the full catalog from "exploding" into pale/white points and extra markers after a few seconds.
-          const qPts = getQuietPoints(tick);
-          world.pointsData(qPts);
-          const m = getQuietMarkers(tick);
-          const cj = getQuietConjunctions(tick);
-          indexPositions([...m, ...cj]);
-          world.htmlElementsData([...m, ...cj]);
-        }, 10000);
-
-      } catch(e) {
-        document.getElementById('loading').textContent = 'Globe needs network for globe.gl + Earth textures.';
-      }
+      if (document.readyState === 'complete') init();
+      else window.addEventListener('load', init);
     })();
   </script>
 </body>
