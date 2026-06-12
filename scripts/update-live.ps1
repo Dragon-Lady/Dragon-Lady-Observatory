@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Updates live Dragon Eye Stars Edition data and rebuilds the viewer.
+    Updates live Dragon Lady Observatory data and rebuilds the viewer.
 
 .DESCRIPTION
     Runs a fresh engine poll to generate new records (including alert_class tags),
@@ -13,7 +13,7 @@
     .\scripts\update-live.ps1
 #>
 
-Write-Host "=== Dragon Eye Stars Edition — Live Update ===" -ForegroundColor Cyan
+Write-Host "=== Dragon Lady Observatory — Live Update ===" -ForegroundColor Cyan
 
 # Move to repo root (this script lives in scripts/)
 $repoRoot = Split-Path -Parent $PSScriptRoot

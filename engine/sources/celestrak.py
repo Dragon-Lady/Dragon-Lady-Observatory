@@ -28,7 +28,7 @@ _GP_CATALOG  = 'https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=
 _TLE_CATALOG = 'https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=tle'
 
 _SESSION = requests.Session()
-_SESSION.headers.update({'User-Agent': 'DragonEye-StarsEdition/1.0'})
+_SESSION.headers.update({'User-Agent': 'Dragon-Lady-Observatory/1.0'})
 
 
 def _fetch_json(url: str, cache_name: str, max_age_hours: float = 2.0) -> list[dict] | None:

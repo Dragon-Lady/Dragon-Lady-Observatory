@@ -1,9 +1,9 @@
 {
-  "name": "dragoneye-stars-viewer",
+  "name": "dragon-lady-observatory",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Dragon Eye Stars Edition viewer — a beautiful way to explore space from home. Renders the engine's record store on a calm celestial console with anomaly tiers, provenance, and a watchlist.",
+  "description": "Dragon Lady Observatory viewer — a beautiful way to explore space from home. Renders the engine's record store on a calm celestial console with anomaly tiers, provenance, and a watchlist.",
   "scripts": {
     "dev": "astro dev",
     "build": "astro build",

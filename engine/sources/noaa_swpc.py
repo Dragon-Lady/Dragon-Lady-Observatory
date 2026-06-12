@@ -24,7 +24,7 @@ _ENDPOINTS = {
 }
 
 _SESSION = requests.Session()
-_SESSION.headers.update({'User-Agent': 'DragonEye-StarsEdition/1.0'})
+_SESSION.headers.update({'User-Agent': 'Dragon-Lady-Observatory/1.0'})
 
 
 def _fetch(key: str, max_age_hours: float = 0.5) -> list | None:

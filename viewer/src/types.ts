@@ -1,4 +1,4 @@
-// Stars Edition record types — mirror ../../schema/record.md (the contract).
+// Observatory record types — mirror ../../schema/record.md (the contract).
 // Producer: the engine. Consumer: this viewer.
 
 export type Domain = 'orbital' | 'neo' | 'space_weather' | 'launch_reentry';

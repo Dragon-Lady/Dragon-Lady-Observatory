@@ -349,7 +349,7 @@ def _anomaly_tier(kind: str) -> str:
 # ── entry point ───────────────────────────────────────────────────────────────
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Stars Edition engine poll loop.')
+    parser = argparse.ArgumentParser(description='Dragon Lady Observatory engine poll loop.')
     parser.add_argument('--loop', type=int, default=0,
                         help='Seconds between passes (0 = one-shot).')
     args = parser.parse_args()

@@ -1,9 +1,9 @@
 #!/bin/bash
-# Dragon Eye Stars Edition — Live Update (Unix/macOS)
+# Dragon Lady Observatory — Live Update (Unix/macOS)
 
 set -e
 
-echo "=== Dragon Eye Stars Edition — Live Update ==="
+echo "=== Dragon Lady Observatory — Live Update ==="
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO_ROOT"

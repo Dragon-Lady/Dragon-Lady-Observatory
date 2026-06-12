@@ -1,4 +1,4 @@
-# Stars Edition — Unified Record (schema_version 1)
+# Dragon Lady Observatory — Unified Record (schema_version 1)
 
 The producer/consumer contract. The engine emits these; the viewer reads them.
 One record shape across all four domains, discriminated by `domain`.

@@ -1,4 +1,4 @@
-# Stars Edition — Data Sources
+# Dragon Lady Observatory — Data Sources
 
 Non-NASA, free, primary + fallback per domain — the same discipline as Dragon
 Eye's ADSBX-primary / OpenSky-fallback. Source evaluation completed

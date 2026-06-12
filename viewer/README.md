@@ -15,7 +15,7 @@ viewer/
   search/         by name / topic
 ```
 
-Design grammar: Dragon Eye tiers/cards/status + the Osiris-style globe/layers/
+Design grammar: Observatory tiers (inherited from Dragon Eye) / cards / status + the Osiris-style globe/layers/
 cards reference. Dark-default, low-fatigue. Renders records per
 [`../schema/record.md`](../schema/record.md); degrades gracefully on absent
 optional fields (no empty sections). Auto-generated content always labeled.
