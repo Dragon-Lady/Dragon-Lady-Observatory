@@ -27,17 +27,14 @@ const catalogCount = loadCatalog().length;
         <span><strong class="text-mist-100">{s.anomalies}</strong> quiet moments saved</span>
       </div>
       <div class="mt-6 flex flex-wrap gap-3">
-        <a href={base + 'telescope'} class="inline-flex items-center gap-2 rounded-md bg-mist-100 px-6 py-2.5 text-sm font-semibold !text-void-950 hover:!no-underline hover:bg-white active:scale-[0.985] transition-all">
-          🔭 Open the telescope
-        </a>
-        <a href={base + 'sky-explore'} class="inline-flex items-center gap-2 rounded-md border border-void-700 px-5 py-2.5 text-sm font-medium text-mist-200 hover:bg-indigo-900/20 hover:border-indigo-700 hover:text-indigo-300 transition-colors">
-          🌌 The Eyepiece (real sky)
+        <a href={base + 'observatory'} class="inline-flex items-center gap-2 rounded-md border border-void-700 px-5 py-2.5 text-sm font-medium text-mist-200 hover:bg-indigo-900/20 hover:border-indigo-700 hover:text-indigo-300 transition-colors">
+          🌌 The Observatory
         </a>
         <a href={base + 'sky-events'} class="inline-flex items-center gap-2 rounded-md border border-void-700 px-5 py-2.5 text-sm font-medium text-mist-200 hover:bg-emerald-900/20 hover:border-emerald-700 hover:text-emerald-300 transition-colors">
           ✨ Sky events
         </a>
-        <a href={base + 'globe'} class="inline-flex items-center gap-2 rounded-md border border-void-700 px-5 py-2.5 text-sm font-medium text-mist-200/70 hover:text-mist-200 hover:border-void-500 transition-colors" title="Full catalog view — noisier, for exploration only">
-          🌍 The globe (optional, noisy catalog)
+        <a href={base + 'globe'} class="inline-flex items-center gap-2 rounded-md border border-void-700 px-5 py-2.5 text-sm font-medium text-mist-200/70 hover:text-mist-200 hover:border-void-500 transition-colors" title="View the sky from anywhere on Earth">
+          🌍 The Globe — View From Anywhere
         </a>
       </div>
     </div>
@@ -114,26 +111,13 @@ const catalogCount = loadCatalog().length;
     </div>
   </section>
 
-  <!-- Telescope -->
+  <!-- The Observatory -->
   <section class="mb-4">
-    <a href={base + 'telescope'} class="block rounded-2xl border border-emerald-800/50 bg-emerald-950/10 p-6 hover:border-emerald-700 hover:bg-emerald-950/20 transition-all group">
+    <a href={base + 'observatory'} class="block rounded-2xl border border-signal-800/50 bg-void-900 p-6 hover:border-signal-600 hover:bg-void-800/30 transition-all group">
       <div class="flex items-center justify-between">
         <div>
-          <div class="font-medium text-mist-100 text-lg group-hover:text-emerald-300 transition-colors">The Telescope</div>
-          <p class="mt-1 text-sm text-mist-300">A calm place to look up. No satellites. No noise. Just sky.</p>
-        </div>
-        <span class="text-emerald-400 text-sm">Open →</span>
-      </div>
-    </a>
-  </section>
-
-  <!-- The Eyepiece (Sky Explore) -->
-  <section class="mb-4">
-    <a href={base + 'sky-explore'} class="block rounded-2xl border border-signal-800/50 bg-void-900 p-6 hover:border-signal-600 hover:bg-void-800/30 transition-all group">
-      <div class="flex items-center justify-between">
-        <div>
-          <div class="font-medium text-mist-100 text-lg group-hover:text-signal-300 transition-colors">The Eyepiece</div>
-          <p class="mt-1 text-sm text-mist-300">Explore the real sky — fly, pan, and zoom to galaxies and nebulae. WorldWide Telescope + the Aladin atlas.</p>
+          <div class="font-medium text-mist-100 text-lg group-hover:text-signal-300 transition-colors">The Observatory</div>
+          <p class="mt-1 text-sm text-mist-300">Real sky — WorldWide Telescope and Aladin survey atlas</p>
         </div>
         <span class="text-signal-400 text-sm">Explore →</span>
       </div>
@@ -153,7 +137,7 @@ const catalogCount = loadCatalog().length;
     </a>
   </section>
 
-  <!-- Everything overhead (optional, noisy catalog) — heavily de-emphasized; focus is on the personal Telescope -->
+  <!-- Everything overhead (optional, noisy catalog) — heavily de-emphasized; focus is on the personal Observatory -->
   <details class="mb-6 opacity-75">
     <summary class="cursor-pointer text-sm text-mist-400 hover:text-mist-200 mb-4 select-none">
       Everything overhead (optional — the full noisy catalog view)

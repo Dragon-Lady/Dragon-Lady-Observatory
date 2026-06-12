@@ -21,7 +21,7 @@ _UPCOMING = f'{_BASE}/launch/upcoming/?format=json&limit=25&ordering=net'
 _REENTRIES = f'{_BASE}/event/upcoming/?format=json&type=8'  # type 8 = reentry
 
 _SESSION = requests.Session()
-_SESSION.headers.update({'User-Agent': 'DragonEye-StarsEdition/1.0'})
+_SESSION.headers.update({'User-Agent': 'Dragon-Lady-Observatory/1.0'})
 
 
 def _auth_header() -> dict:

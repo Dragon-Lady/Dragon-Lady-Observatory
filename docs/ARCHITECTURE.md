@@ -1,4 +1,4 @@
-# Stars Edition — Architecture
+# Dragon Lady Observatory — Architecture
 
 Distilled from the project design consensus (2026-05-28). This is the build
 plan; the wiring fills it in.
@@ -11,7 +11,7 @@ operator actions, no claims the data can't support.
 
 ## Shape: a running engine + a viewer
 
-Stars Edition is **not** a static site (unlike Open UAP, whose corpus is static
+Dragon Lady Observatory (the viewer) is **not** a static site (unlike Open UAP, whose corpus is static
 after ingest). Space data is live, and anomaly detection is inherently a running
 process — continuous ingest + comparison against prior state. So:
 

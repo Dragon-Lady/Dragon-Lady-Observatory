@@ -308,7 +308,7 @@ def run_all() -> bool:
 
 
 if __name__ == '__main__':
-    print('Stars Edition — detector smoke tests')
+    print('Dragon Lady Observatory — detector smoke tests')
     print('=====================================')
     passed = run_all()
     if passed:

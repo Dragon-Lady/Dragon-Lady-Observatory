@@ -29,7 +29,7 @@ _CA_URL     = f'{_NEOCC_BASE}/PSDB-portlet/download?file=close_approaches'  # UN
 _MPC_CLOSE  = 'https://minorplanetcenter.net/mpc/search_orbits?limit=50&e=-2'
 
 _SESSION = requests.Session()
-_SESSION.headers.update({'User-Agent': 'DragonEye-StarsEdition/1.0'})
+_SESSION.headers.update({'User-Agent': 'Dragon-Lady-Observatory/1.0'})
 
 
 def _fetch_mpc_close(max_age_hours: float = 6.0) -> list[dict]:

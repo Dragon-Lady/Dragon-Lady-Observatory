@@ -1,6 +1,6 @@
-# Dragon Eye — Stars Edition
+# Dragon Lady Observatory
 
-A beautiful way to explore space from home. Stars Edition brings the Dragon Eye
+A beautiful way to explore space from home. Dragon Lady Observatory brings the Dragon Eye
 grammar — a living globe, layered views, tiered cards, clear provenance — to the
 space domain: the satellites overhead, near-Earth objects passing by, space
 weather, and launches, all on one calm surface, with **anomaly detection** that
@@ -35,11 +35,10 @@ data sources: [`docs/DATA_SOURCES.md`](docs/DATA_SOURCES.md).
 
 ## Relationship to Dragon Eye
 
-Stars Edition is a **sibling** of Dragon Eye, not a mode inside it. It reuses
-Dragon Eye's *grammar* — T1/T2/T3 tiers, watchlist behavior, card patterns,
+Dragon Lady Observatory (the viewer) is built on the Dragon Eye engine's *grammar* — T1/T2/T3 tiers, watchlist behavior, card patterns,
 anomaly language — via shared conventions, but keeps a hard boundary: no shared
 database, no filesystem coupling. This protects Dragon Eye's operational posture
-and keeps Stars Edition simple to reason about on its own.
+and keeps the Observatory viewer simple to reason about on its own. (Formerly referred to internally as Stars Edition.)
 
 ## Layout
 
