@@ -244,7 +244,7 @@ const catalogCount = loadCatalog().length;
    *
    * Watermarks (locked rules):
    * - Default faint dragon: bottom left, always present, cannot be turned off.
-   * - Personal Dragon Lady mark (Tanya): top right for creator pins.
+   * - Personal Dragon Lady mark (project owner): top right for creator pins.
    */
   async function createShareableImage(pin) {
     const viewState = pin.viewState || {};
@@ -301,9 +301,9 @@ const catalogCount = loadCatalog().length;
     // Watermarks are COMPLETE (initial victory lap commenced 2026-06-03).
     // Fixed assets (do not recreate):
     //   dragon (bottom-left): /watermarks/dragon-watermark.png (or .webp)
-    //   lady (top-right): /watermarks/dragon-lady-mark.jpg  ← brightened 1.15x in prepare (Tanya tweak: was too dark)
+    //   lady (top-right): /watermarks/dragon-lady-mark.jpg  ← brightened 1.15x in prepare (project owner tweak: was too dark)
     //
-    // These three files from the real repo (C:\Users\tanya\Dragon-Lady-Observatory\viewer\public\watermarks\)
+    // These three files from the real repo (Dragon-Lady-Observatory\viewer\public\watermarks\)
     // are the final preserved artistic signatures.
     // Code ONLY loads them directly (with minimal bg-strip + per-asset subject prep for dark card visibility) and draws at faint alpha in locked corners.
     // No canvas silhouettes, no heavy processing, no recreation.
@@ -311,11 +311,11 @@ const catalogCount = loadCatalog().length;
     // Victory lap: boxes gone, real assets showing. One tweak applied for top-right brightness.
 
     async function loadWatermarkAssets() {
-      // WATERMARKS COMPLETE (2026-06-03 per Goldwing delivery + Tanya confirmation)
+      // WATERMARKS COMPLETE (2026-06-03 per Goldwing delivery + project owner confirmation)
       // Fixed assets live in the real repo and are the source of truth:
-      //   C:\Users\tanya\Dragon-Lady-Observatory\viewer\public\watermarks\dragon-lady-mark.jpg
-      //   C:\Users\tanya\Dragon-Lady-Observatory\viewer\public\watermarks\dragon-watermark.png
-      //   C:\Users\tanya\Dragon-Lady-Observatory\viewer\public\watermarks\dragon-watermark.webp
+      //   Dragon-Lady-Observatory\viewer\public\watermarks\dragon-lady-mark.jpg
+      //   Dragon-Lady-Observatory\viewer\public\watermarks\dragon-watermark.png
+      //   Dragon-Lady-Observatory\viewer\public\watermarks\dragon-watermark.webp
       //
       // Task: ONLY load these exact assets and preserve the ART exactly as provided.
       // For the .jpg (lady scenic) we do a minimal bg-strip only (no contrast boost, no art alteration)
