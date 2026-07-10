@@ -144,6 +144,19 @@ const LENS = { id: 'aladin', label: 'Atlas', icon: '🔭' };
       var M42_LABEL = 'M42 · Orion Nebula';
       var M42_COO = '05 35 17.3  -05 23 28';
       var LAST_VIEW_KEY = 'dlo-last-atlas-view';
+      // Quiet boot field — north galactic pole-ish empty patch. NEVER Orion.
+      var SAFE_BOOT_RA = 192.75;   // ~12h 51m
+      var SAFE_BOOT_DEC = 27.13;   // +27°
+      var SAFE_BOOT_FOV = 40;
+      var SAFE_BOOT_TARGET = '12 51 00.0 +27 07 48'; // sexagesimal — Aladin parses this reliably
+      var allowM42AsLastView = false; // only true after an intentional Hi 42 / M42 favorite fly
+
+      function coordsNearM42(ra, dec) {
+        if (!isFinite(ra) || !isFinite(dec)) return false;
+        var dra = Math.abs((((ra - M42_RA) % 360) + 540) % 360 - 180);
+        var ddec = Math.abs(dec - M42_DEC);
+        return dra < 2.5 && ddec < 2.5;
+      }
 
       function readLastAtlasView() {
         try {
@@ -151,15 +164,28 @@ const LENS = { id: 'aladin', label: 'Atlas', icon: '🔭' };
           if (!raw) return null;
           var v = JSON.parse(raw);
           if (v && isFinite(Number(v.ra)) && isFinite(Number(v.dec))) {
-            return { ra: Number(v.ra), dec: Number(v.dec), fov: Number(v.fov) };
+            var ra = Number(v.ra);
+            var dec = Number(v.dec);
+            // Old Orion boot poisoned this key — ignore so we don't re-slingshot forever.
+            if (coordsNearM42(ra, dec)) {
+              try { localStorage.removeItem(LAST_VIEW_KEY); } catch (e) {}
+              console.warn('[observatory] cleared Orion-poisoned last view', ra, dec);
+              return null;
+            }
+            return { ra: ra, dec: dec, fov: Number(v.fov) };
           }
         } catch (e) {}
         return null;
       }
 
-      function saveLastAtlasView(ra, dec, fov) {
+      function saveLastAtlasView(ra, dec, fov, opts) {
         try {
           if (!isFinite(ra) || !isFinite(dec)) return;
+          opts = opts || {};
+          // Do not re-poison last-view with Orion unless this was an intentional M42 favorite fly.
+          if (coordsNearM42(ra, dec) && !opts.allowM42 && !allowM42AsLastView) {
+            return;
+          }
           localStorage.setItem(LAST_VIEW_KEY, JSON.stringify({
             ra: ra,
             dec: dec,
@@ -333,16 +359,17 @@ const LENS = { id: 'aladin', label: 'Atlas', icon: '🔭' };
         if (aladinBooted || typeof A === 'undefined') return;
         aladinBooted = true;
         A.init.then(function () {
-          // Calm equatorial default — NOT M42. Last successful view wins when present.
-          // M42 is a favorite pin now (Hi 42), opened on purpose from My Pins.
+          // Calm default — NEVER M42/Orion. Last non-Orion view wins when present.
+          // Hi 42 is a favorite pin, opened on purpose from My Pins.
           var last = readLastAtlasView();
-          var bootRa = last ? last.ra : 0;
-          var bootDec = last ? last.dec : 0;
-          var bootFov = last && isFinite(last.fov) && last.fov > 0 ? last.fov : 40;
+          var bootFov = last && isFinite(last.fov) && last.fov > 0 ? last.fov : SAFE_BOOT_FOV;
+          var bootTarget = last
+            ? (String(last.ra) + ' ' + String(last.dec))
+            : SAFE_BOOT_TARGET;
           window.__aladin = A.aladin('#aladin-lite-div', {
             survey: currentSurvey,
             fov: bootFov,
-            target: bootRa + ' ' + bootDec,
+            target: bootTarget,
             cooFrame: 'equatorial',
             projection: 'SIN',
             showReticle: true,
@@ -352,12 +379,29 @@ const LENS = { id: 'aladin', label: 'Atlas', icon: '🔭' };
             showGotoControl: true,
             showSimbadPointerControl: true,
           });
+          // Belt-and-suspenders: if Aladin still landed near Orion with no pin handoff, shove to safe field.
+          setTimeout(function () {
+            try {
+              if (localStorage.getItem('flyToPin')) return; // pin handoff in progress
+              var a = window.__aladin;
+              if (!a || typeof a.getRaDec !== 'function') return;
+              var rd = a.getRaDec();
+              if (!rd || rd.length < 2) return;
+              if (coordsNearM42(Number(rd[0]), Number(rd[1]))) {
+                console.warn('[observatory] boot landed on Orion — forcing safe field');
+                if (typeof a.gotoRaDec === 'function') a.gotoRaDec(SAFE_BOOT_RA, SAFE_BOOT_DEC);
+                if (typeof a.setFov === 'function') a.setFov(SAFE_BOOT_FOV);
+                if (nowShowing) nowShowing.textContent = 'Atlas';
+                try { localStorage.removeItem(LAST_VIEW_KEY); } catch (e) {}
+              }
+            } catch (e) {}
+          }, 400);
           if (nowShowing) {
             nowShowing.textContent = last ? 'Atlas · last view' : 'Atlas';
           }
           // Drive from console/Sky Events pin if one was chosen (with retries)
           setTimeout(() => applyFlyToPinIfAny(0), 700);
-          // Persist wherever the eye rests (for next calm boot)
+          // Persist wherever the eye rests (for next calm boot) — never auto-save Orion.
           setInterval(function () {
             try {
               var a = window.__aladin;
@@ -758,6 +802,7 @@ const LENS = { id: 'aladin', label: 'Atlas', icon: '🔭' };
           } else if (pinId === M42_PIN_ID || labelLooksLikeM42(label)) {
             ra = M42_RA;
             dec = M42_DEC;
+            allowM42AsLastView = true; // intentional Hi 42 visit may become last view
           }
 
           if (catalogId && !labelLooksLikeM42(label) && pinId !== MYSTERY_ID) {
@@ -783,7 +828,9 @@ const LENS = { id: 'aladin', label: 'Atlas', icon: '🔭' };
               const f = isFinite(fov) && fov > 0 ? fov : (pinId === MYSTERY_ID ? MYSTERY_FOV : (pinId === M42_PIN_ID ? M42_FOV : 2));
               setTimeout(() => { try { if (typeof a.setFov === 'function') a.setFov(f); } catch (e) {} }, 200);
               if (nowShowing) nowShowing.textContent = (label || 'Pinned · live sky').trim();
-              saveLastAtlasView(ra, dec, f);
+              saveLastAtlasView(ra, dec, f, {
+                allowM42: pinId === M42_PIN_ID || labelLooksLikeM42(label),
+              });
               localStorage.removeItem('flyToPin');
               return;
             } catch (e) {
