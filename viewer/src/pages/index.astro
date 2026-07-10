@@ -219,13 +219,29 @@ const catalogCount = loadCatalog().length;
     if (!s) return false;
     return /\bm\s*42\b/.test(s) || /\borion\s+nebula\b/.test(s) || /^orion$/.test(s) || /\bhi\s*42\b/.test(s);
   }
+  function extractCatalogId(label) {
+    const target = String(label || '').trim();
+    const catalog = target.match(/\b((?:HD|HR|HIP|NGC|IC|M|Messier)\s*\d+[a-z]?)\b/i);
+    if (!catalog) return null;
+    return catalog[1].replace(/\s+/g, ' ').replace(/^messier\s*/i, 'M').replace(/^m\s+/i, 'M');
+  }
   function scrubM42PoisonedPins(pins) {
     if (!Array.isArray(pins)) return pins;
     let changed = false;
     const cleaned = pins.map((pin) => {
       if (!pin || labelLooksLikeM42(pin.label)) return pin;
       const sky = resolveSkyCoords(pin);
-      if (!sky.hasSky || !isNearM42(sky.ra, sky.dec)) return pin;
+      const catalogId = extractCatalogId(pin.label);
+      // Catalog-named pins often still carry the camera field from when P was hit
+      // (M42 boot OR the mystery-Moon bloom). Strip so fly-to resolves by name.
+      const poisoned =
+        (sky.hasSky && isNearM42(sky.ra, sky.dec)) ||
+        (catalogId && sky.hasSky);
+      if (!poisoned) return pin;
+      // Keep catalog coords only if we already healed them (flag) — otherwise strip.
+      if (catalogId && pin.coordsHealed === catalogId && sky.hasSky && !isNearM42(sky.ra, sky.dec)) {
+        return pin;
+      }
       changed = true;
       const next = Object.assign({}, pin);
       delete next.ra;
@@ -236,8 +252,9 @@ const catalogCount = loadCatalog().length;
         delete next.viewState.ra;
         delete next.viewState.dec;
         delete next.viewState.fov;
-        // Old mapping stored sky in lat/lng — drop those too when they match M42.
-        if (isNearM42(Number(next.viewState.lng), Number(next.viewState.lat))) {
+        // Old mapping stored sky in lat/lng — drop those too when they match M42
+        // or when this is a catalog pin (lat/lng were the wrong field snapshot).
+        if (catalogId || isNearM42(Number(next.viewState.lng), Number(next.viewState.lat))) {
           delete next.viewState.lat;
           delete next.viewState.lng;
           delete next.viewState.altitude;
@@ -249,6 +266,78 @@ const catalogCount = loadCatalog().length;
       try { localStorage.setItem('personalPins', JSON.stringify(cleaned)); } catch (e) {}
     }
     return cleaned;
+  }
+
+  function parseSesameRaDec(text) {
+    const m = String(text || '').match(/%J\s+([+-]?\d+(?:\.\d+)?)\s+([+-]?\d+(?:\.\d+)?)/);
+    if (!m) return null;
+    const ra = Number(m[1]);
+    const dec = Number(m[2]);
+    if (!Number.isFinite(ra) || !Number.isFinite(dec)) return null;
+    return { ra, dec };
+  }
+
+  /** Fill true catalog coords onto named pins so cards stop showing mystery/M42 leftovers. */
+  function healCatalogPinsAsync(pins, onDone) {
+    if (!Array.isArray(pins) || !pins.length) return;
+    const jobs = pins
+      .map((pin) => {
+        if (!pin) return null;
+        const catalogId = extractCatalogId(pin.label);
+        if (!catalogId || labelLooksLikeM42(pin.label)) return null;
+        if (pin.coordsHealed === catalogId) {
+          const sky = resolveSkyCoords(pin);
+          if (sky.hasSky && !isNearM42(sky.ra, sky.dec)) return null;
+        }
+        return { pin, catalogId };
+      })
+      .filter(Boolean);
+    if (!jobs.length) return;
+
+    let pending = jobs.length;
+    let changed = false;
+    const byId = {};
+    pins.forEach((p) => { if (p && p.id) byId[p.id] = p; });
+
+    jobs.forEach(({ pin, catalogId }) => {
+      const url = 'https://cdsweb.u-strasbg.fr/cgi-bin/nph-sesame/-oI/A?' + encodeURIComponent(catalogId);
+      fetch(url)
+        .then((r) => { if (!r.ok) throw new Error('Sesame ' + r.status); return r.text(); })
+        .then((text) => {
+          const coords = parseSesameRaDec(text);
+          if (!coords) return;
+          const target = byId[pin.id] || pin;
+          target.ra = coords.ra;
+          target.dec = coords.dec;
+          if (!Number.isFinite(Number(target.fov)) || Number(target.fov) <= 0) target.fov = 2.5;
+          target.coordsHealed = catalogId;
+          target.viewState = Object.assign({}, target.viewState || {}, {
+            lat: coords.dec,
+            lng: coords.ra,
+            ra: coords.ra,
+            dec: coords.dec,
+            altitude: target.fov,
+            fov: target.fov,
+          });
+          changed = true;
+        })
+        .catch(() => {})
+        .finally(() => {
+          pending -= 1;
+          if (pending === 0) {
+            if (changed) {
+              try {
+                const all = JSON.parse(localStorage.getItem('personalPins') || '[]');
+                if (Array.isArray(all)) {
+                  const merged = all.map((p) => (p && byId[p.id] ? byId[p.id] : p));
+                  localStorage.setItem('personalPins', JSON.stringify(merged));
+                }
+              } catch (e) {}
+            }
+            if (typeof onDone === 'function') onDone(changed);
+          }
+        });
+    });
   }
 
   function pinSourceBadge(pin) {
@@ -267,8 +356,13 @@ const catalogCount = loadCatalog().length;
   function buildFlyToPayload(pin) {
     const vs = pin.viewState || {};
     let sky = resolveSkyCoords(pin);
+    const catalogId = extractCatalogId(pin.label);
     // Don't ship M42-default coords under a non-M42 label — forces Sesame/label path.
     if (sky.hasSky && isNearM42(sky.ra, sky.dec) && !labelLooksLikeM42(pin.label)) {
+      sky = { ra: NaN, dec: NaN, fov: NaN, hasSky: false };
+    }
+    // Catalog pins: never ship unhealed camera-snapshot coords (mystery field / M42 boot).
+    if (catalogId && !labelLooksLikeM42(pin.label) && pin.coordsHealed !== catalogId) {
       sky = { ra: NaN, dec: NaN, fov: NaN, hasSky: false };
     }
     const lat = safeNumber(vs.lat, sky.hasSky ? sky.dec : 0);
@@ -595,6 +689,26 @@ const catalogCount = loadCatalog().length;
     }
     if (!Array.isArray(pins)) pins = [];
     pins = scrubM42PoisonedPins(pins);
+    // Heal HD/NGC/… pins that still lack trusted Simbad coords (wrong-field snapshots).
+    if (!window.__dloHealingCatalogPins) {
+      const needsHeal = pins.some(function (pin) {
+        if (!pin) return false;
+        const catalogId = extractCatalogId(pin.label);
+        if (!catalogId || labelLooksLikeM42(pin.label)) return false;
+        if (pin.coordsHealed === catalogId) {
+          const sky = resolveSkyCoords(pin);
+          return !(sky.hasSky && !isNearM42(sky.ra, sky.dec));
+        }
+        return true;
+      });
+      if (needsHeal) {
+        window.__dloHealingCatalogPins = true;
+        healCatalogPinsAsync(pins, function (changed) {
+          window.__dloHealingCatalogPins = false;
+          if (changed) renderMyPins();
+        });
+      }
+    }
 
     const searchInput = document.getElementById('pins-search');
     const searchTerm = searchInput ? searchInput.value.toLowerCase() : '';

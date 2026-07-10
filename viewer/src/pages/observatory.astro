@@ -278,13 +278,18 @@ const LENS = { id: 'aladin', label: 'Atlas', icon: '🔭' };
         neptune: 'Neptune',
       };
 
+      function extractCatalogId(label) {
+        const target = (label || '').trim();
+        const catalog = target.match(/\b((?:HD|HR|HIP|NGC|IC|M|Messier)\s*\d+[a-z]?)\b/i);
+        if (!catalog) return null;
+        return catalog[1].replace(/\s+/g, ' ').replace(/^messier\s*/i, 'M').replace(/^m\s+/i, 'M');
+      }
+
       function normalizePinTarget(label) {
         let target = (label || '').trim();
         // Prefer a clean catalog id if the pin label has extra words ("HD 23514 star cluster").
-        const catalog = target.match(/\b((?:HD|HR|HIP|NGC|IC|M|Messier)\s*\d+[a-z]?)\b/i);
-        if (catalog) {
-          return catalog[1].replace(/\s+/g, ' ').replace(/^messier\s*/i, 'M').replace(/^m\s+/i, 'M');
-        }
+        const catalog = extractCatalogId(target);
+        if (catalog) return catalog;
         target = target
           .replace(/full moon/i, 'Moon')
           .replace(/perseid/i, 'Perseids')
@@ -320,13 +325,101 @@ const LENS = { id: 'aladin', label: 'Atlas', icon: '🔭' };
 
       function resolveSolarSystemName(target) {
         const key = String(target || '').trim().toLowerCase();
+        if (!key) return null;
         if (SSO_NAME_MAP[key]) return SSO_NAME_MAP[key];
-        // Also catch labels like "Venus (evening)" / "Next Full Moon"
-        for (const [k, v] of Object.entries(SSO_NAME_MAP)) {
-          if (key.includes(k)) return v;
-        }
+        // Primary subject only — "Mystery glow near Moon" must NOT become live Moon.
+        const m = key.match(/^(?:next\s+)?(?:full\s+)?(moon|mercury|venus|mars|jupiter|saturn|uranus|neptune)\b/);
+        if (m) return SSO_NAME_MAP[m[1]] || (m[1].charAt(0).toUpperCase() + m[1].slice(1));
+        if (/^venus-evening\b/.test(key)) return 'Venus';
         return null;
       }
+
+      function parseSesameRaDec(text) {
+        const m = String(text || '').match(/%J\s+([+-]?\d+(?:\.\d+)?)\s+([+-]?\d+(?:\.\d+)?)/);
+        if (!m) return null;
+        const ra = Number(m[1]);
+        const dec = Number(m[2]);
+        if (!isFinite(ra) || !isFinite(dec)) return null;
+        return { ra: ra, dec: dec };
+      }
+
+      function resolveViaSesameHttp(target) {
+        const url = 'https://cdsweb.u-strasbg.fr/cgi-bin/nph-sesame/-oI/A?' + encodeURIComponent(target);
+        return fetch(url).then(function (r) {
+          if (!r.ok) throw new Error('Sesame HTTP ' + r.status);
+          return r.text();
+        }).then(function (text) {
+          const coords = parseSesameRaDec(text);
+          if (!coords) throw new Error('Sesame parse miss for ' + target);
+          return coords;
+        });
+      }
+
+      /** Rewrite a saved pin's sky coords after a successful catalog resolve (heals M42 / wrong-field poison). */
+      function healPinCoords(pinId, label, ra, dec, fov) {
+        try {
+          if (!isFinite(ra) || !isFinite(dec)) return;
+          var pins = JSON.parse(localStorage.getItem('personalPins') || '[]');
+          if (!Array.isArray(pins)) return;
+          var changed = false;
+          var f = isFinite(fov) && fov > 0 ? fov : NaN;
+          pins = pins.map(function (p) {
+            if (!p) return p;
+            var match = (pinId && p.id === pinId) || (label && p.label === label);
+            if (!match) return p;
+            var next = Object.assign({}, p);
+            next.ra = ra;
+            next.dec = dec;
+            if (isFinite(f)) next.fov = f;
+            var cat = extractCatalogId(next.label || label);
+            if (cat) next.coordsHealed = cat;
+            next.viewState = Object.assign({}, next.viewState || {}, {
+              lat: dec,
+              lng: ra,
+              ra: ra,
+              dec: dec,
+              altitude: isFinite(f) ? f : (next.viewState && next.viewState.altitude) || 2.5,
+              fov: isFinite(f) ? f : (next.viewState && next.viewState.fov) || 2.5,
+            });
+            changed = true;
+            return next;
+          });
+          if (changed) localStorage.setItem('personalPins', JSON.stringify(pins));
+        } catch (e) {}
+      }
+
+      function scrubM42PoisonedPinsLocal() {
+        try {
+          var pins = JSON.parse(localStorage.getItem('personalPins') || '[]');
+          if (!Array.isArray(pins)) return;
+          var changed = false;
+          var cleaned = pins.map(function (pin) {
+            if (!pin || labelLooksLikeM42(pin.label)) return pin;
+            var ra = Number(pin.ra != null ? pin.ra : (pin.viewState && pin.viewState.ra));
+            var dec = Number(pin.dec != null ? pin.dec : (pin.viewState && pin.viewState.dec));
+            if (!isFinite(ra) || !isFinite(dec) || !isNearM42(ra, dec)) return pin;
+            changed = true;
+            var next = Object.assign({}, pin);
+            delete next.ra;
+            delete next.dec;
+            delete next.fov;
+            if (next.viewState && typeof next.viewState === 'object') {
+              next.viewState = Object.assign({}, next.viewState);
+              delete next.viewState.ra;
+              delete next.viewState.dec;
+              delete next.viewState.fov;
+              if (isNearM42(Number(next.viewState.lng), Number(next.viewState.lat))) {
+                delete next.viewState.lat;
+                delete next.viewState.lng;
+                delete next.viewState.altitude;
+              }
+            }
+            return next;
+          });
+          if (changed) localStorage.setItem('personalPins', JSON.stringify(cleaned));
+        } catch (e) {}
+      }
+      scrubM42PoisonedPinsLocal();
 
       // "+10:10:09.8" hours → degrees; "+12:50:22.9" sexagesimal degrees → degrees
       function sexagesimalToDegrees(str, isHours) {
@@ -398,19 +491,57 @@ const LENS = { id: 'aladin', label: 'Atlas', icon: '🔭' };
           });
       }
 
-      function flyToDeepSky(a, target) {
+      function flyToDeepSky(a, target, opts) {
+        opts = opts || {};
+        const displayLabel = (opts.label || target || '').trim();
+        const pinId = opts.pinId;
+        const desiredFov = Number(opts.fov);
+        const fovFinal = isFinite(desiredFov) && desiredFov > 0 ? Math.min(desiredFov, 8) : 2.5;
+
+        function landAt(ra, dec) {
+          try {
+            if (typeof a.gotoRaDec === 'function') a.gotoRaDec(ra, dec);
+            placeSsoMarker(a, ra, dec, displayLabel || target);
+            setTimeout(function () {
+              try { if (typeof a.setFov === 'function') a.setFov(fovFinal); } catch (e) {}
+            }, 200);
+            if (nowShowing) nowShowing.textContent = displayLabel || target;
+            healPinCoords(pinId, displayLabel, ra, dec, fovFinal);
+          } catch (e) {
+            console.warn('[observatory] landAt failed', target, e);
+          }
+        }
+
+        function httpFallback() {
+          resolveViaSesameHttp(target).then(function (c) {
+            console.log('[observatory] Sesame HTTP resolved', target, c.ra, c.dec);
+            landAt(c.ra, c.dec);
+          }).catch(function (err) {
+            console.warn('[observatory] Sesame resolve failed for', target, err);
+          });
+        }
+
         try {
           a.gotoObject(target, {
             success: function () {
-              setTimeout(() => { try { if (typeof a.setFov === 'function') a.setFov(20); } catch (e) {} }, 200);
+              try {
+                var rd = typeof a.getRaDec === 'function' ? a.getRaDec() : null;
+                if (rd && rd.length >= 2 && isFinite(Number(rd[0])) && isFinite(Number(rd[1]))) {
+                  healPinCoords(pinId, displayLabel, Number(rd[0]), Number(rd[1]), fovFinal);
+                }
+              } catch (e) {}
+              setTimeout(function () {
+                try { if (typeof a.setFov === 'function') a.setFov(fovFinal); } catch (e) {}
+              }, 200);
+              if (nowShowing) nowShowing.textContent = displayLabel || target;
             },
             error: function () {
-              // Sesame miss — leave M42 / current view alone rather than pointing nowhere.
+              // Aladin's built-in Sesame missed — do not leave the M42 default; hit CDS directly.
+              httpFallback();
             },
           });
         } catch (e) {
-          try { a.gotoObject(target); } catch (e2) {}
-          setTimeout(() => { try { if (typeof a.setFov === 'function') a.setFov(20); } catch (e3) {} }, 200);
+          httpFallback();
         }
       }
 
@@ -431,13 +562,26 @@ const LENS = { id: 'aladin', label: 'Atlas', icon: '🔭' };
           // Do NOT clear flyToPin until a jump path succeeds — clearing early caused Orion slingshots
           // when Aladin was present but goto still failed / raced the M42 default.
           // Only trust explicit ra/dec (not lat/lng) — Sky Events still stores placeholder lat/lng.
-          // If coords sit on the M42 default but the label is something else (e.g. HD 23514),
-          // ignore the poisoned coords and resolve by label instead.
+          // Catalog-named pins (HD 23514, NGC …): NEVER trust stored camera coords — those are often
+          // the M42 boot default or whatever field was on screen when P was hit (e.g. mystery glow).
           const vs = data.viewState || {};
           let ra = Number(data.ra != null ? data.ra : vs.ra);
           let dec = Number(data.dec != null ? data.dec : vs.dec);
           const fov = Number(data.fov != null ? data.fov : (vs.fov != null ? vs.fov : vs.altitude));
           const label = (data.label || data.title || data.name || '').trim();
+          const catalogId = extractCatalogId(label);
+
+          if (catalogId && !labelLooksLikeM42(label)) {
+            console.warn('[observatory] catalog pin — resolving by name, ignoring stored coords', catalogId, ra, dec);
+            localStorage.removeItem('flyToPin');
+            flyToDeepSky(a, catalogId, {
+              label: label,
+              pinId: data.id,
+              fov: isFinite(fov) && fov > 0 ? fov : 2.5,
+            });
+            return;
+          }
+
           if (isFinite(ra) && isFinite(dec) && isNearM42(ra, dec) && label && !labelLooksLikeM42(label)) {
             console.warn('[observatory] ignoring M42-poisoned pin coords for label', label, ra, dec);
             ra = NaN;
@@ -471,10 +615,10 @@ const LENS = { id: 'aladin', label: 'Atlas', icon: '🔭' };
             flyToSolarSystem(a, ssoName).catch(function (err) {
               console.warn('[observatory] SSO fly-to failed, falling back to gotoObject', ssoName, err);
               // Last resort: still try Sesame (will usually fail for planets) so behavior is explicit.
-              flyToDeepSky(a, ssoName);
+              flyToDeepSky(a, ssoName, { label: label, pinId: data.id });
             });
           } else {
-            flyToDeepSky(a, target);
+            flyToDeepSky(a, target, { label: label, pinId: data.id, fov: fov });
           }
         } catch (e) {}
       }
