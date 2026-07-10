@@ -38,7 +38,7 @@ const LENS = { id: 'aladin', label: 'Atlas', icon: '🔭' };
       <div id="now-chip" class="pointer-events-none absolute left-3 bottom-3 rounded-full border border-white/10 bg-black/60 px-3 py-1 text-xs text-mist-300 backdrop-blur">
         <span class="mr-1.5 inline-block h-2 w-2 animate-pulse rounded-full bg-emerald-400"></span>
         <span id="now-showing">Atlas</span>
-        <span class="ml-2 text-[10px] text-mist-500" id="atlas-build" title="Build stamp — if you don't see pinfix 8, the wrapper is serving old code">· pinfix 8</span>
+        <span class="ml-2 text-[10px] text-mist-500" id="atlas-build" title="Build stamp — if you don't see pinfix 9, the wrapper is serving old code">· pinfix 9</span>
       </div>
 
       <!-- Bottom-right control group: Snapshot + Wide.
@@ -1340,52 +1340,36 @@ const LENS = { id: 'aladin', label: 'Atlas', icon: '🔭' };
         });
       }
 
-      // === AGGRESSIVE TOTAL HEADER REMOVAL FOR ALADIN FULLSCREEN ===
-      // Problem: Aladin's built-in full-screen control (left side) resizes #sky-stage (or the inner div)
-      // to fill the viewport without reliably firing the browser Fullscreen API on the element we watch.
-      // When that happens the header was staying visible or "dropping down" and covering Aladin's
-      // top search / controls.
-      //
-      // Solution: Detect "stage is basically the whole window" via size + position, plus every possible
-      // event, plus direct clicks inside the Aladin area, and FORCE the header completely away with
-      // important styles. Restore only when the stage shrinks or ESC is used.
+      // === PARK CAMERA CONTROLS WHEN ALADIN GOES IMMERSIVE ===
+      // Aladin's built-in full-screen expands #aladin-lite-div to position:fixed full-window
+      // while #sky-stage stays mid-page. Our Mystery/Pin/Snapshot/Wide are absolute to the
+      // stage — so they read as "floating in the center" of the sky. Detect immersive and
+      // re-park them fixed to the real viewport bottom. (Site header is gone; don't bail on it.)
       function forceHideHeaderIfImmersive() {
         const header = document.querySelector('header');
-        if (!header) return;
-
-        // Prefer the inner aladin container for detection — it's what actually expands in Aladin's full-screen
         const aladin = document.getElementById('aladin-lite-div');
         const target = aladin || document.getElementById('sky-stage');
-        if (!target) {
-          header.style.removeProperty('display');
-          header.style.removeProperty('visibility');
-          header.style.removeProperty('height');
-          return;
-        }
+        if (!target) return;
 
         const rect = target.getBoundingClientRect();
         const isStdFs = !!(document.fullscreenElement || document.webkitFullscreenElement);
 
-        // Very strict: hide header ONLY when the actual Aladin canvas area has expanded to nearly full viewport
-        // and its top edge is right at the top of the browser window.
-        // In normal (non-fullscreen) view the aladin area sits below the site header + title, so top will be higher.
+        // Immersive = true fullscreen OR Aladin's internal expand (nearly full viewport, near top).
         const veryTall = rect.height > window.innerHeight * 0.92;
-        const nearTop = rect.top < 2;
+        const nearTop = rect.top < 8;
         const isImmersive = isStdFs || (veryTall && nearTop);
 
         if (isImmersive) {
-          // Completely remove the header so Aladin's top search and controls are fully exposed.
-          header.style.setProperty('display', 'none', 'important');
-          header.style.setProperty('visibility', 'hidden', 'important');
-          header.style.setProperty('height', '0', 'important');
-          header.style.setProperty('overflow', 'hidden', 'important');
-          header.style.setProperty('margin', '0', 'important');
-          header.style.setProperty('padding', '0', 'important');
+          if (header) {
+            header.style.setProperty('display', 'none', 'important');
+            header.style.setProperty('visibility', 'hidden', 'important');
+            header.style.setProperty('height', '0', 'important');
+            header.style.setProperty('overflow', 'hidden', 'important');
+            header.style.setProperty('margin', '0', 'important');
+            header.style.setProperty('padding', '0', 'important');
+          }
 
-          // MOVE (not hide) our Snapshot + Wide buttons to a stable viewport corner.
-          // Aladin immersive sets #aladin-lite-div to position:fixed full-window while
-          // #sky-stage stays at its old layout size — so position:absolute on #sky-controls
-          // pins to the (now wrong) stage box. Use fixed so we track the real camera.
+          // Park Snapshot / Pin / Mystery / Wide on the real viewport bottom-right.
           const controls = document.getElementById('sky-controls');
           if (controls) {
             controls.style.setProperty('position', 'fixed', 'important');
@@ -1399,8 +1383,7 @@ const LENS = { id: 'aladin', label: 'Atlas', icon: '🔭' };
             controls.style.setProperty('z-index', '950', 'important');
           }
 
-          // Same fix for Deep Sky / Milky Way — keep it bottom-center of the *viewport*,
-          // not the stale stage box (which reads as mid-field in fullscreen).
+          // Deep Sky / Milky Way — bottom-center of the viewport.
           const surveyToggle = document.getElementById('survey-toggle');
           if (surveyToggle) {
             surveyToggle.style.setProperty('position', 'fixed', 'important');
@@ -1413,17 +1396,17 @@ const LENS = { id: 'aladin', label: 'Atlas', icon: '🔭' };
             surveyToggle.style.setProperty('z-index', '940', 'important');
           }
 
-          // Also park the "now showing" chip out of the way in JS-detected immersive states
           const chip = document.getElementById('now-chip');
           if (chip) chip.style.setProperty('display', 'none', 'important');
         } else {
-          // Restore for normal view so user can navigate back to console.
-          header.style.removeProperty('display');
-          header.style.removeProperty('visibility');
-          header.style.removeProperty('height');
-          header.style.removeProperty('overflow');
-          header.style.removeProperty('margin');
-          header.style.removeProperty('padding');
+          if (header) {
+            header.style.removeProperty('display');
+            header.style.removeProperty('visibility');
+            header.style.removeProperty('height');
+            header.style.removeProperty('overflow');
+            header.style.removeProperty('margin');
+            header.style.removeProperty('padding');
+          }
 
           const controls = document.getElementById('sky-controls');
           if (controls) {
@@ -1476,10 +1459,9 @@ const LENS = { id: 'aladin', label: 'Atlas', icon: '🔭' };
           ro2.observe(aladinDiv);
         }
 
-        // === IMMEDIATE + AGGRESSIVE HIDE ON INTERACTION ===
+        // === IMMEDIATE PARK ON INTERACTION ===
         const forceHideNow = () => {
-          // Instant header removal when user taps Aladin's native fullscreen (or other controls).
-          // The controls are *moved* (not hidden) by forceHideHeaderIfImmersive so Snapshot stays usable in fs.
+          // Optional legacy header hide if one ever returns.
           const header = document.querySelector('header');
           if (header) {
             header.style.setProperty('display', 'none', 'important');
@@ -1489,7 +1471,6 @@ const LENS = { id: 'aladin', label: 'Atlas', icon: '🔭' };
             header.style.setProperty('margin', '0', 'important');
             header.style.setProperty('padding', '0', 'important');
           }
-          // Let the main detector run shortly to apply the "move controls to stable corner" logic
           setTimeout(forceHideHeaderIfImmersive, 60);
         };
 
@@ -1501,12 +1482,10 @@ const LENS = { id: 'aladin', label: 'Atlas', icon: '🔭' };
         // MutationObserver to catch when Aladin changes the container style/class during full-screen
         if (typeof MutationObserver !== 'undefined') {
           const mo = new MutationObserver(() => {
-            // If after a mutation the area looks immersive, keep header hidden
             const r = aladinDiv.getBoundingClientRect();
             if (r.height > window.innerHeight * 0.8 && r.top < 8) {
               forceHideNow();
             } else {
-              // let the normal update decide
               forceHideHeaderIfImmersive();
             }
           });
@@ -1523,7 +1502,6 @@ const LENS = { id: 'aladin', label: 'Atlas', icon: '🔭' };
       setTimeout(forceHideHeaderIfImmersive, 700);
       setTimeout(forceHideHeaderIfImmersive, 1400);
 
-      // One more safety: if user hits a key that might be ESC or toggle
       document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
           setTimeout(forceHideHeaderIfImmersive, 50);
@@ -1531,14 +1509,7 @@ const LENS = { id: 'aladin', label: 'Atlas', icon: '🔭' };
         }
       });
 
-      // On initial load for normal view, ensure header is visible.
-      setTimeout(() => {
-        const hdr = document.querySelector('header');
-        if (hdr) {
-          // Let the main function decide based on current size
-          forceHideHeaderIfImmersive();
-        }
-      }, 250);
+      setTimeout(forceHideHeaderIfImmersive, 250);
     })();
   </script>
 </Base>
