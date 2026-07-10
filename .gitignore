@@ -30,9 +30,12 @@ dist/
 viewer/dist/
 .astro/
 viewer/.astro/
-viewer/public/catalog/
-
-# data caches — catalogs/TLEs/snapshots are fetched at runtime, not committed
+# Local ambient drop (Suno / Nebula Drift) — machine-local, not committed
+viewer/public/audio/*.mp3
+viewer/public/audio/*.wav
+viewer/public/audio/*.ogg
+viewer/public/audio/*.m4a
+!viewer/public/audio/README.md
 data/cache/
 data/snapshots/
 data/.*/
