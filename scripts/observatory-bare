@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# Bare-metal Atlas start — no branch checks, no fancy stuff.
+# Paste these lines in Cosmic if ./scripts/observatory still fails.
+
+set -e
+cd "$(dirname "$0")/../viewer"
+test -d node_modules/astro || npm install
+echo "When you see 'Local http://127.0.0.1:4331/' — open that in your browser."
+exec npx astro dev --host 127.0.0.1 --port 4331

@@ -1,111 +1,65 @@
 #!/usr/bin/env bash
-# Dragon Lady Observatory — Chuck's Atlas wrapper (2026-07-10)
-# Runs SIDE-BY-SIDE with Oracle's cosmic-terminal cheat (usually :4321).
-# This one uses :4331 by default so they don't collide.
+# Chuck's Observatory launcher — keep it simple.
+# Port 4331 (Oracle/Cosmic usually owns 4321).
 #
+# In Cosmic Terminal, from the repo:
 #   ./scripts/observatory
-#   open http://127.0.0.1:4331/observatory
-#   litmus: bottom-left shows  · pinfix 8
+# Wait until you see:  Local  http://127.0.0.1:4331/
+# THEN open that URL in the browser (+ /observatory).
 #
-# Oracle's wrapper = old tree / M42 boot until we point it here.
-# Chuck's wrapper  = this branch, anti-Orion, pinfix 8.
+# 127.0.0.1 = THIS computer. Not Cursor Cloud.
 
-set -euo pipefail
+set -u
 
-BRANCH="${DLO_BRANCH:-cursor/console-pins-cleanup-27c8}"
-# 4331 on purpose — leave Oracle's cosmic cheat on 4321 until you retire it
 PORT="${DLO_PORT:-4331}"
 HOST="${DLO_HOST:-127.0.0.1}"
-BUILD_STAMP="pinfix 8"
+BRANCH="${DLO_BRANCH:-cursor/console-pins-cleanup-27c8}"
 
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-VIEWER="$REPO_ROOT/viewer"
-LOG="${TMPDIR:-/tmp}/dlo-observatory-chuck.log"
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$ROOT/viewer" || { echo "✗ no viewer/ under $ROOT"; exit 1; }
 
-cd "$REPO_ROOT"
-
-echo "=== Dragon Lady Observatory · Chuck wrapper ==="
-echo "repo:   $REPO_ROOT"
-echo "branch: $BRANCH"
-echo "bind:   http://${HOST}:${PORT}/"
-echo "atlas:  http://127.0.0.1:${PORT}/observatory"
-echo "stamp:  must show  · ${BUILD_STAMP}"
-echo "log:    $LOG"
-echo "(Oracle's cosmic cheat can keep :4321 — this one is :${PORT})"
+echo "=== Chuck Observatory ==="
+echo "folder: $ROOT/viewer"
+echo "wait for:  Local    http://${HOST}:${PORT}/"
+echo "then open: http://127.0.0.1:${PORT}/observatory"
 echo ""
 
-if ! command -v git >/dev/null 2>&1; then
-  echo "✗ git not found"
-  exit 1
-fi
-if ! command -v node >/dev/null 2>&1; then
-  echo "✗ node not found — install Node 20+ then retry"
-  exit 1
-fi
-if ! command -v npm >/dev/null 2>&1; then
-  echo "✗ npm not found"
-  exit 1
-fi
-
-CURRENT="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo unknown)"
-echo "git:    on $CURRENT @ $(git rev-parse --short HEAD 2>/dev/null || echo '?')"
-
-if [[ "$CURRENT" != "$BRANCH" ]]; then
-  echo "→ switching to $BRANCH …"
-  git fetch origin "$BRANCH" 2>/dev/null || git fetch origin || true
-  if ! git checkout "$BRANCH"; then
-    echo "✗ could not checkout $BRANCH"
-    exit 2
+# Best-effort branch (don't die if git is weird)
+if command -v git >/dev/null 2>&1; then
+  cd "$ROOT"
+  cur="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo '?')"
+  echo "git: $cur @ $(git rev-parse --short HEAD 2>/dev/null || echo '?')"
+  if [[ "$cur" != "$BRANCH" ]]; then
+    echo "→ trying checkout $BRANCH …"
+    git fetch origin "$BRANCH" 2>/dev/null || true
+    git checkout "$BRANCH" 2>/dev/null || echo "⚠ checkout failed — starting anyway"
   fi
   git pull --ff-only origin "$BRANCH" 2>/dev/null || true
-  echo "git:    now $(git rev-parse --abbrev-ref HEAD) @ $(git rev-parse --short HEAD)"
-else
-  git pull --ff-only origin "$BRANCH" 2>/dev/null || true
+  cd "$ROOT/viewer"
 fi
-
-ASTRO_PAGE="$VIEWER/src/pages/observatory.astro"
-if [[ ! -f "$ASTRO_PAGE" ]]; then
-  echo "✗ missing $ASTRO_PAGE — wrong repo root?"
-  exit 3
-fi
-
-if grep -n "target: 'M42'" "$ASTRO_PAGE" >/dev/null 2>&1; then
-  echo "✗ This checkout still hardcodes target: 'M42' (Orion boot)."
-  echo "  Wrong tree. Stay on $BRANCH and git pull."
-  exit 3
-fi
-
-if ! grep -q "$BUILD_STAMP" "$ASTRO_PAGE"; then
-  echo "✗ Build stamp '$BUILD_STAMP' not in observatory.astro — checkout is behind."
-  echo "  git pull origin $BRANCH and retry."
-  exit 3
-fi
-echo "✓ anti-Orion page present ($BUILD_STAMP)"
-
-cd "$VIEWER"
 
 if [[ ! -d node_modules/astro ]]; then
-  echo "→ npm install (first run) …"
-  npm install
+  echo "→ npm install …"
+  npm install || { echo "✗ npm install failed"; exit 1; }
 fi
 
-# Do NOT kill Oracle's :4321. Only free OUR port.
+# Free only our port
 if command -v lsof >/dev/null 2>&1; then
-  PIDS="$(lsof -tiTCP:"${PORT}" -sTCP:LISTEN 2>/dev/null || true)"
-  if [[ -n "${PIDS}" ]]; then
-    echo "→ freeing Chuck port ${PORT}: $PIDS"
-    # shellcheck disable=SC2086
-    kill $PIDS 2>/dev/null || true
+  pids="$(lsof -tiTCP:"$PORT" -sTCP:LISTEN 2>/dev/null || true)"
+  if [[ -n "$pids" ]]; then
+    echo "→ freeing :$PORT ($pids)"
+    kill $pids 2>/dev/null || true
     sleep 1
   fi
 fi
 
 echo ""
-echo "Starting Astro on ${HOST}:${PORT} …"
-echo "  → http://127.0.0.1:${PORT}/observatory"
-echo "  → look for  · ${BUILD_STAMP}  bottom-left"
-echo "  (leave Cosmic/Oracle on :4321 alone for now)"
+echo "Starting… (leave this window open)"
 echo ""
 
-# Host 127.0.0.1 is reachable locally; log so "cannot be reached" is diagnosable.
-npx astro dev --host "$HOST" --port "$PORT" 2>&1 | tee "$LOG"
+# Prefer local binary; fall back to npx
+if [[ -x node_modules/.bin/astro ]]; then
+  exec node_modules/.bin/astro dev --host "$HOST" --port "$PORT"
+else
+  exec npx astro dev --host "$HOST" --port "$PORT"
+fi
