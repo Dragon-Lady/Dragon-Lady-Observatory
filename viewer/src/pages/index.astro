@@ -54,7 +54,7 @@ const catalogCount = loadCatalog().length;
       <div class="mb-3 flex flex-wrap gap-2" id="pins-chips">
         <button data-chip="all" class="chip px-3 py-1 text-sm rounded-full border border-void-700 bg-void-900 text-mist-300 hover:border-void-500">All</button>
         <button data-chip="favorites" class="chip px-3 py-1 text-sm rounded-full border border-void-700 bg-void-900 text-mist-300 hover:border-void-500">Favorites</button>
-        <button data-chip="sky-events" class="chip px-3 py-1 text-sm rounded-full border border-void-700 bg-void-900 text-mist-300 hover:border-void-500">Sky Events</button>
+        <button data-chip="sky-events" class="chip px-3 py-1 text-sm rounded-full border border-void-700 bg-void-900 text-mist-300 hover:border-void-500" title="Pins you saved from the Sky Events page">Pinned from Sky Events</button>
         <button data-chip="quiet" class="chip px-3 py-1 text-sm rounded-full border border-void-700 bg-void-900 text-mist-300 hover:border-void-500">Quiet</button>
       </div>
 
@@ -888,12 +888,22 @@ const catalogCount = loadCatalog().length;
 
     empty.classList.add('hidden');
 
-    if (sorted.length === 0 && searchTerm) {
+    if (sorted.length === 0) {
       noResults.classList.remove('hidden');
+      if (activeChip === 'sky-events') {
+        noResults.innerHTML =
+          'No Sky Events pins yet. <a href="' + base + 'sky-events" class="text-signal-400 hover:underline">Open Sky Events</a> and hit <strong>Pin this</strong> on Moon, Venus, or a constellation.';
+      } else if (searchTerm) {
+        noResults.textContent = 'No pins match your search.';
+      } else if (activeChip === 'favorites') {
+        noResults.textContent = 'No favorites yet — star a pin from All.';
+      } else {
+        noResults.textContent = 'No pins in this filter.';
+      }
       return;
-    } else {
-      noResults.classList.add('hidden');
     }
+    noResults.classList.add('hidden');
+    noResults.textContent = 'No pins match your search.';
 
     // Rediscover strip — shown primarily when Quiet revisit chip is active (per handoff intent)
     const rediscover = document.getElementById('rediscover-strip');
