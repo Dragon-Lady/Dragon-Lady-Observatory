@@ -10,6 +10,22 @@ const present = domainsPresent();
 const allDomains: Domain[] = ['orbital', 'neo', 'space_weather', 'launch_reentry'];
 const base = import.meta.env.BASE_URL;
 const catalogCount = loadCatalog().length;
+
+const skyEvents = [
+  { id: 'moon', name: 'Moon', desc: 'Our nearest neighbor — always a good test target for the camera.' },
+  { id: 'venus-evening', name: 'Venus', desc: 'Brightest planet in the evening or morning sky.' },
+  { id: 'perseids', name: 'Perseid Meteor Shower', desc: 'Fast, bright meteors (peak in August).' },
+  { id: 'geminids', name: 'Geminids Meteor Shower', desc: 'Reliable December shower — often one of the years best.' },
+];
+
+const skyConstellations = [
+  { id: 'orion', name: 'Orion', desc: 'The Hunter. Winter sky landmark.' },
+  { id: 'pleiades', name: 'Pleiades', desc: 'The Seven Sisters — delicate open cluster.' },
+  { id: 'andromeda', name: 'Andromeda Galaxy', desc: 'Nearest major galactic neighbor.' },
+  { id: 'cassiopeia', name: 'Cassiopeia', desc: 'Bright W in the northern sky.' },
+  { id: 'ursa-major', name: 'Ursa Major', desc: 'Home of the Big Dipper.' },
+  { id: 'scorpius', name: 'Scorpius', desc: 'Summer scorpion with a red heart.' },
+];
 ---
 
 <Base title="Dragon Lady’s Observatory">
@@ -97,17 +113,67 @@ const catalogCount = loadCatalog().length;
     </div>
   </section>
 
-  <!-- Sky Events — one secondary lane -->
-  <section class="mb-8">
-    <a href={base + 'sky-events'} class="block rounded-2xl border border-void-700 bg-void-900 p-6 hover:border-void-500 transition-colors">
-      <div class="flex items-center justify-between">
-        <div>
-          <div class="font-medium text-mist-100 text-lg">Sky Events</div>
-          <p class="mt-1 text-sm text-mist-300">Constellations and quiet moments worth noticing tonight.</p>
-        </div>
-        <span class="text-signal-400 text-sm">Explore →</span>
+  <!-- Sky Events — inline tonight list (no Explore detour) -->
+  <section class="mb-8" id="sky-events-inline">
+    <div class="mb-4 flex flex-wrap items-end justify-between gap-3">
+      <div>
+        <h2 class="text-xl font-semibold text-mist-100">Sky Events</h2>
+        <p class="text-xs text-mist-500 mt-0.5">Pin one → opens Atlas. No extra page hop.</p>
       </div>
-    </a>
+      <a href={base + 'sky-events'} class="text-xs text-mist-500 hover:text-mist-300">Full page ↗</a>
+    </div>
+
+    <div class="mb-6">
+      <div class="text-xs uppercase tracking-[0.14em] text-mist-500 mb-3">Tonight / soon</div>
+      <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        {skyEvents.map((item) => (
+          <div
+            class="rounded-xl border border-void-700 bg-void-900 p-4 hover:border-void-500 transition-colors"
+            data-sky-tile
+            data-type="event"
+            data-id={item.id}
+            data-name={item.name}
+            data-desc={item.desc}
+          >
+            <div class="flex justify-between items-start gap-3">
+              <div class="min-w-0">
+                <div class="font-medium text-mist-100">{item.name}</div>
+                <div class="mt-1 text-mist-400 text-sm leading-snug">{item.desc}</div>
+              </div>
+              <button type="button" class="pin-btn shrink-0 px-3 py-1.5 text-xs rounded-full border border-void-600 text-mist-300 hover:bg-emerald-900/30 hover:border-emerald-700 hover:text-emerald-300 transition-all">
+                Pin this
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+
+    <div>
+      <div class="text-xs uppercase tracking-[0.14em] text-mist-500 mb-3">Constellations</div>
+      <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {skyConstellations.map((item) => (
+          <div
+            class="rounded-xl border border-void-700 bg-void-900 p-4 hover:border-void-500 transition-colors"
+            data-sky-tile
+            data-type="constellation"
+            data-id={item.id}
+            data-name={item.name}
+            data-desc={item.desc}
+          >
+            <div class="flex justify-between items-start gap-3">
+              <div class="min-w-0">
+                <div class="font-medium text-mist-100">{item.name}</div>
+                <div class="mt-1 text-mist-400 text-sm leading-snug">{item.desc}</div>
+              </div>
+              <button type="button" class="pin-btn shrink-0 px-3 py-1.5 text-xs rounded-full border border-void-600 text-mist-300 hover:bg-emerald-900/30 hover:border-emerald-700 hover:text-emerald-300 transition-all">
+                Pin this
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
   </section>
 
   <!-- Everything overhead (optional, noisy catalog) — heavily de-emphasized; focus is on the personal Observatory -->
@@ -1299,6 +1365,78 @@ const catalogCount = loadCatalog().length;
     }
   }
 
+  function setupSkyEventTiles() {
+    const defaultViews = {
+      moon: { lat: 18, lng: -35, altitude: 1.9 },
+      'venus-evening': { lat: 8, lng: -65, altitude: 2.1 },
+      perseids: { lat: 52, lng: 46, altitude: 2.0 },
+      geminids: { lat: 33, lng: -15, altitude: 2.0 },
+      orion: { lat: -8, lng: 84, altitude: 1.8 },
+      pleiades: { lat: 24, lng: 58, altitude: 1.9 },
+      andromeda: { lat: 41, lng: 10, altitude: 1.9 },
+      cassiopeia: { lat: 62, lng: -15, altitude: 1.8 },
+      'ursa-major': { lat: 55, lng: 20, altitude: 1.8 },
+      scorpius: { lat: -25, lng: 100, altitude: 2.0 },
+    };
+
+    document.querySelectorAll('#sky-events-inline [data-sky-tile]').forEach(function (el) {
+      const type = el.getAttribute('data-type');
+      const id = el.getAttribute('data-id');
+      const name = el.getAttribute('data-name');
+      const desc = el.getAttribute('data-desc') || '';
+      const sourceEventId = type + ':' + id;
+      const btn = el.querySelector('.pin-btn');
+      if (!btn) return;
+
+      const pins = readPinsRaw();
+      if (pins.some(function (p) { return p && p.sourceEventId === sourceEventId; })) {
+        btn.textContent = 'Pinned ✓';
+        btn.disabled = true;
+        btn.classList.add('!border-emerald-700', '!text-emerald-400');
+      }
+
+      btn.addEventListener('click', function (e) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        const pinsNow = readPinsRaw();
+        const existing = pinsNow.find(function (pin) { return pin && pin.sourceEventId === sourceEventId; });
+        const pinId = existing ? existing.id : (Date.now().toString(36) + '-' + id);
+
+        if (!existing) {
+          pinsNow.unshift({
+            id: pinId,
+            createdAt: new Date().toISOString(),
+            viewState: defaultViews[id] || { lat: 0, lng: 0, altitude: 2.4 },
+            label: name,
+            note: desc,
+            sourceEventId: sourceEventId,
+            source: 'sky-events',
+          });
+          safeWritePins(pinsNow);
+        }
+
+        btn.textContent = 'Pinned ✓';
+        btn.disabled = true;
+        btn.classList.add('!border-emerald-700', '!text-emerald-400');
+
+        localStorage.setItem('flyToPin', JSON.stringify({
+          id: pinId,
+          label: name,
+          viewState: defaultViews[id] || { lat: 0, lng: 0, altitude: 2.4 },
+        }));
+
+        renderMyPins();
+
+        const toast = document.createElement('div');
+        toast.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:3000;background:#0f1420;border:1px solid #36415a;color:#e9edf5;padding:10px 22px;border-radius:9999px;font-size:13px;display:flex;gap:12px;align-items:center;';
+        toast.innerHTML = '<span>' + escapeHtml(name) + ' saved</span><a href="' + base + 'observatory" style="color:#6fd3e2;text-decoration:none;font-size:12px;">Open Atlas →</a>';
+        document.body.appendChild(toast);
+        setTimeout(function () { toast.remove(); }, 4200);
+      });
+    });
+  }
+
   setupMyPins();
+  setupSkyEventTiles();
   </script>
 </Base>
