@@ -1,15 +1,17 @@
-# Observatory ambient audio
+# Observatory ambient — Nebula Drift
 
-Drop your Suno (or harp) loop here as:
+Put your Suno MP3 here with this exact name:
 
 ```
-celestial-harp.mp3
+nebula-drift.mp3
 ```
 
-The console music icon will prefer this file. Until it exists, a soft glass-harp
-Web Audio stand-in plays when you tap the icon.
+Full path on your machine:
 
-- Default: quiet
-- Tap the music icon to play / quiet (Android-app style)
-- Press `M` to toggle (Dragon Eye–style hotkey)
-- Preference saved in `localStorage.dlo-ambient` (`on` | `off`)
+```
+/home/tanyanichols/Dragon-Lady-Observatory/viewer/public/audio/nebula-drift.mp3
+```
+
+File manager: open the Observatory folder → `viewer` → `public` → `audio` → drop the file in and rename it to `nebula-drift.mp3` (lowercase, hyphens, no spaces).
+
+Then hard-refresh http://127.0.0.1:4331/ and tap the music icon.
