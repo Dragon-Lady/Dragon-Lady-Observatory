@@ -29,18 +29,48 @@ const skyConstellations = [
 ---
 
 <Base title="Dragon Lady’s Observatory">
-  <!-- celestial hero — one composition: brand, one line, one CTA -->
-  <section class="sky -mx-4 mb-8 rounded-none border-b border-void-800 px-4 py-10 sm:rounded-xl sm:border">
+  <!-- celestial hero — one composition: brand, sky, quiet dragon, one CTA group -->
+  <section class="sky -mx-4 mb-8 rounded-none border-b border-void-800 px-4 py-10 sm:rounded-xl sm:border sm:py-14">
     <div class="sky-twinkle" aria-hidden="true"></div>
+    <div class="sky-dragon" aria-hidden="true">
+      <img
+        src={base + 'watermarks/dragon-watermark.png'}
+        alt=""
+        width="420"
+        height="420"
+        decoding="async"
+      />
+    </div>
     <div class="relative z-10 max-w-2xl">
       <h1 class="text-2xl font-semibold tracking-tight text-mist-100 sm:text-3xl">The Observatory</h1>
       <p class="mt-2 text-mist-300">The sky, watched. Your pins. Your Atlas. Quiet moments worth keeping.</p>
-      <div class="mt-6">
+      <div class="mt-6 flex flex-wrap items-center gap-x-4 gap-y-3">
         <a href={base + 'observatory'} class="inline-flex items-center gap-2 rounded-md border border-void-700 px-5 py-2.5 text-sm font-medium text-mist-200 hover:bg-indigo-900/20 hover:border-indigo-700 hover:text-indigo-300 transition-colors">
           Open the Observatory
         </a>
+        <button
+          type="button"
+          id="sky-ambient-btn"
+          class="sky-ambient-btn"
+          aria-pressed="false"
+          aria-label="Music off. Click to listen."
+          title="Music — tap to play or quiet (M). Remembers on this device."
+        >
+          <svg class="sky-ambient-icon sky-ambient-icon--on" width="22" height="22" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 18V5l12-2v13" />
+            <circle cx="6" cy="18" r="3" />
+            <circle cx="18" cy="16" r="3" />
+          </svg>
+          <svg class="sky-ambient-icon sky-ambient-icon--off" width="22" height="22" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 18V5l12-2v13" />
+            <circle cx="6" cy="18" r="3" />
+            <circle cx="18" cy="16" r="3" />
+            <path d="M4 4l16 16" />
+          </svg>
+        </button>
       </div>
     </div>
+    <audio id="sky-ambient-audio" loop preload="metadata" playsinline src={base + 'audio/celestial-harp.mp3'}></audio>
   </section>
 
   <!-- My Pins — primary personal shelf -->
@@ -1528,5 +1558,163 @@ const skyConstellations = [
 
   setupMyPins();
   setupSkyEventTiles();
+
+  // Ambient music — icon tap like the Android app; M hotkey like Dragon Eye.
+  // Default quiet. Pref: localStorage dlo-ambient = 'on' | 'off'
+  // Drop your Suno/harp loop at viewer/public/audio/celestial-harp.mp3
+  (function setupAmbientMusic() {
+    const KEY = 'dlo-ambient';
+    const btn = document.getElementById('sky-ambient-btn');
+    const audio = document.getElementById('sky-ambient-audio');
+    if (!btn || !audio) return;
+
+    let trackReady = false;
+    let glassCtx = null;
+    let glassNodes = null;
+
+    function prefOn() {
+      try { return localStorage.getItem(KEY) === 'on'; } catch (e) { return false; }
+    }
+    function setPref(on) {
+      try { localStorage.setItem(KEY, on ? 'on' : 'off'); } catch (e) {}
+    }
+
+    function paint(on) {
+      btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+      btn.setAttribute('aria-label', on ? 'Music on. Click to quiet.' : 'Music off. Click to listen.');
+      btn.title = on
+        ? 'Music on — tap or press M to quiet'
+        : 'Music off — tap or press M to listen';
+    }
+
+    function stopGlass() {
+      if (!glassNodes) return;
+      try {
+        glassNodes.gains.forEach(function (g) {
+          g.gain.cancelScheduledValues(glassCtx.currentTime);
+          g.gain.setValueAtTime(g.gain.value, glassCtx.currentTime);
+          g.gain.linearRampToValueAtTime(0, glassCtx.currentTime + 0.4);
+        });
+        setTimeout(function () {
+          try { glassNodes.oscs.forEach(function (o) { o.stop(); }); } catch (e) {}
+          glassNodes = null;
+        }, 500);
+      } catch (e) {
+        glassNodes = null;
+      }
+    }
+
+    // Soft stand-in harp pad until celestial-harp.mp3 lands (her Suno track).
+    function startGlass() {
+      try {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) return false;
+        if (!glassCtx) glassCtx = new AC();
+        if (glassCtx.state === 'suspended') glassCtx.resume();
+        stopGlass();
+        const master = glassCtx.createGain();
+        master.gain.value = 0.045;
+        master.connect(glassCtx.destination);
+        // Gentle open fifths / high partials — glass-harp adjacent, not a song.
+        const freqs = [196, 247, 294, 392, 494, 588];
+        const oscs = [];
+        const gains = [];
+        freqs.forEach(function (f, i) {
+          const o = glassCtx.createOscillator();
+          const g = glassCtx.createGain();
+          o.type = i % 2 === 0 ? 'sine' : 'triangle';
+          o.frequency.value = f;
+          g.gain.value = 0;
+          o.connect(g);
+          g.connect(master);
+          o.start();
+          const t0 = glassCtx.currentTime;
+          g.gain.linearRampToValueAtTime(0.22 / (i + 1), t0 + 1.2 + i * 0.15);
+          // Slow shimmer
+          const lfo = glassCtx.createOscillator();
+          const lfoG = glassCtx.createGain();
+          lfo.frequency.value = 0.05 + i * 0.01;
+          lfoG.gain.value = 0.04;
+          lfo.connect(lfoG);
+          lfoG.connect(g.gain);
+          lfo.start();
+          oscs.push(o, lfo);
+          gains.push(g);
+        });
+        glassNodes = { oscs: oscs, gains: gains, master: master };
+        return true;
+      } catch (e) {
+        return false;
+      }
+    }
+
+    function play() {
+      if (trackReady) {
+        stopGlass();
+        audio.volume = 0.55;
+        const p = audio.play();
+        if (p && typeof p.then === 'function') {
+          p.then(function () { paint(true); setPref(true); })
+            .catch(function () {
+              // Autoplay blocked or missing file — try glass pad once.
+              if (startGlass()) { paint(true); setPref(true); }
+              else { paint(false); setPref(false); }
+            });
+        } else {
+          paint(true); setPref(true);
+        }
+        return;
+      }
+      if (startGlass()) { paint(true); setPref(true); }
+      else { paint(false); }
+    }
+
+    function quiet() {
+      try { audio.pause(); audio.currentTime = 0; } catch (e) {}
+      stopGlass();
+      paint(false);
+      setPref(false);
+    }
+
+    function toggle() {
+      const on = btn.getAttribute('aria-pressed') === 'true';
+      if (on) quiet();
+      else play();
+    }
+
+    btn.addEventListener('click', function (e) {
+      e.preventDefault();
+      toggle();
+    });
+
+    document.addEventListener('keydown', function (e) {
+      if (e.key !== 'm' && e.key !== 'M') return;
+      const tag = (e.target && e.target.tagName) || '';
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || (e.target && e.target.isContentEditable)) return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      e.preventDefault();
+      toggle();
+    });
+
+    // Probe for the real Suno/harp file; glass pad is the sketch stand-in.
+    try {
+      fetch(audio.src, { method: 'HEAD', cache: 'no-store' })
+        .then(function (res) {
+          trackReady = !!(res && res.ok);
+          if (!trackReady) {
+            btn.title = 'Music off — tap to hear a soft stand-in (drop celestial-harp.mp3 for your Suno track). M toggles.';
+          }
+          paint(false);
+          if (prefOn()) play();
+        })
+        .catch(function () {
+          trackReady = false;
+          paint(false);
+          if (prefOn()) play();
+        });
+    } catch (e) {
+      paint(false);
+    }
+  })();
   </script>
 </Base>

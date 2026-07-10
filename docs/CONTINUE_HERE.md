@@ -1,7 +1,7 @@
 # CONTINUE HERE — Dragon Lady's Observatory
 
 **Authority:** This file wins if other docs disagree for console/pin handoff in this repo.
-**Last updated:** 2026-07-10 (anti-Orion + fresh `observatory` wrapper)
+**Last updated:** 2026-07-10 (hero dragon + music icon ambient)
 
 ---
 
@@ -43,3 +43,11 @@ Hard-refresh `/` → pins show RA·Dec·FOV + badge → click card → Atlas →
 **Fix:** restored Atlas `observatory.astro` (Miriade + `applyFlyToPinIfAny`) and only clear `flyToPin` after a successful jump.
 
 **HD 23514 still → Orion:** some saved pins kept **M42’s RA/Dec** under a different label. Coord path won over Sesame. Now: detect M42-poisoned coords when label isn’t M42/Orion, scrub them from `personalPins` on console load, and fly by label (Sesame resolves `HD 23514` → `03 46 38 +22 55`).
+
+## Hero presence + ambient (2026-07-10)
+
+- Quiet crystalline dragon watermark in the console hero (atmosphere, not a sticker)
+- Music icon next to Open the Observatory — tap to play/quiet (Android-app style)
+- `M` toggles ambient (Dragon Eye–style hotkey); skipped in inputs
+- Pref: `localStorage.dlo-ambient` = `on` | `off` (default off)
+- Drop Suno/harp loop at `viewer/public/audio/celestial-harp.mp3` — until then a soft glass-harp stand-in plays

@@ -94,6 +94,79 @@ a:hover { text-decoration: underline; }
   70% { opacity: 0.7; }
 }
 
+/* Quiet dragon — atmosphere in the hero, not a sticker. */
+.sky-dragon {
+  position: absolute;
+  right: -4%;
+  top: 50%;
+  transform: translateY(-52%);
+  width: min(52vw, 420px);
+  max-width: 480px;
+  pointer-events: none;
+  z-index: 2;
+  opacity: 0.16;
+  mix-blend-mode: screen;
+  filter: drop-shadow(0 0 28px rgba(111, 211, 226, 0.12));
+  animation: dragon-breathe 9s ease-in-out infinite;
+}
+.sky-dragon img {
+  display: block;
+  width: 100%;
+  height: auto;
+  user-select: none;
+}
+@keyframes dragon-breathe {
+  0%, 100% { opacity: 0.12; transform: translateY(-52%) scale(1); }
+  50% { opacity: 0.22; transform: translateY(-54%) scale(1.02); }
+}
+@media (max-width: 640px) {
+  .sky-dragon {
+    width: min(70vw, 280px);
+    right: -10%;
+    opacity: 0.12;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sky::before, .sky::after, .sky > .sky-twinkle, .sky-dragon {
+    animation: none !important;
+  }
+  .sky-dragon { opacity: 0.18; }
+}
+
+/* Ambient music icon — Android-app style tap to quiet; M hotkey like Dragon Eye. */
+.sky-ambient-btn {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  padding: 0;
+  margin: 0;
+  border: 1px solid var(--color-void-700);
+  border-radius: 0.5rem;
+  background: transparent;
+  color: var(--color-mist-400);
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+.sky-ambient-btn:hover {
+  color: var(--color-mist-200);
+  border-color: var(--color-void-600);
+  background: rgba(22, 29, 44, 0.55);
+}
+.sky-ambient-btn[aria-pressed="true"] {
+  color: var(--color-signal-300);
+  border-color: rgba(111, 211, 226, 0.35);
+}
+.sky-ambient-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.sky-ambient-btn .sky-ambient-icon { display: none; }
+.sky-ambient-btn[aria-pressed="true"] .sky-ambient-icon--on { display: block; }
+.sky-ambient-btn:not([aria-pressed="true"]) .sky-ambient-icon--off { display: block; }
+
 .tier-t1 { color: var(--color-t1); }
 .tier-t2 { color: var(--color-t2); }
 .tier-t3 { color: var(--color-t3); }
