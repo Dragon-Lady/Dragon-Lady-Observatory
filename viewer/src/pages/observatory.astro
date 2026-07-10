@@ -39,7 +39,7 @@ const LENS = { id: 'aladin', label: 'Atlas', icon: '🔭' };
       <div id="now-chip" class="pointer-events-none absolute left-3 bottom-3 rounded-full border border-white/10 bg-black/60 px-3 py-1 text-xs text-mist-300 backdrop-blur">
         <span class="mr-1.5 inline-block h-2 w-2 animate-pulse rounded-full bg-emerald-400"></span>
         <span id="now-showing">Atlas</span>
-        <span class="ml-2 text-[10px] text-mist-500" id="atlas-build" title="Build stamp — if you don't see this, the wrapper is serving old code">· pinfix 7</span>
+        <span class="ml-2 text-[10px] text-mist-500" id="atlas-build" title="Build stamp — if you don't see pinfix 8, the wrapper is serving old code">· pinfix 8</span>
       </div>
 
       <!-- Bottom-right control group: Snapshot + Wide.
@@ -280,6 +280,16 @@ const LENS = { id: 'aladin', label: 'Atlas', icon: '🔭' };
       /** Hi 42 lives on the Favorites shelf — never as the silent Atlas boot target. */
       function ensureM42FavoritePin() {
         try {
+          // Only seed once per browser unless user deleted the flag after removing the pin.
+          if (localStorage.getItem('dlo-m42-favorite-seeded') === '1') {
+            var pinsCheck = readPinsArray();
+            var stillThere = pinsCheck.some(function (p) {
+              return p && (p.id === M42_PIN_ID || (p.label && labelLooksLikeM42(p.label)));
+            });
+            if (stillThere) return;
+            // Pin was removed — don't keep resurrecting it every Observatory load.
+            return;
+          }
           var pins = readPinsArray();
           var existing = pins.find(function (p) { return p && p.id === M42_PIN_ID; });
           if (existing) {
@@ -287,9 +297,9 @@ const LENS = { id: 'aladin', label: 'Atlas', icon: '🔭' };
               existing.favorite = true;
               writePinsArray(pins);
             }
+            localStorage.setItem('dlo-m42-favorite-seeded', '1');
             return;
           }
-          // Also adopt an older user-made M42 pin if present.
           var legacy = pins.find(function (p) {
             if (!p || !p.label) return false;
             var s = String(p.label).toLowerCase();
@@ -300,6 +310,7 @@ const LENS = { id: 'aladin', label: 'Atlas', icon: '🔭' };
             if (!isFinite(Number(legacy.ra))) legacy.ra = M42_RA;
             if (!isFinite(Number(legacy.dec))) legacy.dec = M42_DEC;
             writePinsArray(pins);
+            localStorage.setItem('dlo-m42-favorite-seeded', '1');
             return;
           }
           pins.unshift({
@@ -328,6 +339,7 @@ const LENS = { id: 'aladin', label: 'Atlas', icon: '🔭' };
             },
           });
           writePinsArray(pins);
+          localStorage.setItem('dlo-m42-favorite-seeded', '1');
         } catch (e) {}
       }
 
@@ -360,17 +372,22 @@ const LENS = { id: 'aladin', label: 'Atlas', icon: '🔭' };
         if (aladinBooted || typeof A === 'undefined') return;
         aladinBooted = true;
         A.init.then(function () {
-          // Calm default — NEVER M42/Orion. Last non-Orion view wins when present.
-          // Hi 42 is a favorite pin, opened on purpose from My Pins.
+          // NEVER boot on M42. Aladin's own default / bad target parse has been landing on Orion.
+          // Force a safe field with gotoRaDec after init — do not trust the target: string alone.
           var last = readLastAtlasView();
           var bootFov = last && isFinite(last.fov) && last.fov > 0 ? last.fov : SAFE_BOOT_FOV;
-          var bootTarget = last
-            ? (String(last.ra) + ' ' + String(last.dec))
-            : SAFE_BOOT_TARGET;
+          var bootRa = last ? last.ra : SAFE_BOOT_RA;
+          var bootDec = last ? last.dec : SAFE_BOOT_DEC;
+          if (coordsNearM42(bootRa, bootDec)) {
+            bootRa = SAFE_BOOT_RA;
+            bootDec = SAFE_BOOT_DEC;
+            bootFov = SAFE_BOOT_FOV;
+            try { localStorage.removeItem(LAST_VIEW_KEY); } catch (e) {}
+          }
           window.__aladin = A.aladin('#aladin-lite-div', {
             survey: currentSurvey,
             fov: bootFov,
-            target: bootTarget,
+            target: SAFE_BOOT_TARGET, // placeholder only — immediately overridden below
             cooFrame: 'equatorial',
             projection: 'SIN',
             showReticle: true,
@@ -380,26 +397,38 @@ const LENS = { id: 'aladin', label: 'Atlas', icon: '🔭' };
             showGotoControl: true,
             showSimbadPointerControl: true,
           });
-          // Belt-and-suspenders: if Aladin still landed near Orion with no pin handoff, shove to safe field.
-          setTimeout(function () {
+          try {
+            if (typeof window.__aladin.gotoRaDec === 'function') {
+              window.__aladin.gotoRaDec(bootRa, bootDec);
+            }
+            if (typeof window.__aladin.setFov === 'function') {
+              window.__aladin.setFov(bootFov);
+            }
+          } catch (e) {}
+          if (nowShowing) {
+            nowShowing.textContent = last && !coordsNearM42(bootRa, bootDec) ? 'Atlas · last view' : 'Atlas';
+          }
+          // Kick Orion again if Aladin still drifted there before pin handoff.
+          function kickOrionIfUnwanted() {
             try {
-              if (localStorage.getItem('flyToPin')) return; // pin handoff in progress
+              if (allowM42AsLastView) return;
+              if (localStorage.getItem('flyToPin')) return;
               var a = window.__aladin;
               if (!a || typeof a.getRaDec !== 'function') return;
               var rd = a.getRaDec();
               if (!rd || rd.length < 2) return;
               if (coordsNearM42(Number(rd[0]), Number(rd[1]))) {
-                console.warn('[observatory] boot landed on Orion — forcing safe field');
+                console.warn('[observatory] Orion still on the lease — kicking to safe field');
                 if (typeof a.gotoRaDec === 'function') a.gotoRaDec(SAFE_BOOT_RA, SAFE_BOOT_DEC);
                 if (typeof a.setFov === 'function') a.setFov(SAFE_BOOT_FOV);
                 if (nowShowing) nowShowing.textContent = 'Atlas';
                 try { localStorage.removeItem(LAST_VIEW_KEY); } catch (e) {}
               }
             } catch (e) {}
-          }, 400);
-          if (nowShowing) {
-            nowShowing.textContent = last ? 'Atlas · last view' : 'Atlas';
           }
+          setTimeout(kickOrionIfUnwanted, 300);
+          setTimeout(kickOrionIfUnwanted, 1200);
+          setTimeout(kickOrionIfUnwanted, 2500);
           // Drive from console/Sky Events pin if one was chosen (with retries)
           setTimeout(() => applyFlyToPinIfAny(0), 700);
           // Persist wherever the eye rests (for next calm boot) — never auto-save Orion.

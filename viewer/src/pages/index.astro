@@ -37,11 +37,16 @@ const catalogCount = loadCatalog().length;
     <div id="pins-restore-bar" class="hidden mb-4 rounded-xl border border-amber-700/50 bg-void-900 p-4">
       <div class="flex flex-wrap items-center justify-between gap-3">
         <div class="text-sm text-mist-200">
-          Local backup found (<span data-backup-count>0</span> pins). Main shelf looks empty.
+          Shelf looks empty. Restore a backup or re-seed Hi 42 + mystery + HD 23514.
         </div>
-        <button id="restore-pins-backup" type="button" class="px-3 py-1.5 rounded-lg border border-amber-700/60 text-amber-100 hover:bg-amber-900/20 text-sm">
-          Restore backup
-        </button>
+        <div class="flex flex-wrap gap-2">
+          <button id="restore-pins-backup" type="button" class="px-3 py-1.5 rounded-lg border border-amber-700/60 text-amber-100 hover:bg-amber-900/20 text-sm">
+            Restore backup (<span data-backup-count>0</span>)
+          </button>
+          <button id="seed-known-pins" type="button" class="px-3 py-1.5 rounded-lg border border-void-600 text-mist-200 hover:bg-void-800 text-sm">
+            Re-seed known pins
+          </button>
+        </div>
       </div>
     </div>
 
@@ -832,28 +837,18 @@ const catalogCount = loadCatalog().length;
         setTimeout(function () { toast.remove(); }, 4200);
       } catch (e) {}
     }
-    if (!pins.length) {
-      pins = seedKnownSessionPinsIfEmpty(pins);
-      if (pins.length) {
-        try {
-          const toast = document.createElement('div');
-          toast.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:3000;background:#0f1420;border:1px solid #36415a;color:#e9edf5;padding:10px 22px;border-radius:9999px;font-size:13px;';
-          toast.textContent = 'Re-seeded HD 23514 + mystery glow + Hi 42 favorite';
-          document.body.appendChild(toast);
-          setTimeout(function () { toast.remove(); }, 5200);
-        } catch (e) {}
-      }
-    }
-    pins = ensureM42FavoriteOnConsole(pins);
+    // Do NOT auto-seed / rewrite the shelf on every load — that felt like "pins changed back."
+    // Empty shelf: offer restore/seed via the restore bar only.
     pins = scrubM42PoisonedPins(pins);
 
     const backup = readPinsBackup();
     const restoreBar = document.getElementById('pins-restore-bar');
     if (restoreBar) {
-      if (pins.length === 0 && backup.length > 0) {
+      if (pins.length === 0) {
         restoreBar.classList.remove('hidden');
-        restoreBar.querySelector('[data-backup-count]') && (restoreBar.querySelector('[data-backup-count]').textContent = String(backup.length));
-      } else if (pins.length > 0) {
+        const countEl = restoreBar.querySelector('[data-backup-count]');
+        if (countEl) countEl.textContent = String(backup.length);
+      } else {
         restoreBar.classList.add('hidden');
       }
     }
@@ -1197,6 +1192,23 @@ const catalogCount = loadCatalog().length;
         if (safeWritePins(backup)) {
           renderMyPins();
         }
+      });
+    }
+
+    const seedBtn = document.getElementById('seed-known-pins');
+    if (seedBtn) {
+      seedBtn.addEventListener('click', () => {
+        if (!confirm('Re-seed Hi 42 + mystery glow + HD 23514? This merges into an empty-ish shelf.')) return;
+        const seeded = seedKnownSessionPinsIfEmpty([]);
+        // Merge with anything currently present
+        const current = readPinsRaw();
+        const ids = new Set(current.map((p) => p && p.id));
+        seeded.forEach((p) => {
+          if (p && p.id && !ids.has(p.id)) current.push(p);
+        });
+        safeWritePins(current.length ? current : seeded);
+        try { localStorage.setItem('dlo-m42-favorite-seeded', '1'); } catch (e) {}
+        renderMyPins();
       });
     }
 
