@@ -1,6 +1,22 @@
 ---
 import Base from '@/layouts/Base.astro';
 const base = import.meta.env.BASE_URL;
+
+const events = [
+  { id: 'moon', name: 'Moon', desc: 'Our nearest neighbor — always a good test target for the camera.' },
+  { id: 'venus-evening', name: 'Venus', desc: 'Brightest planet in the evening or morning sky. Great for testing jumps.' },
+  { id: 'perseids', name: 'Perseid Meteor Shower', desc: 'Fast, bright meteors (peak in August).' },
+  { id: 'geminids', name: 'Geminids Meteor Shower', desc: 'Reliable December shower — often one of the years best.' },
+];
+
+const constellations = [
+  { id: 'orion', name: 'Orion', desc: 'The Hunter. One of the most recognizable constellations in the winter sky.' },
+  { id: 'pleiades', name: 'Pleiades', desc: 'A delicate cluster of stars, often called the Seven Sisters.' },
+  { id: 'andromeda', name: 'Andromeda Galaxy', desc: 'Our nearest major galactic neighbor — visible to the naked eye on dark nights.' },
+  { id: 'cassiopeia', name: 'Cassiopeia', desc: 'The Queen. A bright W-shaped constellation in the northern sky.' },
+  { id: 'ursa-major', name: 'Ursa Major', desc: 'The Great Bear. Home to the Big Dipper and a reliable northern guide.' },
+  { id: 'scorpius', name: 'Scorpius', desc: 'The Scorpion. A striking summer constellation with a bright red heart.' },
+];
 ---
 
 <Base title="Sky Events · Dragon Lady’s Observatory">
@@ -15,60 +31,76 @@ const base = import.meta.env.BASE_URL;
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-5 gap-8">
-      
-      <!-- What's Happening Tonight -->
       <section class="lg:col-span-3">
         <div class="flex items-center justify-between mb-5">
           <h2 class="text-xl font-medium text-mist-200">What’s Happening Tonight / Soon</h2>
           <span class="text-xs text-mist-500">Tonight + next 7 days</span>
         </div>
-
         <div class="space-y-4" id="events-grid">
-          <!-- Populated by script -->
+          {events.map((item) => (
+            <div
+              class="group rounded-2xl border border-void-700 bg-void-900 p-6 hover:border-void-500 hover:-translate-y-0.5 transition-all duration-200 shadow-sm"
+              data-sky-tile
+              data-type="event"
+              data-id={item.id}
+              data-name={item.name}
+              data-desc={item.desc}
+            >
+              <div class="flex justify-between items-start">
+                <div>
+                  <div class="font-medium text-mist-100 text-lg">{item.name}</div>
+                  <div class="mt-2 text-mist-300 text-sm leading-snug">{item.desc}</div>
+                </div>
+                <button type="button" class="pin-btn mt-1 px-4 py-1.5 text-xs rounded-full border border-void-600 text-mist-300 hover:bg-emerald-900/30 hover:border-emerald-700 hover:text-emerald-300 active:bg-emerald-900/50 transition-all">
+                  Pin this
+                </button>
+              </div>
+            </div>
+          ))}
         </div>
       </section>
 
-      <!-- Constellation Highlights -->
       <section class="lg:col-span-2">
         <div class="flex items-center justify-between mb-5">
           <h2 class="text-xl font-medium text-mist-200">Constellation Highlights</h2>
         </div>
-
         <div class="space-y-4" id="constellations-grid">
-          <!-- Populated by script -->
+          {constellations.map((item) => (
+            <div
+              class="group rounded-2xl border border-void-700 bg-void-900 p-6 hover:border-void-500 hover:-translate-y-0.5 transition-all duration-200 shadow-sm"
+              data-sky-tile
+              data-type="constellation"
+              data-id={item.id}
+              data-name={item.name}
+              data-desc={item.desc}
+            >
+              <div class="flex justify-between items-start">
+                <div>
+                  <div class="font-medium text-mist-100 text-lg">{item.name}</div>
+                  <div class="mt-2 text-mist-300 text-sm leading-snug">{item.desc}</div>
+                </div>
+                <button type="button" class="pin-btn mt-1 px-4 py-1.5 text-xs rounded-full border border-void-600 text-mist-300 hover:bg-emerald-900/30 hover:border-emerald-700 hover:text-emerald-300 active:bg-emerald-900/50 transition-all">
+                  Pin this
+                </button>
+              </div>
+            </div>
+          ))}
         </div>
       </section>
-
     </div>
 
-    <!-- Also worth a look -->
     <div class="mt-12 border-t border-void-800 pt-8">
       <div class="text-sm text-mist-400 mb-3">Also worth a look</div>
       <div class="text-mist-300 text-sm max-w-prose">
-        The Perseids return every August with swift, bright streaks. 
+        The Perseids return every August with swift, bright streaks.
         Andromeda is always there — our nearest major galactic neighbor, visible on dark nights.
       </div>
     </div>
   </div>
 
   <script is:inline define:vars={{ base }}>
-    const events = [
-      { id: 'moon', name: 'Moon', desc: 'Our nearest neighbor — always a good test target for the camera.' },
-      { id: 'venus-evening', name: 'Venus', desc: 'Brightest planet in the evening or morning sky. Great for testing jumps.' },
-      { id: 'perseids', name: 'Perseid Meteor Shower', desc: 'Fast, bright meteors (peak in August).' },
-      { id: 'geminids', name: 'Geminids Meteor Shower', desc: 'Reliable December shower — often one of the year’s best.' },
-    ];
-
-    const constellations = [
-      { id: 'orion', name: 'Orion', desc: 'The Hunter. One of the most recognizable constellations in the winter sky.' },
-      { id: 'pleiades', name: 'Pleiades', desc: 'A delicate cluster of stars, often called the Seven Sisters.' },
-      { id: 'andromeda', name: 'Andromeda Galaxy', desc: 'Our nearest major galactic neighbor — visible to the naked eye on dark nights.' },
-      { id: 'cassiopeia', name: 'Cassiopeia', desc: 'The Queen. A bright W-shaped constellation in the northern sky.' },
-      { id: 'ursa-major', name: 'Ursa Major', desc: 'The Great Bear. Home to the Big Dipper and a reliable northern guide.' },
-      { id: 'scorpius', name: 'Scorpius', desc: 'The Scorpion. A striking summer constellation with a bright red heart.' },
-    ];
     const defaultViews = {
-      'moon': { lat: 18, lng: -35, altitude: 1.9 },
+      moon: { lat: 18, lng: -35, altitude: 1.9 },
       'venus-evening': { lat: 8, lng: -65, altitude: 2.1 },
       perseids: { lat: 52, lng: 46, altitude: 2.0 },
       geminids: { lat: 33, lng: -15, altitude: 2.0 },
@@ -84,7 +116,6 @@ const base = import.meta.env.BASE_URL;
       try {
         const raw = localStorage.getItem('personalPins');
         if (!raw || raw === 'undefined' || raw === 'null') {
-          // Try backup before declaring empty
           const bak = localStorage.getItem('personalPins:backup');
           if (bak && bak !== 'undefined' && bak !== 'null') {
             const bp = JSON.parse(bak);
@@ -97,7 +128,7 @@ const base = import.meta.env.BASE_URL;
         }
         const pins = JSON.parse(raw);
         return Array.isArray(pins) ? pins : [];
-      } catch {
+      } catch (e) {
         return [];
       }
     }
@@ -113,46 +144,36 @@ const base = import.meta.env.BASE_URL;
       localStorage.setItem('personalPins', JSON.stringify(pinsNow));
     }
 
-    function createTile(item, type) {
-      const el = document.createElement('div');
-      el.className = 'group rounded-2xl border border-void-700 bg-void-900 p-6 hover:border-void-500 hover:-translate-y-0.5 transition-all duration-200 shadow-sm';
-
-      const sourceEventId = `${type}:${item.id}`;
-      const pins = readPins();
-      const alreadyPinned = pins.some(p => p.sourceEventId === sourceEventId);
-
-      el.innerHTML = `
-        <div class="flex justify-between items-start">
-          <div>
-            <div class="font-medium text-mist-100 text-lg">${item.name}</div>
-            <div class="mt-2 text-mist-300 text-sm leading-snug">${item.desc}</div>
-          </div>
-          <button class="pin-btn mt-1 px-4 py-1.5 text-xs rounded-full border border-void-600 text-mist-300 hover:bg-emerald-900/30 hover:border-emerald-700 hover:text-emerald-300 active:bg-emerald-900/50 transition-all">${alreadyPinned ? 'Pinned ✓' : 'Pin this'}</button>
-        </div>
-      `;
-
+    document.querySelectorAll('[data-sky-tile]').forEach(function (el) {
+      const type = el.getAttribute('data-type');
+      const id = el.getAttribute('data-id');
+      const name = el.getAttribute('data-name');
+      const desc = el.getAttribute('data-desc') || '';
+      const sourceEventId = type + ':' + id;
       const btn = el.querySelector('.pin-btn');
+      if (!btn) return;
 
-      if (alreadyPinned) {
+      const pins = readPins();
+      if (pins.some(function (p) { return p && p.sourceEventId === sourceEventId; })) {
+        btn.textContent = 'Pinned ✓';
         btn.disabled = true;
         btn.classList.add('!border-emerald-700', '!text-emerald-400');
       }
 
-      btn.addEventListener('click', (e) => {
+      btn.addEventListener('click', function (e) {
         e.stopImmediatePropagation();
         const pinsNow = readPins();
-        const existing = pinsNow.find((pin) => pin.sourceEventId === sourceEventId);
-
-        const pinId = existing ? existing.id : `${Date.now().toString(36)}-${item.id}`;
+        const existing = pinsNow.find(function (pin) { return pin.sourceEventId === sourceEventId; });
+        const pinId = existing ? existing.id : (Date.now().toString(36) + '-' + id);
 
         if (!existing) {
           pinsNow.unshift({
             id: pinId,
             createdAt: new Date().toISOString(),
-            viewState: defaultViews[item.id] || { lat: 0, lng: 0, altitude: 2.4 },
-            label: item.name,
-            note: item.desc,
-            sourceEventId,
+            viewState: defaultViews[id] || { lat: 0, lng: 0, altitude: 2.4 },
+            label: name,
+            note: desc,
+            sourceEventId: sourceEventId,
             source: 'sky-events',
           });
           writePins(pinsNow);
@@ -164,30 +185,17 @@ const base = import.meta.env.BASE_URL;
 
         localStorage.setItem('flyToPin', JSON.stringify({
           id: pinId,
-          label: item.name,
-          viewState: defaultViews[item.id] || { lat: 0, lng: 0, altitude: 2.4 }
+          label: name,
+          viewState: defaultViews[id] || { lat: 0, lng: 0, altitude: 2.4 },
         }));
 
         const toast = document.createElement('div');
         toast.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#0f1420;border:1px solid #36415a;color:#e9edf5;padding:10px 22px;border-radius:9999px;font-size:13px;display:flex;gap:12px;align-items:center;';
-        toast.innerHTML = `
-          <span>${item.name} saved to your pins</span>
-          <a href="${base}observatory" style="color:#6fd3e2;text-decoration:none;font-size:12px;">Open in the Observatory →</a>
-        `;
+        toast.innerHTML = '<span>' + name + ' saved to your pins</span><a href="' + base + 'observatory" style="color:#6fd3e2;text-decoration:none;font-size:12px;">Open in the Observatory →</a>';
         document.body.appendChild(toast);
-        setTimeout(() => toast.remove(), 4200);
+        setTimeout(function () { toast.remove(); }, 4200);
       });
-
-      return el;
-    }
-
-    // Render events
-    const eventsGrid = document.getElementById('events-grid');
-    if (eventsGrid) events.forEach(item => eventsGrid.appendChild(createTile(item, 'event')));
-
-    // Render constellations
-    const constGrid = document.getElementById('constellations-grid');
-    if (constGrid) constellations.forEach(item => constGrid.appendChild(createTile(item, 'constellation')));
+    });
   </script>
 
   <div class="mt-12 text-center">
