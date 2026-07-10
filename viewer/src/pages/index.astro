@@ -204,6 +204,53 @@ const catalogCount = loadCatalog().length;
     };
   }
 
+  // Default Atlas boot (M42). Pins that still carry these coords under another label
+  // got poisoned during earlier Orion slingshots — strip them so label/Sesame can win.
+  const M42_RA = 83.822;
+  const M42_DEC = -5.391;
+  function isNearM42(ra, dec) {
+    if (!Number.isFinite(ra) || !Number.isFinite(dec)) return false;
+    const dra = Math.abs((((ra - M42_RA) % 360) + 540) % 360 - 180);
+    const ddec = Math.abs(dec - M42_DEC);
+    return dra < 1.5 && ddec < 1.5;
+  }
+  function labelLooksLikeM42(label) {
+    const s = String(label || '').trim().toLowerCase();
+    if (!s) return false;
+    return /\bm\s*42\b/.test(s) || /\borion\s+nebula\b/.test(s) || /^orion$/.test(s) || /\bhi\s*42\b/.test(s);
+  }
+  function scrubM42PoisonedPins(pins) {
+    if (!Array.isArray(pins)) return pins;
+    let changed = false;
+    const cleaned = pins.map((pin) => {
+      if (!pin || labelLooksLikeM42(pin.label)) return pin;
+      const sky = resolveSkyCoords(pin);
+      if (!sky.hasSky || !isNearM42(sky.ra, sky.dec)) return pin;
+      changed = true;
+      const next = Object.assign({}, pin);
+      delete next.ra;
+      delete next.dec;
+      delete next.fov;
+      if (next.viewState && typeof next.viewState === 'object') {
+        next.viewState = Object.assign({}, next.viewState);
+        delete next.viewState.ra;
+        delete next.viewState.dec;
+        delete next.viewState.fov;
+        // Old mapping stored sky in lat/lng — drop those too when they match M42.
+        if (isNearM42(Number(next.viewState.lng), Number(next.viewState.lat))) {
+          delete next.viewState.lat;
+          delete next.viewState.lng;
+          delete next.viewState.altitude;
+        }
+      }
+      return next;
+    });
+    if (changed) {
+      try { localStorage.setItem('personalPins', JSON.stringify(cleaned)); } catch (e) {}
+    }
+    return cleaned;
+  }
+
   function pinSourceBadge(pin) {
     if (pin.source === 'observatory' || (pin.id && String(pin.id).indexOf('mystery-moon') === 0)) {
       return { text: 'Atlas', cls: 'text-signal-300/80' };
@@ -219,7 +266,11 @@ const catalogCount = loadCatalog().length;
 
   function buildFlyToPayload(pin) {
     const vs = pin.viewState || {};
-    const sky = resolveSkyCoords(pin);
+    let sky = resolveSkyCoords(pin);
+    // Don't ship M42-default coords under a non-M42 label — forces Sesame/label path.
+    if (sky.hasSky && isNearM42(sky.ra, sky.dec) && !labelLooksLikeM42(pin.label)) {
+      sky = { ra: NaN, dec: NaN, fov: NaN, hasSky: false };
+    }
     const lat = safeNumber(vs.lat, sky.hasSky ? sky.dec : 0);
     const lng = safeNumber(vs.lng, sky.hasSky ? sky.ra : 0);
     const altitude = safeNumber(vs.altitude, Number.isFinite(sky.fov) ? sky.fov : 2.8);
@@ -542,6 +593,8 @@ const catalogCount = loadCatalog().length;
     } catch {
       pins = [];
     }
+    if (!Array.isArray(pins)) pins = [];
+    pins = scrubM42PoisonedPins(pins);
 
     const searchInput = document.getElementById('pins-search');
     const searchTerm = searchInput ? searchInput.value.toLowerCase() : '';

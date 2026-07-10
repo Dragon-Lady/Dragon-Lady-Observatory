@@ -26,3 +26,5 @@ Hard-refresh `/` → pins show RA·Dec·FOV + badge → click card → Atlas →
 
 **Cause:** console PR routed pins to `/observatory`, but this branch still had the old Observatory page with **no `flyToPin` consumer** — Aladin always booted to M42.
 **Fix:** restored Atlas `observatory.astro` (Miriade + `applyFlyToPinIfAny`) and only clear `flyToPin` after a successful jump.
+
+**HD 23514 still → Orion:** some saved pins kept **M42’s RA/Dec** under a different label. Coord path won over Sesame. Now: detect M42-poisoned coords when label isn’t M42/Orion, scrub them from `personalPins` on console load, and fly by label (Sesame resolves `HD 23514` → `03 46 38 +22 55`).

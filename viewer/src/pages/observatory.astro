@@ -280,16 +280,42 @@ const LENS = { id: 'aladin', label: 'Atlas', icon: '🔭' };
 
       function normalizePinTarget(label) {
         let target = (label || '').trim();
+        // Prefer a clean catalog id if the pin label has extra words ("HD 23514 star cluster").
+        const catalog = target.match(/\b((?:HD|HR|HIP|NGC|IC|M|Messier)\s*\d+[a-z]?)\b/i);
+        if (catalog) {
+          return catalog[1].replace(/\s+/g, ' ').replace(/^messier\s*/i, 'M').replace(/^m\s+/i, 'M');
+        }
         target = target
           .replace(/full moon/i, 'Moon')
           .replace(/perseid/i, 'Perseids')
           .replace(/geminid/i, 'Geminids')
           .replace(/andromeda galaxy/i, 'Andromeda')
           .replace(/andromeda/i, 'Andromeda')
-          .replace(/orion/i, 'Orion')
           .replace(/venus-evening/i, 'Venus')
           .replace(/\bvenus\b/i, 'Venus');
+        // Do NOT rewrite bare "Orion" into the target from substrings inside other names.
+        if (/^orion(\s+nebula)?$/i.test(target) || /^m\s*42\b/i.test(target)) {
+          return 'M42';
+        }
+        // Strip decorative suffixes like "· Jul 9" / "· live sky"
+        target = target.split('·')[0].trim();
         return target;
+      }
+
+      // Default Atlas boot target. Pins that still carry these coords (but a different label)
+      // are treated as M42-poisoned leftovers from earlier slingshots.
+      const M42_RA = 83.822;
+      const M42_DEC = -5.391;
+      function isNearM42(ra, dec) {
+        if (!isFinite(ra) || !isFinite(dec)) return false;
+        const dra = Math.abs((((ra - M42_RA) % 360) + 540) % 360 - 180);
+        const ddec = Math.abs(dec - M42_DEC);
+        return dra < 1.5 && ddec < 1.5;
+      }
+      function labelLooksLikeM42(label) {
+        const s = String(label || '').trim().toLowerCase();
+        if (!s) return false;
+        return /\bm\s*42\b/.test(s) || /\borion\s+nebula\b/.test(s) || /^orion$/.test(s) || /\bhi\s*42\b/.test(s);
       }
 
       function resolveSolarSystemName(target) {
@@ -405,17 +431,25 @@ const LENS = { id: 'aladin', label: 'Atlas', icon: '🔭' };
           // Do NOT clear flyToPin until a jump path succeeds — clearing early caused Orion slingshots
           // when Aladin was present but goto still failed / raced the M42 default.
           // Only trust explicit ra/dec (not lat/lng) — Sky Events still stores placeholder lat/lng.
+          // If coords sit on the M42 default but the label is something else (e.g. HD 23514),
+          // ignore the poisoned coords and resolve by label instead.
           const vs = data.viewState || {};
-          const ra = Number(data.ra != null ? data.ra : vs.ra);
-          const dec = Number(data.dec != null ? data.dec : vs.dec);
+          let ra = Number(data.ra != null ? data.ra : vs.ra);
+          let dec = Number(data.dec != null ? data.dec : vs.dec);
           const fov = Number(data.fov != null ? data.fov : (vs.fov != null ? vs.fov : vs.altitude));
+          const label = (data.label || data.title || data.name || '').trim();
+          if (isFinite(ra) && isFinite(dec) && isNearM42(ra, dec) && label && !labelLooksLikeM42(label)) {
+            console.warn('[observatory] ignoring M42-poisoned pin coords for label', label, ra, dec);
+            ra = NaN;
+            dec = NaN;
+          }
           if (isFinite(ra) && isFinite(dec) && typeof a.gotoRaDec === 'function') {
             try {
               a.gotoRaDec(ra, dec);
-              placeSsoMarker(a, ra, dec, (data.label || 'Pinned sky').trim());
+              placeSsoMarker(a, ra, dec, (label || 'Pinned sky').trim());
               const f = isFinite(fov) && fov > 0 ? fov : 2;
               setTimeout(() => { try { if (typeof a.setFov === 'function') a.setFov(f); } catch (e) {} }, 200);
-              if (nowShowing) nowShowing.textContent = (data.label || 'Pinned · live sky').trim();
+              if (nowShowing) nowShowing.textContent = (label || 'Pinned · live sky').trim();
               localStorage.removeItem('flyToPin');
               return;
             } catch (e) {
@@ -424,7 +458,6 @@ const LENS = { id: 'aladin', label: 'Atlas', icon: '🔭' };
             }
           }
 
-          const label = (data.label || data.title || data.name || '').trim();
           if (!label) {
             localStorage.removeItem('flyToPin');
             return;
