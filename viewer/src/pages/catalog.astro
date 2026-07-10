@@ -6,7 +6,7 @@ const base = import.meta.env.BASE_URL;
 const catalogUrl = (base.endsWith('/') ? base : base + '/') + 'catalog/tle.json';
 ---
 <Base title="Catalog">
-  <nav class="mb-4 text-sm text-mist-400"><a href={base}>Sky</a> / Catalog</nav>
+  <a href={base} class="mb-2 inline-block text-lg font-semibold tracking-tight text-mist-100 hover:text-signal-300 hover:no-underline" title="Back to console home">The Observatory</a>
   <h1 class="text-2xl font-semibold text-mist-100">The catalog</h1>
   <p class="mt-1 text-mist-300">
     <strong class="text-mist-100">{count.toLocaleString()}</strong> objects currently tracked overhead.

@@ -12,11 +12,11 @@ const cameraSources = [];
 
 <Base title="Telescope · Dragon Lady’s Observatory">
   <div id="main-root" class="fixed inset-0 bg-[#05070d] overflow-hidden">
-    <!-- Subtle header -->
+    <!-- In-view title only — no site sticky bar -->
     <div class="absolute top-0 left-0 right-0 z-20 px-6 py-4 flex items-center justify-between border-b border-white/10 bg-[#05070d]/80 backdrop-blur-md">
       <div class="flex items-center gap-3">
-        <a href={base} class="text-mist-400 hover:text-mist-200 text-sm">← back to observatory</a>
-        <div class="text-mist-100 font-semibold tracking-tight text-lg">Telescope</div>
+        <a href={base} class="text-mist-100 font-semibold tracking-tight text-lg hover:text-signal-300 hover:no-underline" title="Back to console home">The Observatory</a>
+        <span class="text-mist-500 text-sm">· Telescope</span>
       </div>
       <!-- Eyepiece / spectrum selector (Oracle-style multi-view) -->
       <div id="view-modes" class="flex items-center gap-1.5" role="tablist" aria-label="Observing spectrum"></div>
