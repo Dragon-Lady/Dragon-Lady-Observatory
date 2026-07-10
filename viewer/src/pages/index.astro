@@ -31,6 +31,7 @@ const skyConstellations = [
 <Base title="Dragon Lady’s Observatory">
   <!-- celestial hero — one composition: brand, one line, one CTA -->
   <section class="sky -mx-4 mb-8 rounded-none border-b border-void-800 px-4 py-10 sm:rounded-xl sm:border">
+    <div class="sky-twinkle" aria-hidden="true"></div>
     <div class="relative z-10 max-w-2xl">
       <h1 class="text-2xl font-semibold tracking-tight text-mist-100 sm:text-3xl">The Observatory</h1>
       <p class="mt-2 text-mist-300">The sky, watched. Your pins. Your Atlas. Quiet moments worth keeping.</p>
@@ -892,6 +893,84 @@ const skyConstellations = [
     return canvas.toDataURL('image/png');
   }
 
+  /** Deterministic 0..1 from string seed (for per-pin sky art). */
+  function hash01(str) {
+    let h = 2166136261;
+    const s = String(str || '');
+    for (let i = 0; i < s.length; i++) {
+      h ^= s.charCodeAt(i);
+      h = Math.imul(h, 16777619);
+    }
+    return ((h >>> 0) % 10000) / 10000;
+  }
+
+  /**
+   * Tiny seeded starfield for pins without a real Atlas thumb.
+   * Same pin always gets the same sky — feels personal, not random stock.
+   */
+  function seededSkyThumb(pin, sky, w = 320, h = 120) {
+    try {
+      const canvas = document.createElement('canvas');
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return '';
+
+      const seed = [
+        pin.id || '',
+        pin.label || '',
+        sky.hasSky ? sky.ra.toFixed(3) : '',
+        sky.hasSky ? sky.dec.toFixed(3) : '',
+      ].join('|');
+
+      const ra = sky.hasSky ? sky.ra : hash01(seed + ':ra') * 360;
+      const dec = sky.hasSky ? sky.dec : (hash01(seed + ':dec') * 180 - 90);
+      const hue = Math.floor(((dec + 90) / 180) * 210 + 190); // cool night blues/teals
+      const hue2 = (hue + 28 + Math.floor(hash01(seed + ':h2') * 40)) % 360;
+
+      const g = ctx.createLinearGradient(0, 0, w, h);
+      g.addColorStop(0, `hsl(${hue} 42% 10%)`);
+      g.addColorStop(0.55, `hsl(${hue2} 35% 7%)`);
+      g.addColorStop(1, `hsl(${(hue + 50) % 360} 28% 5%)`);
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, w, h);
+
+      // Soft nebula wash keyed to coords
+      const blobX = (ra / 360) * w;
+      const blobY = ((90 - dec) / 180) * h;
+      const rg = ctx.createRadialGradient(blobX, blobY, 4, blobX, blobY, Math.max(w, h) * 0.45);
+      rg.addColorStop(0, `hsla(${hue2} 55% 55% / 0.22)`);
+      rg.addColorStop(0.45, `hsla(${hue} 40% 40% / 0.08)`);
+      rg.addColorStop(1, 'transparent');
+      ctx.fillStyle = rg;
+      ctx.fillRect(0, 0, w, h);
+
+      const starCount = 28 + Math.floor(hash01(seed + ':n') * 22);
+      for (let i = 0; i < starCount; i++) {
+        const x = hash01(seed + ':x' + i) * w;
+        const y = hash01(seed + ':y' + i) * h;
+        const bright = hash01(seed + ':b' + i);
+        const r = bright > 0.88 ? 1.6 : bright > 0.6 ? 1.1 : 0.7;
+        ctx.beginPath();
+        ctx.fillStyle = bright > 0.82
+          ? `rgba(233,237,245,${0.55 + bright * 0.4})`
+          : `rgba(170,180,199,${0.35 + bright * 0.45})`;
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fill();
+        if (bright > 0.92) {
+          ctx.beginPath();
+          ctx.fillStyle = `rgba(155,228,239,${0.35 + bright * 0.25})`;
+          ctx.arc(x, y, r * 2.2, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      return canvas.toDataURL('image/jpeg', 0.82);
+    } catch (e) {
+      return '';
+    }
+  }
+
   function renderMyPins() {
     updateChipVisuals();   // safety net: always keep button visuals in sync with activeChip
 
@@ -1013,10 +1092,9 @@ const skyConstellations = [
       const badge = pinSourceBadge(pin);
       const isFromSky = badge && badge.text === 'Sky Events';
       const isAtlas = badge && badge.text === 'Atlas';
-      card.className = `group rounded-xl border border-void-700 bg-void-900 p-5 hover:border-void-500 hover:-translate-y-0.5 transition-all duration-200 shadow-sm cursor-pointer${isFromSky ? ' border-l-2 border-l-emerald-700' : ''}${isAtlas ? ' border-l-2 border-l-signal-600' : ''}`;
+      card.className = `group overflow-hidden rounded-xl border border-void-700 bg-void-900 hover:border-void-500 hover:-translate-y-0.5 transition-all duration-200 shadow-sm cursor-pointer${isFromSky ? ' border-l-2 border-l-emerald-700' : ''}${isAtlas ? ' border-l-2 border-l-signal-600' : ''}`;
 
-      // Thumbnail: only real data:image/* URLs. Bad/empty thumbs (broken P-capture, {}) → gradient.
-      let thumbHTML = '';
+      // Thumbnail: real Atlas capture when present; else seeded sky art unique to this pin.
       const viewState = pin.viewState || {};
       const sky = resolveSkyCoords(pin);
       const lat = safeNumber(viewState.lat, sky.hasSky ? sky.dec : 0);
@@ -1024,27 +1102,24 @@ const skyConstellations = [
       const label = escapeHtml(pin.label || 'Untitled Pin');
       const note = pin.note ? escapeHtml(pin.note) : '';
 
-      const hue = Math.floor(((lat + 90) / 180) * 360);
-      const sat = 38 + Math.floor(Math.abs(lng) % 35);
-      const light = 32 + Math.floor(Math.abs(lat) % 18);
-      const gradientThumb = `<div class="pin-thumb-fallback" style="width:52px;height:38px;border-radius:6px;background:linear-gradient(135deg, hsl(${hue},${sat}%,${light}%), hsl(${hue+30},${sat+10}%,${light-8}%));flex-shrink:0;border:1px solid #36415a;"></div>`;
       const rawThumb = (typeof pin.thumbnailData === 'string') ? pin.thumbnailData : '';
       const hasRealThumb = rawThumb.indexOf('data:image/') === 0 && rawThumb.length > 64;
+      let thumbSrc = hasRealThumb ? rawThumb : seededSkyThumb(pin, sky);
+      let gradientFallback = '';
+      if (!thumbSrc) {
+        const hue = Math.floor(((lat + 90) / 180) * 360);
+        const sat = 38 + Math.floor(Math.abs(lng) % 35);
+        const light = 32 + Math.floor(Math.abs(lat) % 18);
+        gradientFallback = `background:linear-gradient(135deg, hsl(${hue},${sat}%,${light}%), hsl(${hue + 30},${sat + 10}%,${light - 8}%))`;
+      }
 
-      if (hasRealThumb) {
-        const fbStyle = `width:52px;height:38px;border-radius:6px;background:linear-gradient(135deg, hsl(${hue},${sat}%,${light}%), hsl(${hue+30},${sat+10}%,${light-8}%));flex-shrink:0;border:1px solid #36415a;`;
-        thumbHTML = `<img src="${escapeHtml(rawThumb)}" alt="" class="pin-thumb w-[52px] h-[38px] rounded-md object-cover flex-shrink-0 border border-void-700" data-fallback="${escapeHtml(fbStyle)}" onerror="(function(img){var d=document.createElement('div');d.className='pin-thumb-fallback';d.style.cssText=img.getAttribute('data-fallback')||'';img.replaceWith(d);})(this)" />`;
-      } else {
-        thumbHTML = gradientThumb;
-        // Scrub junk thumbnailData so it stops looking "broken" on every render
-        if (pin.thumbnailData && !hasRealThumb) {
-          pin.thumbnailData = '';
-          try {
-            const all = readPinsRaw();
-            const cleaned = all.map((p) => (p && p.id === pin.id ? Object.assign({}, p, { thumbnailData: '' }) : p));
-            safeWritePins(cleaned);
-          } catch (e) {}
-        }
+      if (pin.thumbnailData && !hasRealThumb) {
+        pin.thumbnailData = '';
+        try {
+          const all = readPinsRaw();
+          const cleaned = all.map((p) => (p && p.id === pin.id ? Object.assign({}, p, { thumbnailData: '' }) : p));
+          safeWritePins(cleaned);
+        } catch (e) {}
       }
 
       const lastViewed = pin.updatedAt 
@@ -1063,10 +1138,17 @@ const skyConstellations = [
         ? `<span class="text-[10px] ${badge.cls}">${escapeHtml(badge.text)}</span>`
         : '';
 
+      const thumbBanner = thumbSrc
+        ? `<div class="pin-thumb-banner relative h-[88px] w-full overflow-hidden border-b border-void-800 bg-void-950">
+             <img src="${escapeHtml(thumbSrc)}" alt="" class="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]" loading="lazy" />
+             <div class="pointer-events-none absolute inset-0 bg-gradient-to-t from-void-900/50 to-transparent"></div>
+           </div>`
+        : `<div class="pin-thumb-banner relative h-[88px] w-full overflow-hidden border-b border-void-800" style="${gradientFallback || 'background:#0a0e17'}"></div>`;
+
       card.innerHTML = `
-        <div class="flex justify-between items-start">
-          <div class="flex items-center gap-2 min-w-0">
-            ${thumbHTML}
+        ${thumbBanner}
+        <div class="p-4">
+          <div class="flex justify-between items-start gap-2">
             <div class="min-w-0">
               <div class="font-medium text-mist-100 pin-label cursor-pointer hover:underline flex items-center gap-1.5">
                 ${label}
@@ -1077,17 +1159,17 @@ const skyConstellations = [
                 ${badgeHtml}
               </div>
             </div>
+            <div class="flex items-center gap-1 flex-shrink-0">
+              <button class="edit-btn text-xs px-2 py-0.5 rounded border border-void-600 text-mist-400 hover:text-mist-200" data-id="${pin.id}">Edit</button>
+              <button class="share-btn text-xs px-2 py-0.5 rounded border border-void-600 text-mist-400 hover:text-mist-200" data-id="${pin.id}">Share</button>
+              <button class="favorite-btn text-lg leading-none transition-colors ${pin.favorite ? 'text-yellow-400' : 'text-mist-400 hover:text-yellow-300'}" data-id="${pin.id}">★</button>
+              <button class="delete-pin text-mist-400 hover:text-red-400/80 text-xl leading-none transition-colors" data-id="${pin.id}">×</button>
+            </div>
           </div>
-          <div class="flex items-center gap-1">
-            <button class="edit-btn text-xs px-2 py-0.5 rounded border border-void-600 text-mist-400 hover:text-mist-200" data-id="${pin.id}">Edit</button>
-            <button class="share-btn text-xs px-2 py-0.5 rounded border border-void-600 text-mist-400 hover:text-mist-200" data-id="${pin.id}">Share</button>
-            <button class="favorite-btn text-lg leading-none transition-colors ${pin.favorite ? 'text-yellow-400' : 'text-mist-400 hover:text-yellow-300'}" data-id="${pin.id}">★</button>
-            <button class="delete-pin text-mist-400 hover:text-red-400/80 text-xl leading-none transition-colors" data-id="${pin.id}">×</button>
-          </div>
+          ${note ? `<div class="mt-3 text-sm text-mist-300 pin-note cursor-pointer hover:underline line-clamp-2">${note}</div>` : ''}
+          <div class="mt-3 font-mono text-[10px] text-mist-500 tracking-wide">${escapeHtml(coordLine)}</div>
+          <div class="edit-panel hidden mt-4 border-t border-void-700 pt-4"></div>
         </div>
-        ${note ? `<div class="mt-3 text-sm text-mist-300 pin-note cursor-pointer hover:underline line-clamp-2">${note}</div>` : ''}
-        <div class="mt-3 font-mono text-[10px] text-mist-500 tracking-wide">${escapeHtml(coordLine)}</div>
-        <div class="edit-panel hidden mt-4 border-t border-void-700 pt-4"></div>
       `;
 
       // Click card → fly to Atlas. Never steal Edit focus (inputs / Save / Cancel).

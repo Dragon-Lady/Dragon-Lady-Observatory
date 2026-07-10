@@ -958,7 +958,37 @@ const LENS = { id: 'aladin', label: 'Atlas', icon: '🔭' };
         if (note === null) note = coordStr;
         note = String(note).trim() || coordStr;
 
-        // Same capture API as Snapshot: options object; may return a string or a Promise.
+        // Shrink Aladin capture to a small JPEG so localStorage can hold many pin thumbs.
+        function shrinkPinThumb(dataUrl) {
+          return new Promise(function (resolve) {
+            if (typeof dataUrl !== 'string' || dataUrl.indexOf('data:image/') !== 0) {
+              resolve('');
+              return;
+            }
+            var img = new Image();
+            img.onload = function () {
+              try {
+                var maxW = 320;
+                var maxH = 200;
+                var scale = Math.min(maxW / img.naturalWidth, maxH / img.naturalHeight, 1);
+                var w = Math.max(1, Math.round(img.naturalWidth * scale));
+                var h = Math.max(1, Math.round(img.naturalHeight * scale));
+                var cv = document.createElement('canvas');
+                cv.width = w;
+                cv.height = h;
+                var cx = cv.getContext('2d');
+                if (!cx) { resolve(''); return; }
+                cx.drawImage(img, 0, 0, w, h);
+                resolve(cv.toDataURL('image/jpeg', 0.72));
+              } catch (e) {
+                resolve('');
+              }
+            };
+            img.onerror = function () { resolve(''); };
+            img.src = dataUrl;
+          });
+        }
+
         function savePinWithThumb(thumb) {
           var pin = {
             id: Date.now().toString(36) + Math.random().toString(36).slice(2, 7),
@@ -1012,7 +1042,14 @@ const LENS = { id: 'aladin', label: 'Atlas', icon: '🔭' };
               if (pins.length) localStorage.setItem('personalPins:backup', JSON.stringify(pins));
             } catch (eBak2) {}
             pins.unshift(pin);
-            localStorage.setItem('personalPins', JSON.stringify(pins));
+            try {
+              localStorage.setItem('personalPins', JSON.stringify(pins));
+            } catch (quotaErr) {
+              // Quota: drop the thumb and retry once so the pin itself still lands.
+              pin.thumbnailData = '';
+              pins[0] = pin;
+              localStorage.setItem('personalPins', JSON.stringify(pins));
+            }
             toastPin('Pinned · ' + label, true);
             if (nowShowing) nowShowing.textContent = label;
           } catch (e) {
@@ -1020,14 +1057,20 @@ const LENS = { id: 'aladin', label: 'Atlas', icon: '🔭' };
           }
         }
 
+        function finishPinCapture(rawUrl) {
+          shrinkPinThumb(rawUrl).then(function (small) {
+            savePinWithThumb(small || '');
+          });
+        }
+
         try {
           if (typeof a.getViewDataURL === 'function') {
             var res = a.getViewDataURL({ format: 'image/jpeg' });
             if (res && typeof res.then === 'function') {
-              res.then(function (u) { savePinWithThumb(u); }).catch(function () { savePinWithThumb(''); });
+              res.then(function (u) { finishPinCapture(u); }).catch(function () { savePinWithThumb(''); });
               return;
             }
-            if (typeof res === 'string') { savePinWithThumb(res); return; }
+            if (typeof res === 'string') { finishPinCapture(res); return; }
           }
         } catch (e) {}
         savePinWithThumb('');
