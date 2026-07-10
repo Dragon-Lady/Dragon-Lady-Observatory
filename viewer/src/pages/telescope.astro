@@ -6,7 +6,7 @@ const base = import.meta.env.BASE_URL;
 // The full wiring (selector tabs logic, prominent camera panel, image + video support,
 // per-source refresh, localStorage, dim/restore of procedural stage) is preserved below
 // as a lab/candidate. Do not show tabs or auto-activate cameras until good vetted sources arrive.
-// Goldwing disabled for now; project owner will hunt + manually verify real sky/space feeds.
+// Keep the live camera surface disabled until sources are manually verified.
 const cameraSources = [];
 ---
 
@@ -18,14 +18,14 @@ const cameraSources = [];
         <a href={base} class="text-mist-400 hover:text-mist-200 text-sm">← back to observatory</a>
         <div class="text-mist-100 font-semibold tracking-tight text-lg">Telescope</div>
       </div>
-      <!-- Eyepiece / spectrum selector (Oracle-style multi-view) -->
+      <!-- Eyepiece / spectrum selector -->
       <div id="view-modes" class="flex items-center gap-1.5" role="tablist" aria-label="Observing spectrum"></div>
     </div>
 
-    <!-- Camera selector tabs - horizontal row directly below header (per cottage spec) -->
+    <!-- Camera selector tabs - horizontal row directly below header -->
     <!-- Bigger, touch-friendly tabs for the live cameras. Replaces small toggle. -->
     <!-- Tabs rendered server-side from cameraSources for immediate visibility; JS enhances with clicks and state. -->
-    <!-- DISABLED: class includes "hidden". Goldwing disabled the UI until vetted sky/space sources. Wiring preserved. -->
+    <!-- Disabled until vetted sky/space sources are available. -->
     <div id="live-cam-selector" class="hidden absolute left-0 right-0 z-25 px-6 py-2 bg-[#05070d]/95 border-b border-white/10"
          style="top: 57px;">
       <div class="max-w-4xl mx-auto">
@@ -85,7 +85,7 @@ const cameraSources = [];
       <div id="targets" class="flex flex-col gap-1"></div>
     </div>
 
-    <!-- Live Camera View (main camera view - large and centered per spec, prominent "oracle's eyepiece" feel) -->
+    <!-- Live Camera View (large and centered when enabled) -->
     <!-- Selector tabs live outside below header. This panel is the prominent feed display. -->
     <div id="camera-panel" class="hidden absolute z-50 w-[min(620px,92vw)] left-1/2 -translate-x-1/2 bg-[#05070d] border border-white/10 rounded-2xl p-4 shadow-2xl"
          style="top: 105px; max-height: calc(100vh - 160px);">
@@ -355,7 +355,7 @@ const cameraSources = [];
   }
 
   // nebulaAt: pure FBM noise field value 0..1 (the "telescope layer" sky texture)
-  // per Oracle direction: one pure function for the noise, inputs only, no globals.
+  // Pure function for the noise, with inputs only and no globals.
   function nebulaAt(wx, wy) {
     return fbm(wx, wy, 4, 42);
   }
@@ -745,7 +745,7 @@ const cameraSources = [];
   // Per-octave parallax + mode/phase as transfer fn on the one field = live multi-instrument sky.
   // drawNebulaField: the drawer for the world-space noise field (FBM filaments).
   // Uses nebulaAt for the pure noise value. Handles threshold, mode/phase transfer, Orion boost, passes for interleave/depth.
-  // Added whole per Oracle safe-build rule: one function, called from one line in draw().
+  // One function, called from one line in draw().
   function drawNebulaField(offsetX, offsetY, z, w, h, viewMode, skyPhase, pass = 'full') {
     let step = 36;  // denser for more organic wisp feel (smaller step = more dabs)
     let par = 0.48;
@@ -803,7 +803,7 @@ const cameraSources = [];
     const z = zoom || 1;
     for (let wx = Math.floor(minx / step) * step; wx <= maxx; wx += step) {
       for (let wy = Math.floor(miny / step) * step; wy <= maxy; wy += step) {
-        const n = nebulaAt(wx, wy);  // pure FBM field per Oracle
+        const n = nebulaAt(wx, wy);  // pure FBM field
         if (n > thresh) {
           const aa = (n - thresh) * gain * alphaMul;
           if (aa < 0.012) continue;
@@ -868,7 +868,7 @@ const cameraSources = [];
   }
 
   // drawStarCell: per-cell star emitter, pure logic for hash + emit.
-  // Added whole per Oracle: called from drawHashedStars (the layer handler).
+  // Called from drawHashedStars (the layer handler).
   function drawStarCell(cellX, cellY, layerName, parallax, layerSeed, z, w, h, starMult, time, viewMode) {
     const seed = hash32(cellX, cellY, layerSeed);
     const baseN = 3;
@@ -889,7 +889,7 @@ const cameraSources = [];
     }
   }
 
-  // kept old radial gas (per Oracle addendum: keep until new proven in separate edit)
+  // Keep the old radial-gas stub as a rollback point.
   // not called in current draw() - safe rollback if needed
   function drawVolumetricGas() {
     // original radial implementation was here before the noise field swap
@@ -938,7 +938,7 @@ const cameraSources = [];
     const z = zoom || 1;
 
     // Base sky — now phase (time of night) + eyepiece mode for full live "real telescope" feel.
-    // Phase provides the 5-phase transition layer from the original Oracle wiring.
+    // Phase provides the five-step transition layer.
     const phase = skyPhases[skyPhase] || skyPhases[2];
     const phaseSky = getBaseSky(skyPhase, viewMode);  // one-line call to the pure transfer (phase + mode)
 
@@ -971,8 +971,8 @@ const cameraSources = [];
     // One FBM noise everywhere, thresholded -> filaments not painted ovals. Orion is local boost of same field.
     // Per-octave different parallax for volumetric depth inside the "cloud".
     // Eyepieces/phases modulate the *same* field (transfer functions) so whole sky changes with instrument + time.
-    // Interleaved per Oracle: far gas pass, far stars, mid gas pass, mid/near stars.
-    drawNebulaField(offsetX, offsetY, z, w, h, viewMode, skyPhase, 'far');  // one line call per Oracle safe rule
+    // Interleave far gas, far stars, mid gas, and mid/near stars.
+    drawNebulaField(offsetX, offsetY, z, w, h, viewMode, skyPhase, 'far');
 
     normalizeOffsets();
     const time = Date.now() / 1400;
@@ -983,7 +983,7 @@ const cameraSources = [];
     // Three parallax layers still give depth; far drawn first.
     drawHashedStars('far', 0.22, 1, offsetX, offsetY, z, w, h, starMult, time, viewMode);
 
-    drawNebulaField(offsetX, offsetY, z, w, h, viewMode, skyPhase, 'mid');  // one line call per Oracle safe rule
+    drawNebulaField(offsetX, offsetY, z, w, h, viewMode, skyPhase, 'mid');
 
     drawHashedStars('mid', 0.62, 2, offsetX, offsetY, z, w, h, starMult, time, viewMode);
     drawHashedStars('near', 1.08, 3, offsetX, offsetY, z, w, h, starMult, time, viewMode);
@@ -1268,11 +1268,11 @@ const cameraSources = [];
     }
   });
 
-  // === Live camera selector + prominent view (per cottage spec) ===
+  // === Live camera selector + prominent view ===
   // Horizontal tabs below header. Main feed view large/centered/prominent.
   // Uses the sources from cameraSources (currently empty in this disabled/lab build).
   // Persists choice. Loading states on switch. Elegant "eyepiece" feel.
-  // DISABLED STATE (Goldwing): tabs are hidden, cameraSources = [] in frontmatter.
+  // Disabled state: tabs are hidden and cameraSources is empty in frontmatter.
   // Full wiring + video support + safety patches preserved for when good sky/space sources are provided.
   // Safety: never auto-open stored camera on load (prevents flashing/timelapse or bad feeds taking over).
   // Video sources: manual playback only, no auto-refresh, no autoplay, no loop.

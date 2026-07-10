@@ -28,8 +28,9 @@ const LENS = { id: 'aladin', label: 'Atlas', icon: '🔭' };
       <div id="aladin-lite-div" class="h-full w-full"></div>
 
       <!-- Survey toggle: deep zoomable color vs painted Milky Way.
-           Anchored bottom-center so it never collides with Aladin's centered object popups. -->
-      <div class="absolute bottom-3 left-1/2 z-[600] flex -translate-x-1/2 gap-1 rounded-full border border-white/10 bg-black/70 p-1 backdrop-blur">
+           Bottom-center in normal view; in immersive we force-park it fixed near the
+           viewport bottom (same root cause as #sky-controls) so it doesn't drift mid-field. -->
+      <div id="survey-toggle" class="absolute bottom-3 left-1/2 z-[600] flex -translate-x-1/2 gap-1 rounded-full border border-white/10 bg-black/70 p-1 backdrop-blur">
         <button type="button" data-survey="P/DSS2/color" class="survey-btn rounded-full px-3 py-1 text-xs font-medium text-mist-300 transition-colors hover:text-mist-100">Deep Sky</button>
         <button type="button" data-survey="P/Mellinger/color" class="survey-btn rounded-full px-3 py-1 text-xs font-medium text-mist-300 transition-colors hover:text-mist-100">Milky Way</button>
       </div>
@@ -221,8 +222,7 @@ const LENS = { id: 'aladin', label: 'Atlas', icon: '🔭' };
           });
           // Drive from console/Sky Events pin if one was chosen (with retries)
           setTimeout(() => applyFlyToPinIfAny(0), 700);
-          // No auto-fly to mystery — Tanya is hunting OhOh motion with P-pins.
-          // Manual only: Mystery button (original typed coords) or My Pins fly-back.
+          // Keep manual navigation in control: use typed coordinates or saved pins.
         });
       }
 
@@ -720,20 +720,21 @@ const LENS = { id: 'aladin', label: 'Atlas', icon: '🔭' };
       })();
 
       // Stamp both marks in their corners, sized proportional to the image.
-      // Alphas match the home card. Dragon bottom-left, Lady top-right.
+      // Quieter than the home share-card — Atlas snaps are sky-first; brand stays a whisper.
+      // Dragon bottom-left, Lady top-right. (Share cards on index keep their stronger alphas.)
       function stampWatermarks(cx, w, h) {
         var margin = Math.round(w * 0.012);
         if (wmDragon && wmDragon.complete && wmDragon.naturalWidth > 0) {
-          var dw = Math.round(w * 0.11), dh = Math.round(dw * (100 / 135));
+          var dw = Math.round(w * 0.085), dh = Math.round(dw * (100 / 135));
           cx.save();
-          cx.globalAlpha = 0.40;
+          cx.globalAlpha = 0.24;
           cx.drawImage(wmDragon, margin, h - dh - margin, dw, dh);
           cx.restore();
         }
         if (wmLady && wmLady.complete && wmLady.naturalWidth > 0) {
-          var lw = Math.round(w * 0.095), lh = Math.round(lw * (95 / 115));
+          var lw = Math.round(w * 0.07), lh = Math.round(lw * (95 / 115));
           cx.save();
-          cx.globalAlpha = 0.45;
+          cx.globalAlpha = 0.26;
           cx.drawImage(wmLady, w - lw - margin, margin, lw, lh);
           cx.restore();
         }
@@ -877,6 +878,20 @@ const LENS = { id: 'aladin', label: 'Atlas', icon: '🔭' };
             controls.style.setProperty('z-index', '950', 'important');
           }
 
+          // Same fix for Deep Sky / Milky Way — keep it bottom-center of the *viewport*,
+          // not the stale stage box (which reads as mid-field in fullscreen).
+          const surveyToggle = document.getElementById('survey-toggle');
+          if (surveyToggle) {
+            surveyToggle.style.setProperty('position', 'fixed', 'important');
+            surveyToggle.style.setProperty('bottom', '14px', 'important');
+            surveyToggle.style.setProperty('left', '50%', 'important');
+            surveyToggle.style.setProperty('right', 'auto', 'important');
+            surveyToggle.style.setProperty('top', 'auto', 'important');
+            surveyToggle.style.setProperty('transform', 'translateX(-50%)', 'important');
+            surveyToggle.style.setProperty('opacity', '0.9', 'important');
+            surveyToggle.style.setProperty('z-index', '940', 'important');
+          }
+
           // Also park the "now showing" chip out of the way in JS-detected immersive states
           const chip = document.getElementById('now-chip');
           if (chip) chip.style.setProperty('display', 'none', 'important');
@@ -900,6 +915,18 @@ const LENS = { id: 'aladin', label: 'Atlas', icon: '🔭' };
             controls.style.removeProperty('z-index');
             controls.style.removeProperty('display');
             controls.style.removeProperty('visibility');
+          }
+
+          const surveyToggle = document.getElementById('survey-toggle');
+          if (surveyToggle) {
+            surveyToggle.style.removeProperty('position');
+            surveyToggle.style.removeProperty('bottom');
+            surveyToggle.style.removeProperty('left');
+            surveyToggle.style.removeProperty('right');
+            surveyToggle.style.removeProperty('top');
+            surveyToggle.style.removeProperty('transform');
+            surveyToggle.style.removeProperty('opacity');
+            surveyToggle.style.removeProperty('z-index');
           }
 
           const chip = document.getElementById('now-chip');

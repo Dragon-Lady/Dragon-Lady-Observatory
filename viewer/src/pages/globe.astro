@@ -326,7 +326,6 @@ const base = import.meta.env.BASE_URL;
 	      const locName = document.getElementById('loc-name');
 	      const resolveBtn = document.getElementById('resolve-btn');
 	      const locationStatus = document.getElementById('location-status');
-	      const pinnedList = document.getElementById('pinned-list');
 	      let scriptInterface = null;
 	      let wwt = null;
 
@@ -413,44 +412,6 @@ const base = import.meta.env.BASE_URL;
 	        }
 	      }
 
-	      async function loadSavedPins() {
-	        if (!pinnedList) return;
-	        pinnedList.textContent = 'Loading saved pins...';
-
-	        try {
-	          const apiBase = base || '/';
-	          const response = await fetch(apiBase + 'api/vault-pins');
-	          const data = await response.json();
-	          const pins = ((data && data.pins) || (Array.isArray(data) ? data : []))
-	            .filter((pin) => pin && pin.viewState && Number.isFinite(Number(pin.viewState.lat)) && Number.isFinite(Number(pin.viewState.lng)))
-	            .slice(0, 8);
-
-	          pinnedList.innerHTML = '';
-	          if (!pins.length) {
-	            pinnedList.textContent = 'No saved pins found yet.';
-	            return;
-	          }
-
-	          pins.forEach((pin) => {
-	            const lat = Number(pin.viewState.lat);
-	            const lng = Number(pin.viewState.lng);
-	            const label = pin.title || pin.name || pin.label || (pin.id ? 'Pin ' + String(pin.id).slice(0, 8) : 'Saved pin');
-	            const row = document.createElement('button');
-	            const coords = document.createElement('small');
-	            row.type = 'button';
-	            row.className = 'pin-row';
-	            row.textContent = label;
-	            coords.textContent = lat.toFixed(4) + ', ' + lng.toFixed(4);
-	            row.appendChild(coords);
-	            row.addEventListener('click', () => setLocation(lat, lng, label));
-	            pinnedList.appendChild(row);
-	          });
-	        } catch (error) {
-	          console.error('[globe] Saved pins unavailable', error);
-	          pinnedList.textContent = 'Saved pins unavailable. Manual search still works.';
-	        }
-	      }
-
       function activateEarthMode() {
         if (!wwt) {
           setStatus('Still loading.', 'WWT is not ready yet.');
@@ -503,7 +464,6 @@ const base = import.meta.env.BASE_URL;
 
 	      function init() {
 	        readUrlLocation();
-	        loadSavedPins();
 
 	        if (!window.wwtlib || !window.wwtlib.WWTControlBuilder) {
 	          setStatus('WWT engine did not load.', 'Check network access to web.wwtassets.org.');

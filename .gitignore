@@ -51,3 +51,10 @@ desktop.ini
 # Local vault / runtime private data (never commit)
 .local/
 .local
+
+# Release hygiene: keep working notes and asset iterations out of public builds.
+/project_continuity.md
+/memory/cottage/
+/viewer/public/watermarks/GIMP_EDIT_INSTRUCTIONS.txt
+/viewer/public/watermarks/_backup*/
+/viewer/src/pages/*.watermark-backup-*

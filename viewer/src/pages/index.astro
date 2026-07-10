@@ -42,14 +42,6 @@ const catalogCount = loadCatalog().length;
         <button data-chip="quiet" class="chip px-3 py-1 text-sm rounded-full border border-void-700 bg-void-900 text-mist-300 hover:border-void-500">Quiet</button>
       </div>
 
-      <div id="vault-banner" class="hidden mb-4 rounded-xl border border-void-700 bg-void-900 p-5" onclick="event.stopImmediatePropagation()">
-        <div class="text-mist-200 mb-3">You have a backup of your pins in the vault. Bring them into this browser?</div>
-        <div class="flex gap-3">
-          <button id="bring-home" class="px-4 py-1.5 text-sm rounded-lg bg-signal-400 text-void-950 font-medium">Bring them home</button>
-          <button id="not-now" class="px-4 py-1.5 text-sm rounded-lg border border-void-700 text-mist-300">Not now</button>
-        </div>
-      </div>
-
       <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div class="flex flex-wrap items-center gap-3">
           <input id="pins-search" type="text" placeholder="Find a pin…"
@@ -62,7 +54,6 @@ const catalogCount = loadCatalog().length;
           </select>
         </div>
         <div class="flex flex-wrap gap-2 text-sm">
-          <button id="save-vault" class="px-3 py-1.5 rounded-lg border border-void-700 text-mist-300 hover:bg-void-800">Save to vault</button>
           <button id="export-pins" class="px-3 py-1.5 rounded-lg border border-void-700 text-mist-300 hover:bg-void-800">Export</button>
           <label class="px-3 py-1.5 rounded-lg border border-void-700 text-mist-300 hover:bg-void-800 cursor-pointer">
             Import
@@ -338,32 +329,15 @@ const catalogCount = loadCatalog().length;
       drawWatermarks(ctx, w, h, dragonImg, ladyImg);
     }
 
-    // === Watermark marks (locked rules) - CURRENT STATE ===
-    // Watermarks are COMPLETE (initial victory lap commenced 2026-06-03).
-    // Fixed assets (do not recreate):
+    // Fixed watermark assets:
     //   dragon (bottom-left): /watermarks/dragon-watermark.png (or .webp)
     //   lady (top-right): /watermarks/dragon-lady-mark.jpg  ← brightened 1.15x in prepare (project owner tweak: was too dark)
     //
-    // These three files from the real repo (Dragon-Lady-Observatory\viewer\public\watermarks\)
-    // are the final preserved artistic signatures.
-    // Code ONLY loads them directly (with minimal bg-strip + per-asset subject prep for dark card visibility) and draws at faint alpha in locked corners.
-    // No canvas silhouettes, no heavy processing, no recreation.
-    // Old history (iterations, GIMP, processor experiments, rate limits, preschool drawings, empty boxes) archived in GIMP_EDIT_INSTRUCTIONS.txt and session logs.
-    // Victory lap: boxes gone, real assets showing. One tweak applied for top-right brightness.
+    // Load them directly and draw them at faint alpha in locked corners.
 
     async function loadWatermarkAssets() {
-      // WATERMARKS COMPLETE (2026-06-03 per Goldwing delivery + project owner confirmation)
-      // Fixed assets live in the real repo and are the source of truth:
-      //   Dragon-Lady-Observatory\viewer\public\watermarks\dragon-lady-mark.jpg
-      //   Dragon-Lady-Observatory\viewer\public\watermarks\dragon-watermark.png
-      //   Dragon-Lady-Observatory\viewer\public\watermarks\dragon-watermark.webp
-      //
-      // Task: ONLY load these exact assets and preserve the ART exactly as provided.
-      // For the .jpg (lady scenic) we do a minimal bg-strip only (no contrast boost, no art alteration)
-      // so the rectangular "box" of the photo bg doesn't show — only the subject draws.
-      // For the png dragon (already transparent icon) we load raw to fully preserve.
-      // No heavy recreation, no old processing side-effects (no bright fill, no vague).
-      // Just load + light bg clean for jpg usability + draw faintly in the locked corners.
+      // Preserve the supplied artwork; only apply the minimal background cleanup
+      // needed for the artwork to blend into dark share cards.
 
       const dragonImg = new Image();
       const ladyImg = new Image();
@@ -464,7 +438,7 @@ const catalogCount = loadCatalog().length;
     }
 
     // (Old canvas silhouette helpers removed during cleanup. Watermarks are now strictly the preserved image assets only — no code paths for silhouettes remain.)
-    // Historical PAUSE/iteration details archived in GIMP_EDIT_INSTRUCTIONS.txt (see COMPLETE header there).
+    // Watermark assets are intentionally loaded directly without regeneration.
 
     // Draw both watermarks in the correct corners per locked rules.
     // ONLY load + preserve the fixed assets (see loadWatermarkAssets).
@@ -879,40 +853,6 @@ const catalogCount = loadCatalog().length;
       });
     });
 
-    // Save to vault (3A-write) — unified to existing /api/vault-pins endpoint
-    const saveVaultBtn = document.getElementById('save-vault');
-    if (saveVaultBtn) {
-      saveVaultBtn.addEventListener('click', async () => {
-        const pins = JSON.parse(localStorage.getItem('personalPins') || '[]');
-        try {
-          const res = await fetch('/api/vault-pins', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ pins, lastSynced: new Date().toISOString() })
-          });
-          if (res.ok) {
-            const toast = document.createElement('div');
-            toast.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#0f1420;border:1px solid #36415a;color:#e9edf5;padding:10px 22px;border-radius:9999px;font-size:13px;';
-            toast.textContent = 'Saved to vault';
-            document.body.appendChild(toast);
-            setTimeout(() => toast.remove(), 2400);
-          } else {
-            const toast = document.createElement('div');
-            toast.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#0f1420;border:1px solid #5c3a3a;color:#e9edf5;padding:10px 22px;border-radius:9999px;font-size:13px;';
-            toast.textContent = 'Vault save did not complete';
-            document.body.appendChild(toast);
-            setTimeout(() => toast.remove(), 3000);
-          }
-        } catch (e) {
-          const toast = document.createElement('div');
-          toast.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#0f1420;border:1px solid #5c3a3a;color:#e9edf5;padding:10px 22px;border-radius:9999px;font-size:13px;';
-          toast.textContent = 'Could not reach vault';
-          document.body.appendChild(toast);
-          setTimeout(() => toast.remove(), 3000);
-        }
-      });
-    }
-
     // Export
     const exportBtn = document.getElementById('export-pins');
     if (exportBtn) {
@@ -992,8 +932,6 @@ const catalogCount = loadCatalog().length;
 
     renderMyPins();
     updateChipVisuals();       // force correct initial highlighting
-    checkVaultAndShowBanner();
-
     const searchInput = document.getElementById('pins-search');
     const clearBtn = document.getElementById('clear-search');
     const sortSelect = document.getElementById('pins-sort');
@@ -1012,66 +950,6 @@ const catalogCount = loadCatalog().length;
     if (sortSelect) {
       sortSelect.addEventListener('change', () => renderMyPins());
     }
-  }
-
-  async function checkVaultAndShowBanner() {
-    const banner = document.getElementById('vault-banner');
-    if (!banner || localStorage.getItem('vaultMigrationBannerDismissed')) return;
-
-    try {
-      const res = await fetch('/api/vault-pins');
-      if (!res.ok) return;
-
-      const vaultData = await res.json();
-      if (!Array.isArray(vaultData.pins) || vaultData.pins.length === 0) return;
-
-      const localPins = JSON.parse(localStorage.getItem('personalPins') || '[]');
-
-      // Restored robust max-date scan (no more fragile pins[0] reliance)
-      const latestLocal = localPins.reduce((max, p) => {
-        const d = new Date(p.updatedAt || p.createdAt || 0);
-        return d > max ? d : max;
-      }, new Date(0));
-
-      const vaultNewer = vaultData.lastSynced && (!localPins.length || new Date(vaultData.lastSynced) > latestLocal);
-
-      if (vaultNewer || localPins.length === 0) {
-        banner.classList.remove('hidden');
-
-        const bringHome = document.getElementById('bring-home');
-        const notNow = document.getElementById('not-now');
-
-        if (bringHome) {
-          bringHome.onclick = (e) => {
-            e.stopImmediatePropagation();
-            let current = JSON.parse(localStorage.getItem('personalPins') || '[]');
-            const existingIds = new Set(current.map(p => p.id));
-            let added = 0;
-
-            vaultData.pins.forEach(pin => {
-              if (pin && pin.id && !existingIds.has(pin.id)) {
-                current.push(pin);
-                existingIds.add(pin.id);
-                added++;
-              }
-            });
-
-            localStorage.setItem('personalPins', JSON.stringify(current));
-            localStorage.setItem('vaultMigrationBannerDismissed', 'true');
-            banner.classList.add('hidden');
-            renderMyPins();
-          };
-        }
-
-        if (notNow) {
-          notNow.onclick = (e) => {
-            e.stopImmediatePropagation();
-            localStorage.setItem('vaultMigrationBannerDismissed', 'true');
-            banner.classList.add('hidden');
-          };
-        }
-      }
-    } catch (e) {}
   }
 
   setupMyPins();

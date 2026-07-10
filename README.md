@@ -52,5 +52,7 @@ config/      watchlist + runtime config (examples only; no secrets committed)
 
 ## Status
 
-Design locked (schema consensus + data spine). Scaffolding stage. Not yet pushed
-publicly; security clearance gates any public push. License TBD.
+Alpha testing build. The viewer and engine are under active development; data
+sources, visualizations, and persistence behavior may change between releases.
+
+License terms will be published with the public release.
