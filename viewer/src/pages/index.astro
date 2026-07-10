@@ -45,9 +45,18 @@ const skyConstellations = [
 
   <!-- My Pins — primary personal shelf -->
   <section class="mb-8">
-    <div class="mb-4">
-      <h2 class="text-xl font-semibold text-mist-100">My Pins</h2>
-      <p class="text-xs text-mist-500 mt-0.5">Saved sky views — click a card to fly Atlas there.</p>
+    <div class="mb-4 flex flex-wrap items-end justify-between gap-3">
+      <div>
+        <h2 class="text-xl font-semibold text-mist-100">My Pins</h2>
+        <p class="text-xs text-mist-500 mt-0.5">Saved sky views — click a card to fly Atlas there.</p>
+      </div>
+      <a
+        href="#sky-events-inline"
+        class="inline-flex items-center gap-1.5 rounded-md border border-void-700 px-3 py-1.5 text-sm text-mist-200 hover:border-void-500 hover:text-mist-100 transition-colors"
+      >
+        Sky Events
+        <span class="text-mist-500 text-xs">↓</span>
+      </a>
     </div>
 
     <div id="pins-restore-bar" class="hidden mb-4 rounded-xl border border-amber-700/50 bg-void-900 p-4">
