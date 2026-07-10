@@ -1,141 +1,104 @@
 ---
 // observatory.astro — "The Observatory"
-// Interactive deep-sky exploration for the Dragon Lady Observatory.
-// Two real engines, switchable (James's selector pattern, fed real views this time):
-//   - Explore (WorldWide Telescope): fly/pan/zoom the real sky + 3D solar system.
-//   - Atlas   (Aladin Lite v3): fast survey atlas; search any object and it flies you there.
-// Both render REAL telescope survey imagery (DSS/2MASS/etc.) — not webcams, not canvas doodles.
-// Standalone prototype: does NOT touch telescope.astro. Mansion can fold the proven
-// wiring into his page if/when he wants it.
+// Aladin Lite v3 survey atlas (the working real-sky camera).
+// Free glide + click-to-identify on real telescope survey imagery (DSS/2MASS/etc.).
+// The WWT/Explore lens was removed — it was not usable for directed viewing on this setup.
+// Focus is on a clean, reliable Atlas experience with good object search and movement.
 import Base from '../layouts/Base.astro';
 
-const VIEWS = [
-  { id: 'wwt',    label: 'Explore',  icon: '🌌', hint: 'Fly through the real universe' },
-  { id: 'aladin', label: 'Atlas',    icon: '🔭', hint: 'Search any object, jump to it' },
-];
+// Single lens now: Atlas (Aladin). Explorer/WWT removed.
+const LENS = { id: 'aladin', label: 'Atlas', icon: '🔭' };
 ---
 
-<Base title="The Observatory" description="Real sky — WorldWide Telescope and Aladin survey atlas. Pan, zoom, and fly to galaxies and nebulae from real telescope survey imagery.">
-  <section class="space-y-4">
-    <div class="flex flex-col gap-1">
-      <h1 class="text-xl font-semibold tracking-tight text-mist-100">The Observatory</h1>
-      <p class="text-sm text-mist-400">
-        <strong>Current focus.</strong> Real sky, real survey imagery (WWT Explore + Aladin Atlas). 
-        Dedicated globe page is paused for now. See OBSERVATORY_HANDOFF.md.
+<Base title="The Observatory" description="Real sky — Aladin survey atlas. Free glide, click-to-identify, and wide sky views on real telescope survey imagery (DSS/2MASS/etc).">
+  <section class="space-y-1 -mt-3">
+    <div class="flex flex-col gap-0.5">
+      <h1 class="text-lg font-semibold tracking-tight text-mist-100">The Observatory</h1>
+      <p class="text-xs text-mist-400">
+        <strong>Atlas (Aladin)</strong> — real sky. Zoom way out for the sky-globe view. 
+        (Explorer/WWT removed.)
+        <span class="text-mist-500">Planets &amp; Moon: live ephemeris (Miriade). Press <kbd class="text-mist-300">P</kbd> (or Pin) to save this view. Snapshot for PNG.</span>
       </p>
     </div>
 
-    <!-- View selector: big, touch-friendly tabs (James's spec) -->
-    <div id="lens-selector" class="flex flex-wrap gap-2" role="tablist" aria-label="Sky view">
-      {VIEWS.map((v) => (
-        <button
-          type="button"
-          data-view={v.id}
-          role="tab"
-          class="lens-tab group flex items-center gap-2 rounded-xl border border-void-800 bg-void-900/70 px-4 py-2.5 text-sm text-mist-300 transition-colors hover:border-signal-400/50 hover:text-mist-100"
-        >
-          <span class="text-base leading-none">{v.icon}</span>
-          <span class="font-medium">{v.label}</span>
-          <span class="hidden text-xs text-mist-500 sm:inline">· {v.hint}</span>
-        </button>
-      ))}
-    </div>
-
-    <!-- Stage: both engines mounted, one visible at a time -->
+    <!-- Single clean stage for Aladin (the working camera). No tabs. -->
     <div id="sky-stage" class="relative h-[68dvh] min-h-[420px] w-full overflow-hidden rounded-2xl border border-void-800 bg-black shadow-2xl">
 
-      <!-- WorldWide Telescope (research app embed). Pannable/zoomable real sky + gyroscope-ready for the Android build. -->
-      <div data-stage="wwt" class="absolute inset-0">
-        <iframe
-          id="wwt-frame"
-          title="WorldWide Telescope"
-          class="h-full w-full border-0"
-          src="https://web.wwtassets.org/research/latest/"
-          allow="accelerometer; gyroscope; clipboard-write; fullscreen"
-          allowfullscreen
-          loading="lazy"
-        ></iframe>
+      <!-- Aladin Lite v3 atlas — the primary real-sky camera now. -->
+      <div id="aladin-lite-div" class="h-full w-full"></div>
+
+      <!-- Survey toggle: deep zoomable color vs painted Milky Way.
+           Bottom-center in normal view; in immersive we force-park it fixed near the
+           viewport bottom (same root cause as #sky-controls) so it doesn't drift mid-field. -->
+      <div id="survey-toggle" class="absolute bottom-3 left-1/2 z-[600] flex -translate-x-1/2 gap-1 rounded-full border border-white/10 bg-black/70 p-1 backdrop-blur">
+        <button type="button" data-survey="P/DSS2/color" class="survey-btn rounded-full px-3 py-1 text-xs font-medium text-mist-300 transition-colors hover:text-mist-100">Deep Sky</button>
+        <button type="button" data-survey="P/Mellinger/color" class="survey-btn rounded-full px-3 py-1 text-xs font-medium text-mist-300 transition-colors hover:text-mist-100">Milky Way</button>
       </div>
 
-      <!-- Aladin Lite v3 atlas. Init is lazy — only boots when this lens is first selected. -->
-      <div data-stage="aladin" class="absolute inset-0 hidden">
-        <div id="aladin-lite-div" class="h-full w-full"></div>
-        <!-- Survey toggle: best of both worlds — deep zoomable color vs painted Milky Way.
-             Anchored bottom-center so it never collides with Aladin's centered object popups. -->
-        <div class="absolute bottom-3 left-1/2 z-[600] flex -translate-x-1/2 gap-1 rounded-full border border-white/10 bg-black/70 p-1 backdrop-blur">
-          <button type="button" data-survey="P/DSS2/color" class="survey-btn rounded-full px-3 py-1 text-xs font-medium text-mist-300 transition-colors hover:text-mist-100">Deep Sky</button>
-          <button type="button" data-survey="P/Mellinger/color" class="survey-btn rounded-full px-3 py-1 text-xs font-medium text-mist-300 transition-colors hover:text-mist-100">Milky Way</button>
-        </div>
-      </div>
-
-      <!-- Tiny live "now showing" chip -->
-      <div id="now-chip" class="pointer-events-none absolute left-3 top-3 rounded-full border border-white/10 bg-black/60 px-3 py-1 text-xs text-mist-300 backdrop-blur">
+      <!-- Tiny live "now showing" chip - bottom-left to stay out of Aladin's top-right controls. -->
+      <div id="now-chip" class="pointer-events-none absolute left-3 bottom-3 rounded-full border border-white/10 bg-black/60 px-3 py-1 text-xs text-mist-300 backdrop-blur">
         <span class="mr-1.5 inline-block h-2 w-2 animate-pulse rounded-full bg-emerald-400"></span>
-        <span id="now-showing">Explore</span>
+        <span id="now-showing">Atlas</span>
       </div>
 
-      <!-- Top-center control group: our own buttons, clear of both engines' corner controls. -->
-      <div id="sky-controls" class="absolute left-1/2 top-3 z-[700] flex -translate-x-1/2 items-center gap-2">
-        <!-- One-tap snapshot of the Atlas (Aladin) view. Hidden on Explore (WWT iframe is cross-origin). -->
+      <!-- Bottom-right control group: Snapshot + Wide.
+           In Aladin immersive/full-screen we *move* these to a stable bottom-right spot (see JS)
+           so they don't drift into the middle or cover native controls, but remain usable for
+           watermarked snapshots. In normal view they sit bottom-right out of the way. -->
+      <div id="sky-controls" class="absolute bottom-3 right-3 z-[700] flex items-center gap-2">
+        <button
+          id="sky-mystery"
+          type="button"
+          title="Jump to Mystery glow near Moon (Jul 9 typed coords)"
+          aria-label="Fly to mystery glow coordinates"
+          class="flex items-center gap-1.5 rounded-full border border-signal-400/40 bg-black/60 px-3 py-1 text-xs text-signal-300 backdrop-blur transition-colors hover:border-signal-400/70 hover:text-mist-100"
+        >
+          <span class="text-sm leading-none">✦</span>
+          <span>Mystery</span>
+        </button>
+        <button
+          id="sky-pin"
+          type="button"
+          title="Pin this view (or press P)"
+          aria-label="Pin this sky view"
+          class="flex items-center gap-1.5 rounded-full border border-white/10 bg-black/60 px-3 py-1 text-xs text-mist-300 backdrop-blur transition-colors hover:border-signal-400/50 hover:text-mist-100"
+        >
+          <span class="text-sm leading-none">📌</span>
+          <span>Pin</span>
+        </button>
         <button
           id="sky-snapshot"
           type="button"
           title="Save a snapshot of this view (PNG)"
           aria-label="Save a snapshot of this view"
-          class="hidden items-center gap-1.5 rounded-full border border-white/10 bg-black/60 px-3 py-1 text-xs text-mist-300 backdrop-blur transition-colors hover:border-signal-400/50 hover:text-mist-100"
+          class="flex items-center gap-1.5 rounded-full border border-white/10 bg-black/60 px-3 py-1 text-xs text-mist-300 backdrop-blur transition-colors hover:border-signal-400/50 hover:text-mist-100"
         >
           <span class="text-sm leading-none">📸</span>
           <span>Snapshot</span>
         </button>
-        <!-- Expand to full window. Fullscreens the whole stage (not the engine's iframe-bound button)
-             so the engines' left/right control rails never clip. -->
         <button
-          id="sky-expand"
+          id="wide-sky-btn"
           type="button"
-          title="Expand to full screen"
-          aria-label="Expand to full screen"
+          title="Wide sky / globe view (zoom way out)"
           class="flex items-center gap-1.5 rounded-full border border-white/10 bg-black/60 px-3 py-1 text-xs text-mist-300 backdrop-blur transition-colors hover:border-signal-400/50 hover:text-mist-100"
         >
-          <span id="sky-expand-icon" class="text-sm leading-none">⛶</span>
-          <span id="sky-expand-label">Full screen</span>
+          <span>🌐</span>
+          <span>Wide</span>
         </button>
       </div>
     </div>
 
     <p class="text-xs text-mist-500">
-      Explore: WorldWide Telescope (American Astronomical Society). Atlas: Aladin Lite v3 /
-      CDS Strasbourg, showing DSS &amp; 2MASS survey imagery. Observation only.
+      Atlas — Aladin Lite v3 (CDS). Real survey imagery. Click objects for info. Observation only.
     </p>
-    <!-- Globe "camera from anywhere" integration note (populated when arriving from /globe?lat=..&lng=..) -->
-    <script is:inline>
-      (function(){
-        try {
-          const u = new URL(location.href);
-          const la = u.searchParams.get('lat');
-          const lo = u.searchParams.get('lng');
-          if (la && lo) {
-            const note = document.createElement('div');
-            note.style.cssText = 'position:absolute;bottom:12px;left:50%;transform:translateX(-50%);z-index:900;font-size:12px;background:#0f1420ee;border:1px solid #6fd3e2;color:#e9edf5;padding:6px 14px;border-radius:8px;backdrop-filter:blur(6px);max-width:90%;text-align:center;box-shadow:0 0 10px rgba(0,0,0,0.5)';
-            const lat = parseFloat(la).toFixed(2);
-            const lon = parseFloat(lo).toFixed(2);
-            note.innerHTML = `
-              <div style="margin-bottom:4px;font-weight:600">Globe camera at ${lat}, ${lon}</div>
-              <div style="font-size:11px;opacity:0.9">This is the Explorer (WWT) sky view from that point on Earth.<br>
-              In the WWT controls (bottom panel or search "location"), set Observing Location to Lat ${lat} Lon ${lon} to "land" and see the real sky/space from there.</div>
-            `;
-            const stage = document.getElementById('sky-stage');
-            if (stage) stage.appendChild(note);
-            // Keep it longer or until dismissed
-            const close = document.createElement('span');
-            close.textContent = '×';
-            close.style.cssText = 'position:absolute;top:2px;right:6px;cursor:pointer;font-size:14px;opacity:0.7';
-            close.onclick = () => note.remove();
-            note.appendChild(close);
-          }
-        } catch(e){}
-      })();
-    </script>
+    <!-- Location handoff notes from the retired globe are no longer injected here.
+         Pins and Sky Events now open the Observatory directly for free glide. -->
   </section>
+
+  <!-- Give the immersive camera as much room as possible -->
+  <style is:inline>
+    main { padding-top: 2px; padding-bottom: 4px; }
+  </style>
 
   <!-- When the stage is fullscreen, drop the box styling so the engine gets the entire viewport
        and its edge controls (Atlas snapshot menu, zoom, layers) have room — no left/right clipping. -->
@@ -145,6 +108,11 @@ const VIEWS = [
     /* In full screen the engines own the corners — hide our info chip so it doesn't cover their controls. */
     #sky-stage:fullscreen #now-chip { display: none; }
     #sky-stage:-webkit-full-screen #now-chip { display: none; }
+
+    /* Header hiding + moving of custom Snapshot/Wide buttons is driven by JS
+       (forceHideHeaderIfImmersive + observers + capture listeners). Aladin's "fullscreen"
+       is often a container resize, not a true document fullscreenElement, so we use
+       rect + top checks + pointer events for immediate response. */
   </style>
 
   <!-- Aladin engine (external CDN) — keep inline so Astro doesn't try to bundle the global. -->
@@ -152,14 +120,88 @@ const VIEWS = [
 
   <script is:inline>
     (function () {
+      // Atlas-only now. WWT/Explorer removed.
       const STORAGE_KEY = 'dlo-sky-lens';
-      const LABELS = { wwt: 'Explore', aladin: 'Atlas' };
-      const tabs = Array.from(document.querySelectorAll('.lens-tab'));
-      const stages = Array.from(document.querySelectorAll('[data-stage]'));
       const nowShowing = document.getElementById('now-showing');
       const surveyBtns = Array.from(document.querySelectorAll('.survey-btn'));
       let aladinBooted = false;
       let currentSurvey = 'P/DSS2/color';
+
+      // Mystery glow near Moon — seeded + button-forced (Jul 9 typed coords).
+      // Not one-shot: Mystery button always re-flies so authority is obeyed.
+      var MYSTERY_ID = 'mystery-moon-2026-07-09';
+      var MYSTERY_RA = (2 + 47 / 60 + 52.13 / 3600) * 15; // 02 47 52.13 → ~41.967°
+      var MYSTERY_DEC = 21 + 23 / 60 + 30.4 / 3600; // +21 23 30.4 → ~21.392°
+      var MYSTERY_FOV = 0.5;
+      var MYSTERY_COO = '02 47 52.13  +21 23 30.4';
+      var MYSTERY_LABEL = 'Mystery glow near Moon · Jul 9';
+
+      function ensureMysteryGlowPin() {
+        try {
+          var note =
+            'Typed coords while bloom was visible under the Moon. Likely DSS saturation (Simbad empty @ 60″). Screenshots archived. ' +
+            MYSTERY_COO;
+          var pins = JSON.parse(localStorage.getItem('personalPins') || '[]');
+          if (!Array.isArray(pins)) pins = [];
+          var already = pins.some(function (p) { return p && p.id === MYSTERY_ID; });
+          if (!already) {
+            pins.unshift({
+              id: MYSTERY_ID,
+              createdAt: new Date().toISOString(),
+              label: MYSTERY_LABEL,
+              note: note,
+              source: 'observatory',
+              ra: MYSTERY_RA,
+              dec: MYSTERY_DEC,
+              fov: MYSTERY_FOV,
+              viewState: {
+                lat: MYSTERY_DEC,
+                lng: MYSTERY_RA,
+                altitude: MYSTERY_FOV,
+                ra: MYSTERY_RA,
+                dec: MYSTERY_DEC,
+                fov: MYSTERY_FOV,
+                coo: MYSTERY_COO,
+              },
+              thumbnailData: '',
+              recoveryMeta: {
+                originalCoordinates: {
+                  ra: MYSTERY_RA,
+                  dec: MYSTERY_DEC,
+                  fov: MYSTERY_FOV,
+                  coo: MYSTERY_COO,
+                  frame: 'ICRS',
+                },
+                description: 'Seeded from typed coords after bloom vanished (2026-07-09)',
+              },
+            });
+            localStorage.setItem('personalPins', JSON.stringify(pins));
+          }
+        } catch (e) {}
+      }
+
+      function flyToMysteryGlow(attempt) {
+        attempt = attempt || 0;
+        var a = window.__aladin;
+        if (!a || typeof a.gotoRaDec !== 'function') {
+          if (attempt < 12) setTimeout(function () { flyToMysteryGlow(attempt + 1); }, 400);
+          else console.warn('[observatory] mystery fly: Atlas never woke');
+          return;
+        }
+        try {
+          a.gotoRaDec(MYSTERY_RA, MYSTERY_DEC);
+          placeSsoMarker(a, MYSTERY_RA, MYSTERY_DEC, MYSTERY_LABEL);
+          setTimeout(function () {
+            try { if (typeof a.setFov === 'function') a.setFov(MYSTERY_FOV); } catch (e) {}
+          }, 200);
+          if (nowShowing) nowShowing.textContent = MYSTERY_LABEL;
+          console.log('[observatory] mystery glow locked', MYSTERY_COO);
+        } catch (e) {
+          console.warn('[observatory] mystery fly failed', e);
+        }
+      }
+
+      ensureMysteryGlowPin();
 
       function bootAladin() {
         if (aladinBooted || typeof A === 'undefined') return;
@@ -168,7 +210,7 @@ const VIEWS = [
           window.__aladin = A.aladin('#aladin-lite-div', {
             survey: currentSurvey,
             fov: 18,
-            target: 'M42',
+            target: 'M42',  // Hi 42 — your special first-click default (Hitchhiker nod). Stays unless a pin overrides.
             cooFrame: 'equatorial',
             projection: 'SIN',
             showReticle: true,
@@ -178,6 +220,9 @@ const VIEWS = [
             showGotoControl: true,
             showSimbadPointerControl: true,
           });
+          // Drive from console/Sky Events pin if one was chosen (with retries)
+          setTimeout(() => applyFlyToPinIfAny(0), 700);
+          // Keep manual navigation in control: use typed coordinates or saved pins.
         });
       }
 
@@ -193,7 +238,7 @@ const VIEWS = [
         currentSurvey = id;
         styleSurvey();
         var a = window.__aladin;
-        if (!a) return; // not booted yet — bootAladin will use currentSurvey
+        if (!a) return;
         try {
           if (typeof a.setBaseImageLayer === 'function' && typeof A !== 'undefined' && A.imageHiPS) {
             a.setBaseImageLayer(A.imageHiPS(id));
@@ -210,79 +255,334 @@ const VIEWS = [
       });
       styleSurvey();
 
-      function activeStyle(tab, on) {
-        tab.classList.toggle('border-signal-400', on);
-        tab.classList.toggle('text-mist-100', on);
-        tab.classList.toggle('bg-void-800', on);
-        tab.setAttribute('aria-selected', on ? 'true' : 'false');
+      const snapshotBtn = document.getElementById('sky-snapshot');
+      if (snapshotBtn) {
+        snapshotBtn.classList.add('flex');
+        snapshotBtn.classList.remove('hidden');
       }
 
-      var snapshotBtn = document.getElementById('sky-snapshot');
-      var currentView = 'wwt';
+      // Drive Atlas from a pin chosen in the console / Sky Events.
+      // Deep-sky names go through Sesame (gotoObject). Venus/Moon/planets do NOT resolve
+      // in Sesame — Aladin silently fails. For those we fetch live RA/Dec from Miriade
+      // (IMCCE ephemcc) and gotoRaDec + drop a marker so the spot is unmistakable.
+      const SSO_NAME_MAP = {
+        moon: 'Moon',
+        'full moon': 'Moon',
+        mercury: 'Mercury',
+        venus: 'Venus',
+        'venus-evening': 'Venus',
+        mars: 'Mars',
+        jupiter: 'Jupiter',
+        saturn: 'Saturn',
+        uranus: 'Uranus',
+        neptune: 'Neptune',
+      };
 
-      function show(view) {
-        currentView = view;
-        stages.forEach(function (s) { s.classList.toggle('hidden', s.dataset.stage !== view); });
-        tabs.forEach(function (t) { activeStyle(t, t.dataset.view === view); });
-        if (nowShowing) nowShowing.textContent = LABELS[view] || view;
-        if (view === 'aladin') bootAladin();
-        // Snapshot is available on both lenses — Atlas uses a native canvas grab; Explore (WWT) uses
-        // screen-frame capture since its iframe is cross-origin.
-        if (snapshotBtn) {
-          snapshotBtn.classList.remove('hidden');
-          snapshotBtn.classList.add('flex');
+      function normalizePinTarget(label) {
+        let target = (label || '').trim();
+        target = target
+          .replace(/full moon/i, 'Moon')
+          .replace(/perseid/i, 'Perseids')
+          .replace(/geminid/i, 'Geminids')
+          .replace(/andromeda galaxy/i, 'Andromeda')
+          .replace(/andromeda/i, 'Andromeda')
+          .replace(/orion/i, 'Orion')
+          .replace(/venus-evening/i, 'Venus')
+          .replace(/\bvenus\b/i, 'Venus');
+        return target;
+      }
+
+      function resolveSolarSystemName(target) {
+        const key = String(target || '').trim().toLowerCase();
+        if (SSO_NAME_MAP[key]) return SSO_NAME_MAP[key];
+        // Also catch labels like "Venus (evening)" / "Next Full Moon"
+        for (const [k, v] of Object.entries(SSO_NAME_MAP)) {
+          if (key.includes(k)) return v;
         }
-        try { localStorage.setItem(STORAGE_KEY, view); } catch (e) {}
+        return null;
       }
 
-      tabs.forEach(function (t) {
-        t.addEventListener('click', function () { show(t.dataset.view); });
+      // "+10:10:09.8" hours → degrees; "+12:50:22.9" sexagesimal degrees → degrees
+      function sexagesimalToDegrees(str, isHours) {
+        const s = String(str || '').trim();
+        const m = s.match(/^([+-]?)(\d+(?:\.\d+)?)(?::(\d+(?:\.\d+)?)(?::(\d+(?:\.\d+)?))?)?/);
+        if (!m) return NaN;
+        const sign = m[1] === '-' ? -1 : 1;
+        const a = parseFloat(m[2]) || 0;
+        const b = parseFloat(m[3]) || 0;
+        const c = parseFloat(m[4]) || 0;
+        const val = sign * (Math.abs(a) + b / 60 + c / 3600);
+        return isHours ? val * 15 : val;
+      }
+
+      function ssoDesiredFov(name) {
+        if (name === 'Venus') return { start: 35, mid: 35, final: 32 };
+        if (name === 'Moon') return { start: 30, mid: 30, final: 28 };
+        return { start: 40, mid: 35, final: 30 }; // other planets: start wider
+      }
+
+      function placeSsoMarker(a, raDeg, decDeg, name) {
+        try {
+          if (typeof A === 'undefined' || typeof A.catalog !== 'function' || typeof A.marker !== 'function') return;
+          if (window.__ssoMarkerCat && typeof a.removeOverlay === 'function') {
+            try { a.removeOverlay(window.__ssoMarkerCat); } catch (e) {}
+          } else if (window.__ssoMarkerCat && typeof a.removeLayer === 'function') {
+            try { a.removeLayer(window.__ssoMarkerCat); } catch (e) {}
+          }
+          const cat = A.catalog({ name: name + ' (now)', sourceSize: 18, color: '#f5c542' });
+          const marker = A.marker(raDeg, decDeg, {
+            popupTitle: name,
+            popupDesc: 'Live sky position · Miriade ephemeris (now)',
+          });
+          cat.addSources([marker]);
+          a.addCatalog(cat);
+          window.__ssoMarkerCat = cat;
+        } catch (e) {}
+      }
+
+      function applyFovSchedule(a, fov) {
+        setTimeout(() => { try { if (typeof a.setFov === 'function') a.setFov(fov.start); } catch (e) {} }, 200);
+        setTimeout(() => { try { if (typeof a.setFov === 'function') a.setFov(fov.mid); } catch (e) {} }, 450);
+        setTimeout(() => { try { if (typeof a.setFov === 'function') a.setFov(fov.final); } catch (e) {} }, 800);
+      }
+
+      function flyToSolarSystem(a, ssoName) {
+        const url = 'https://ssp.imcce.fr/webservices/miriade/api/ephemcc.php'
+          + '?-name=' + encodeURIComponent('p:' + ssoName)
+          + '&-ep=now&-mime=json&-tcoor=1';
+        return fetch(url)
+          .then(function (r) {
+            if (!r.ok) throw new Error('Miriade HTTP ' + r.status);
+            return r.json();
+          })
+          .then(function (json) {
+            const row = json && json.data && json.data[0];
+            if (!row || row.RA == null || row.DEC == null) throw new Error('Miriade empty');
+            const raDeg = sexagesimalToDegrees(row.RA, true);
+            const decDeg = sexagesimalToDegrees(row.DEC, false);
+            if (!isFinite(raDeg) || !isFinite(decDeg)) throw new Error('bad RA/Dec');
+            if (typeof a.gotoRaDec === 'function') a.gotoRaDec(raDeg, decDeg);
+            else if (typeof a.gotoObject === 'function') a.gotoObject(raDeg + ' ' + decDeg);
+            placeSsoMarker(a, raDeg, decDeg, ssoName);
+            applyFovSchedule(a, ssoDesiredFov(ssoName));
+            if (nowShowing) {
+              nowShowing.textContent = ssoName + ' · live sky';
+            }
+            return { raDeg: raDeg, decDeg: decDeg };
+          });
+      }
+
+      function flyToDeepSky(a, target) {
+        try {
+          a.gotoObject(target, {
+            success: function () {
+              setTimeout(() => { try { if (typeof a.setFov === 'function') a.setFov(20); } catch (e) {} }, 200);
+            },
+            error: function () {
+              // Sesame miss — leave M42 / current view alone rather than pointing nowhere.
+            },
+          });
+        } catch (e) {
+          try { a.gotoObject(target); } catch (e2) {}
+          setTimeout(() => { try { if (typeof a.setFov === 'function') a.setFov(20); } catch (e3) {} }, 200);
+        }
+      }
+
+      function applyFlyToPinIfAny(attempt = 0) {
+        try {
+          const raw = localStorage.getItem('flyToPin');
+          if (!raw) return;
+          const data = JSON.parse(raw);
+          if (!data) { localStorage.removeItem('flyToPin'); return; }
+
+          const a = window.__aladin;
+          if (!a || (typeof a.gotoObject !== 'function' && typeof a.gotoRaDec !== 'function')) {
+            if (attempt < 8) setTimeout(() => applyFlyToPinIfAny(attempt + 1), 550);
+            return;
+          }
+
+          // Coordinate pins (from Observatory P-key): prefer exact RA/Dec over label resolve.
+          // Do NOT clear flyToPin until a jump path succeeds — clearing early caused Orion slingshots
+          // when Aladin was present but goto still failed / raced the M42 default.
+          // Only trust explicit ra/dec (not lat/lng) — Sky Events still stores placeholder lat/lng.
+          const vs = data.viewState || {};
+          const ra = Number(data.ra != null ? data.ra : vs.ra);
+          const dec = Number(data.dec != null ? data.dec : vs.dec);
+          const fov = Number(data.fov != null ? data.fov : (vs.fov != null ? vs.fov : vs.altitude));
+          if (isFinite(ra) && isFinite(dec) && typeof a.gotoRaDec === 'function') {
+            try {
+              a.gotoRaDec(ra, dec);
+              placeSsoMarker(a, ra, dec, (data.label || 'Pinned sky').trim());
+              const f = isFinite(fov) && fov > 0 ? fov : 2;
+              setTimeout(() => { try { if (typeof a.setFov === 'function') a.setFov(f); } catch (e) {} }, 200);
+              if (nowShowing) nowShowing.textContent = (data.label || 'Pinned · live sky').trim();
+              localStorage.removeItem('flyToPin');
+              return;
+            } catch (e) {
+              if (attempt < 8) setTimeout(() => applyFlyToPinIfAny(attempt + 1), 550);
+              return;
+            }
+          }
+
+          const label = (data.label || data.title || data.name || '').trim();
+          if (!label) {
+            localStorage.removeItem('flyToPin');
+            return;
+          }
+
+          const target = normalizePinTarget(label);
+          const ssoName = resolveSolarSystemName(target);
+
+          localStorage.removeItem('flyToPin');
+          if (ssoName) {
+            flyToSolarSystem(a, ssoName).catch(function (err) {
+              console.warn('[observatory] SSO fly-to failed, falling back to gotoObject', ssoName, err);
+              // Last resort: still try Sesame (will usually fail for planets) so behavior is explicit.
+              flyToDeepSky(a, ssoName);
+            });
+          } else {
+            flyToDeepSky(a, target);
+          }
+        } catch (e) {}
+      }
+
+      // Boot Aladin immediately (only lens now)
+      bootAladin();
+
+      // Try pin handoff shortly after boot, plus a safety net
+      setTimeout(() => applyFlyToPinIfAny(0), 900);
+      setTimeout(() => applyFlyToPinIfAny(0), 2200);
+
+      // --- Pin this Atlas view (P key / Pin button) ---------------------------------
+      // Saves to the same localStorage.personalPins console My Pins reads. Stores
+      // exact RA/Dec + FOV so mysterious unlabeled blooms can be revisited.
+      function degToHms(raDeg) {
+        var x = ((Number(raDeg) % 360) + 360) % 360 / 15;
+        var h = Math.floor(x);
+        var mFloat = (x - h) * 60;
+        var m = Math.floor(mFloat);
+        var s = (mFloat - m) * 60;
+        return String(h).padStart(2, '0') + ' ' + String(m).padStart(2, '0') + ' ' + s.toFixed(2).padStart(5, '0');
+      }
+      function degToDms(decDeg) {
+        var sign = Number(decDeg) < 0 ? '-' : '+';
+        var x = Math.abs(Number(decDeg));
+        var d = Math.floor(x);
+        var mFloat = (x - d) * 60;
+        var m = Math.floor(mFloat);
+        var s = (mFloat - m) * 60;
+        return sign + String(d).padStart(2, '0') + ' ' + String(m).padStart(2, '0') + ' ' + s.toFixed(1).padStart(4, '0');
+      }
+
+      function toastPin(msg, ok) {
+        var toast = document.createElement('div');
+        toast.style.cssText = 'position:fixed;bottom:28px;left:50%;transform:translateX(-50%);z-index:2000;background:#0f1420;border:1px solid ' + (ok ? '#36415a' : '#5c3a3a') + ';color:#e9edf5;padding:10px 20px;border-radius:9999px;font-size:13px;';
+        toast.textContent = msg;
+        document.body.appendChild(toast);
+        setTimeout(function () { toast.remove(); }, 2800);
+      }
+
+      function captureObservatoryPin() {
+        var a = window.__aladin;
+        if (!a || typeof a.getRaDec !== 'function') {
+          toastPin('Atlas is still waking up — try again in a moment', false);
+          return;
+        }
+        var radec = a.getRaDec();
+        if (!radec || radec.length < 2) {
+          toastPin('Could not read sky position', false);
+          return;
+        }
+        var ra = Number(radec[0]);
+        var dec = Number(radec[1]);
+        var fovArr = typeof a.getFov === 'function' ? a.getFov() : null;
+        var fov = fovArr && isFinite(fovArr[0]) ? Number(fovArr[0]) : 2;
+        var coordStr = degToHms(ra) + '  ' + degToDms(dec);
+
+        var defaultLabel = (nowShowing && nowShowing.textContent && nowShowing.textContent.trim() && nowShowing.textContent.trim() !== 'Atlas')
+          ? nowShowing.textContent.trim()
+          : ('Atlas · ' + coordStr);
+
+        var label = window.prompt('Name this pin', defaultLabel);
+        if (label === null) return; // cancelled
+        label = String(label).trim() || defaultLabel;
+        var note = window.prompt('Optional note (coords kept either way)', coordStr);
+        if (note === null) note = coordStr;
+        note = String(note).trim() || coordStr;
+
+        // Same capture API as Snapshot: options object; may return a string or a Promise.
+        function savePinWithThumb(thumb) {
+          var pin = {
+            id: Date.now().toString(36) + Math.random().toString(36).slice(2, 7),
+            createdAt: new Date().toISOString(),
+            label: label,
+            note: note,
+            source: 'observatory',
+            // Exact sky coords for Atlas re-entry (applyFlyToPinIfAny prefers these)
+            ra: ra,
+            dec: dec,
+            fov: fov,
+            // Console cards still expect viewState; map ra→lng, dec→lat, fov→altitude
+            viewState: {
+              lat: dec,
+              lng: ra,
+              altitude: fov,
+              ra: ra,
+              dec: dec,
+              fov: fov,
+              coo: coordStr,
+            },
+            thumbnailData: (typeof thumb === 'string' && thumb.indexOf('data:image/') === 0) ? thumb : '',
+            recoveryMeta: {
+              originalCoordinates: { ra: ra, dec: dec, fov: fov, coo: coordStr, frame: 'ICRS' },
+              description: 'Pinned from Observatory Atlas camera',
+            },
+          };
+
+          try {
+            var pins = JSON.parse(localStorage.getItem('personalPins') || '[]');
+            if (!Array.isArray(pins)) pins = [];
+            pins.unshift(pin);
+            localStorage.setItem('personalPins', JSON.stringify(pins));
+            toastPin('Pinned · ' + label, true);
+            if (nowShowing) nowShowing.textContent = label;
+          } catch (e) {
+            toastPin('Pin did not save', false);
+          }
+        }
+
+        try {
+          if (typeof a.getViewDataURL === 'function') {
+            var res = a.getViewDataURL({ format: 'image/jpeg' });
+            if (res && typeof res.then === 'function') {
+              res.then(function (u) { savePinWithThumb(u); }).catch(function () { savePinWithThumb(''); });
+              return;
+            }
+            if (typeof res === 'string') { savePinWithThumb(res); return; }
+          }
+        } catch (e) {}
+        savePinWithThumb('');
+      }
+
+      var pinBtn = document.getElementById('sky-pin');
+      if (pinBtn) pinBtn.addEventListener('click', captureObservatoryPin);
+
+      var mysteryBtn = document.getElementById('sky-mystery');
+      if (mysteryBtn) {
+        mysteryBtn.addEventListener('click', function () {
+          ensureMysteryGlowPin();
+          flyToMysteryGlow(0);
+        });
+      }
+
+      document.addEventListener('keydown', function (e) {
+        if (e.key !== 'p' && e.key !== 'P') return;
+        var tag = (e.target && e.target.tagName) || '';
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || (e.target && e.target.isContentEditable)) return;
+        if (e.metaKey || e.ctrlKey || e.altKey) return;
+        e.preventDefault();
+        captureObservatoryPin();
       });
-
-      let initial = 'wwt';
-      try { initial = localStorage.getItem(STORAGE_KEY) || 'wwt'; } catch (e) {}
-      if (!LABELS[initial]) initial = 'wwt';
-      show(initial);
-
-      // --- Expand to full window ---------------------------------------------------
-      // Fullscreen the whole stage so each engine fills the viewport. The engines render
-      // their control rails at the screen edges; inside the boxed column those edges fall
-      // outside the visible area and clip. Fullscreening the stage gives them the full width.
-      var stage = document.getElementById('sky-stage');
-      var expandBtn = document.getElementById('sky-expand');
-      var expandIcon = document.getElementById('sky-expand-icon');
-      var expandLabel = document.getElementById('sky-expand-label');
-
-      function isFs() {
-        return document.fullscreenElement === stage || document.webkitFullscreenElement === stage;
-      }
-
-      function enterFs() {
-        if (!stage) return;
-        var req = stage.requestFullscreen || stage.webkitRequestFullscreen;
-        if (req) { try { req.call(stage); } catch (e) {} }
-      }
-      function exitFs() {
-        var exit = document.exitFullscreen || document.webkitExitFullscreen;
-        if (exit) { try { exit.call(document); } catch (e) {} }
-      }
-
-      if (expandBtn) {
-        expandBtn.addEventListener('click', function () { isFs() ? exitFs() : enterFs(); });
-      }
-
-      function onFsChange() {
-        var on = isFs();
-        if (expandIcon) expandIcon.textContent = on ? '⤢' : '⛶';
-        if (expandLabel) expandLabel.textContent = on ? 'Exit full screen' : 'Full screen';
-        // Engines size to their container — nudge them to re-measure after the box changes.
-        try { window.dispatchEvent(new Event('resize')); } catch (e) {}
-        if (window.__aladin && typeof window.__aladin.requestRedraw === 'function') {
-          try { window.__aladin.requestRedraw(); } catch (e) {}
-        }
-      }
-      document.addEventListener('fullscreenchange', onFsChange);
-      document.addEventListener('webkitfullscreenchange', onFsChange);
 
       // --- One-tap snapshot (Atlas / Aladin only) ----------------------------------
       // getViewDataURL renders ONLY the sky canvas — so it bakes in the reticle and misses HTML
@@ -370,7 +670,7 @@ const VIEWS = [
       // Reuses the locked assets + corner rules from the home share-card (index.astro):
       //   dragon (bottom-left): /watermarks/dragon-watermark.png  (fallback .webp)
       //   Dragon Lady (top-right): /watermarks/dragon-lady-mark.jpg  (brightened 1.15x)
-      // Preloaded once on page load; stamped onto both Atlas and Explore snapshots before save.
+      // Preloaded once on page load; stamped onto Atlas snapshots.
       var wmDragon = null, wmLady = null;
 
       function loadImg(src) {
@@ -428,26 +728,23 @@ const VIEWS = [
           .then(function (l) { if (l) prepareWatermarkForDarkBg(l, 1.15).then(function (p) { wmLady = p; }); });
       })();
 
-      // Stamp both marks in their corners, sized proportional to the image so they look right at any
-      // capture resolution. Alphas match the home card (dragon 0.40, lady 0.45). Dragon is always
-      // bottom-left; the Dragon Lady mark is top-right by default, but ladyBottomRight drops it to the
-      // bottom-right for Explore — WWT's own zoom/settings controls sit top-right and get baked into
-      // that capture, so the mark would otherwise collide with them.
-      function stampWatermarks(cx, w, h, ladyBottomRight) {
+      // Stamp both marks in their corners, sized proportional to the image.
+      // Quieter than the home share-card — Atlas snaps are sky-first; brand stays a whisper.
+      // Dragon bottom-left, Lady top-right. (Share cards on index keep their stronger alphas.)
+      function stampWatermarks(cx, w, h) {
         var margin = Math.round(w * 0.012);
         if (wmDragon && wmDragon.complete && wmDragon.naturalWidth > 0) {
-          var dw = Math.round(w * 0.11), dh = Math.round(dw * (100 / 135));
+          var dw = Math.round(w * 0.085), dh = Math.round(dw * (100 / 135));
           cx.save();
-          cx.globalAlpha = 0.40;
+          cx.globalAlpha = 0.24;
           cx.drawImage(wmDragon, margin, h - dh - margin, dw, dh);
           cx.restore();
         }
         if (wmLady && wmLady.complete && wmLady.naturalWidth > 0) {
-          var lw = Math.round(w * 0.095), lh = Math.round(lw * (95 / 115));
-          var ly = ladyBottomRight ? (h - lh - margin) : margin;
+          var lw = Math.round(w * 0.07), lh = Math.round(lw * (95 / 115));
           cx.save();
-          cx.globalAlpha = 0.45;
-          cx.drawImage(wmLady, w - lw - margin, ly, lw, lh);
+          cx.globalAlpha = 0.26;
+          cx.drawImage(wmLady, w - lw - margin, margin, lw, lh);
           cx.restore();
         }
       }
@@ -500,78 +797,236 @@ const VIEWS = [
         }, 120);
       }
 
-      // Explore (WorldWide Telescope): cross-origin iframe — pixels can't be read with a canvas grab.
-      // Use the browser's screen-capture API (one permission prompt), then crop to the sky view and save.
-      function captureExplore() {
-        if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
-          alert('This browser can’t capture the Explore view directly. Use Windows Snip (Win+Shift+S) for now.');
-          return;
-        }
-        var controls = document.getElementById('sky-controls');
-        var chip = document.getElementById('now-chip');
-        // cursor: 'never' asks the browser to leave the mouse pointer out of the captured frame.
-        navigator.mediaDevices.getDisplayMedia({ video: { displaySurface: 'browser', cursor: 'never' }, audio: false, preferCurrentTab: true })
-          .then(function (stream) {
-            // Second attempt at dropping the pointer — some browsers honor it at the track level.
-            try {
-              var vtrack = stream.getVideoTracks()[0];
-              if (vtrack && vtrack.applyConstraints) vtrack.applyConstraints({ cursor: 'never' });
-            } catch (e) {}
-            var video = document.createElement('video');
-            video.srcObject = stream;
-            video.muted = true;
-            video.play();
-            video.addEventListener('loadedmetadata', function () {
-              // Hide our own overlay UI + the page cursor so neither is baked into the shot.
-              if (controls) controls.style.visibility = 'hidden';
-              if (chip) chip.style.visibility = 'hidden';
-              var prevCursor = document.documentElement.style.cursor;
-              document.documentElement.style.cursor = 'none';
-              // Settle so the first captured frame is painted with our UI already hidden.
-              setTimeout(function () {
-                try {
-                  // Crop to WWT's sky iframe (falls back to the stage). Works whether or not full screen
-                  // survived the share prompt — we map page coords to the captured frame and CLAMP to its
-                  // bounds so we never sample past the edge (that overflow is what saved out as a white block).
-                  var target = document.getElementById('wwt-frame') || stage;
-                  var rect = target.getBoundingClientRect();
-                  var sx = video.videoWidth / window.innerWidth;
-                  var sy = video.videoHeight / window.innerHeight;
-                  var srcX = Math.max(0, Math.round(rect.left * sx));
-                  var srcY = Math.max(0, Math.round(rect.top * sy));
-                  var srcW = Math.max(1, Math.min(video.videoWidth - srcX, Math.round(rect.width * sx)));
-                  var srcH = Math.max(1, Math.min(video.videoHeight - srcY, Math.round(rect.height * sy)));
-                  var cv = document.createElement('canvas');
-                  cv.width = srcW;
-                  cv.height = srcH;
-                  var cx = cv.getContext('2d');
-                  cx.drawImage(video, srcX, srcY, srcW, srcH, 0, 0, srcW, srcH);
-                  // ladyBottomRight: WWT's controls live top-right in this capture, so move the mark clear.
-                  try { stampWatermarks(cx, cv.width, cv.height, true); } catch (e) {}
-                  saveSnap(cv.toDataURL('image/png'));
-                } catch (e) {
-                  alert('Capture failed: ' + (e && e.message ? e.message : 'unknown error'));
-                } finally {
-                  if (controls) controls.style.visibility = '';
-                  if (chip) chip.style.visibility = '';
-                  document.documentElement.style.cursor = prevCursor;
-                  stream.getTracks().forEach(function (t) { t.stop(); });
-                }
-              }, 300);
-            });
-          })
-          .catch(function (e) {
-            if (e && e.name === 'NotAllowedError') return; // user cancelled the share prompt
-            alert('Could not start screen capture: ' + (e && e.message ? e.message : 'unknown error'));
-          });
-      }
+      // WWT/Explore capture removed. Only Atlas native capture remains.
 
       if (snapshotBtn) {
         snapshotBtn.addEventListener('click', function () {
-          if (currentView === 'aladin') captureAladin();
-          else captureExplore();
+          captureAladin();
         });
       }
+
+      // Wide Sky / Globe mode: Aladin zoomed way out acts like a draggable sky globe.
+      // Lets you see what's "above" different parts of the Earth by panning the all-sky view.
+      const wideBtn = document.getElementById('wide-sky-btn');
+      if (wideBtn) {
+        wideBtn.addEventListener('click', function () {
+          const a = window.__aladin;
+          if (!a) return;
+          try {
+            // Very wide field for the globe effect (user discovered this by zooming out)
+            if (typeof a.setFov === 'function') a.setFov(160);
+          } catch (e) {}
+          // When going wide (globe-ish), ensure header is gone and our custom buttons are moved
+          // to a stable corner so they don't fight Aladin's layout.
+          const header = document.querySelector('header');
+          if (header) {
+            header.style.setProperty('display', 'none', 'important');
+            header.style.setProperty('visibility', 'hidden', 'important');
+            header.style.setProperty('height', '0px', 'important');
+          }
+          setTimeout(forceHideHeaderIfImmersive, 30);
+        });
+      }
+
+      // === AGGRESSIVE TOTAL HEADER REMOVAL FOR ALADIN FULLSCREEN ===
+      // Problem: Aladin's built-in full-screen control (left side) resizes #sky-stage (or the inner div)
+      // to fill the viewport without reliably firing the browser Fullscreen API on the element we watch.
+      // When that happens the header was staying visible or "dropping down" and covering Aladin's
+      // top search / controls.
+      //
+      // Solution: Detect "stage is basically the whole window" via size + position, plus every possible
+      // event, plus direct clicks inside the Aladin area, and FORCE the header completely away with
+      // important styles. Restore only when the stage shrinks or ESC is used.
+      function forceHideHeaderIfImmersive() {
+        const header = document.querySelector('header');
+        if (!header) return;
+
+        // Prefer the inner aladin container for detection — it's what actually expands in Aladin's full-screen
+        const aladin = document.getElementById('aladin-lite-div');
+        const target = aladin || document.getElementById('sky-stage');
+        if (!target) {
+          header.style.removeProperty('display');
+          header.style.removeProperty('visibility');
+          header.style.removeProperty('height');
+          return;
+        }
+
+        const rect = target.getBoundingClientRect();
+        const isStdFs = !!(document.fullscreenElement || document.webkitFullscreenElement);
+
+        // Very strict: hide header ONLY when the actual Aladin canvas area has expanded to nearly full viewport
+        // and its top edge is right at the top of the browser window.
+        // In normal (non-fullscreen) view the aladin area sits below the site header + title, so top will be higher.
+        const veryTall = rect.height > window.innerHeight * 0.92;
+        const nearTop = rect.top < 2;
+        const isImmersive = isStdFs || (veryTall && nearTop);
+
+        if (isImmersive) {
+          // Completely remove the header so Aladin's top search and controls are fully exposed.
+          header.style.setProperty('display', 'none', 'important');
+          header.style.setProperty('visibility', 'hidden', 'important');
+          header.style.setProperty('height', '0', 'important');
+          header.style.setProperty('overflow', 'hidden', 'important');
+          header.style.setProperty('margin', '0', 'important');
+          header.style.setProperty('padding', '0', 'important');
+
+          // MOVE (not hide) our Snapshot + Wide buttons to a stable viewport corner.
+          // Aladin immersive sets #aladin-lite-div to position:fixed full-window while
+          // #sky-stage stays at its old layout size — so position:absolute on #sky-controls
+          // pins to the (now wrong) stage box. Use fixed so we track the real camera.
+          const controls = document.getElementById('sky-controls');
+          if (controls) {
+            controls.style.setProperty('position', 'fixed', 'important');
+            controls.style.setProperty('bottom', '10px', 'important');
+            controls.style.setProperty('right', '10px', 'important');
+            controls.style.setProperty('top', 'auto', 'important');
+            controls.style.setProperty('left', 'auto', 'important');
+            controls.style.removeProperty('display');
+            controls.style.removeProperty('visibility');
+            controls.style.setProperty('opacity', '0.88', 'important');
+            controls.style.setProperty('z-index', '950', 'important');
+          }
+
+          // Same fix for Deep Sky / Milky Way — keep it bottom-center of the *viewport*,
+          // not the stale stage box (which reads as mid-field in fullscreen).
+          const surveyToggle = document.getElementById('survey-toggle');
+          if (surveyToggle) {
+            surveyToggle.style.setProperty('position', 'fixed', 'important');
+            surveyToggle.style.setProperty('bottom', '14px', 'important');
+            surveyToggle.style.setProperty('left', '50%', 'important');
+            surveyToggle.style.setProperty('right', 'auto', 'important');
+            surveyToggle.style.setProperty('top', 'auto', 'important');
+            surveyToggle.style.setProperty('transform', 'translateX(-50%)', 'important');
+            surveyToggle.style.setProperty('opacity', '0.9', 'important');
+            surveyToggle.style.setProperty('z-index', '940', 'important');
+          }
+
+          // Also park the "now showing" chip out of the way in JS-detected immersive states
+          const chip = document.getElementById('now-chip');
+          if (chip) chip.style.setProperty('display', 'none', 'important');
+        } else {
+          // Restore for normal view so user can navigate back to console.
+          header.style.removeProperty('display');
+          header.style.removeProperty('visibility');
+          header.style.removeProperty('height');
+          header.style.removeProperty('overflow');
+          header.style.removeProperty('margin');
+          header.style.removeProperty('padding');
+
+          const controls = document.getElementById('sky-controls');
+          if (controls) {
+            controls.style.removeProperty('position');
+            controls.style.removeProperty('bottom');
+            controls.style.removeProperty('right');
+            controls.style.removeProperty('top');
+            controls.style.removeProperty('left');
+            controls.style.removeProperty('opacity');
+            controls.style.removeProperty('z-index');
+            controls.style.removeProperty('display');
+            controls.style.removeProperty('visibility');
+          }
+
+          const surveyToggle = document.getElementById('survey-toggle');
+          if (surveyToggle) {
+            surveyToggle.style.removeProperty('position');
+            surveyToggle.style.removeProperty('bottom');
+            surveyToggle.style.removeProperty('left');
+            surveyToggle.style.removeProperty('right');
+            surveyToggle.style.removeProperty('top');
+            surveyToggle.style.removeProperty('transform');
+            surveyToggle.style.removeProperty('opacity');
+            surveyToggle.style.removeProperty('z-index');
+          }
+
+          const chip = document.getElementById('now-chip');
+          if (chip) chip.style.removeProperty('display');
+        }
+      }
+
+      // Fire on every fullscreen-related event
+      ['fullscreenchange', 'webkitfullscreenchange', 'mozfullscreenchange', 'MSFullscreenChange']
+        .forEach(evt => document.addEventListener(evt, forceHideHeaderIfImmersive));
+
+      window.addEventListener('resize', forceHideHeaderIfImmersive);
+
+      // This is the key for Aladin's internal button: watch the actual container size
+      const stageObs = document.getElementById('sky-stage');
+      if (stageObs && typeof ResizeObserver !== 'undefined') {
+        const ro = new ResizeObserver(() => forceHideHeaderIfImmersive());
+        ro.observe(stageObs);
+      }
+
+      // Also watch the inner Aladin div (where the real controls live)
+      const aladinDiv = document.getElementById('aladin-lite-div');
+      if (aladinDiv) {
+        if (typeof ResizeObserver !== 'undefined') {
+          const ro2 = new ResizeObserver(() => forceHideHeaderIfImmersive());
+          ro2.observe(aladinDiv);
+        }
+
+        // === IMMEDIATE + AGGRESSIVE HIDE ON INTERACTION ===
+        const forceHideNow = () => {
+          // Instant header removal when user taps Aladin's native fullscreen (or other controls).
+          // The controls are *moved* (not hidden) by forceHideHeaderIfImmersive so Snapshot stays usable in fs.
+          const header = document.querySelector('header');
+          if (header) {
+            header.style.setProperty('display', 'none', 'important');
+            header.style.setProperty('visibility', 'hidden', 'important');
+            header.style.setProperty('height', '0px', 'important');
+            header.style.setProperty('overflow', 'hidden', 'important');
+            header.style.setProperty('margin', '0', 'important');
+            header.style.setProperty('padding', '0', 'important');
+          }
+          // Let the main detector run shortly to apply the "move controls to stable corner" logic
+          setTimeout(forceHideHeaderIfImmersive, 60);
+        };
+
+        // Capture phase on pointer events so we react the instant the user clicks Aladin's full-screen button
+        aladinDiv.addEventListener('pointerdown', forceHideNow, { capture: true });
+        aladinDiv.addEventListener('mousedown', forceHideNow, { capture: true });
+        aladinDiv.addEventListener('click', forceHideNow, { capture: true });
+
+        // MutationObserver to catch when Aladin changes the container style/class during full-screen
+        if (typeof MutationObserver !== 'undefined') {
+          const mo = new MutationObserver(() => {
+            // If after a mutation the area looks immersive, keep header hidden
+            const r = aladinDiv.getBoundingClientRect();
+            if (r.height > window.innerHeight * 0.8 && r.top < 8) {
+              forceHideNow();
+            } else {
+              // let the normal update decide
+              forceHideHeaderIfImmersive();
+            }
+          });
+          mo.observe(aladinDiv, { attributes: true, attributeFilter: ['style', 'class'], childList: false, subtree: false });
+        }
+      }
+
+      // Very frequent check while in the page so it feels instant
+      setInterval(forceHideHeaderIfImmersive, 180);
+
+      // Initial kicks + after any possible late layout
+      setTimeout(forceHideHeaderIfImmersive, 50);
+      setTimeout(forceHideHeaderIfImmersive, 250);
+      setTimeout(forceHideHeaderIfImmersive, 700);
+      setTimeout(forceHideHeaderIfImmersive, 1400);
+
+      // One more safety: if user hits a key that might be ESC or toggle
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+          setTimeout(forceHideHeaderIfImmersive, 50);
+          setTimeout(forceHideHeaderIfImmersive, 200);
+        }
+      });
+
+      // On initial load for normal view, ensure header is visible.
+      setTimeout(() => {
+        const hdr = document.querySelector('header');
+        if (hdr) {
+          // Let the main function decide based on current size
+          forceHideHeaderIfImmersive();
+        }
+      }, 250);
     })();
   </script>
 </Base>

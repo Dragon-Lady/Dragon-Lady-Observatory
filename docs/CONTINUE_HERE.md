@@ -21,3 +21,8 @@ Branch: `cursor/console-pins-cleanup-27c8`
 ## Smoke
 
 Hard-refresh `/` → pins show RA·Dec·FOV + badge → click card → Atlas → Edit stays put.
+
+## Fix — Orion slingshot (2026-07-10)
+
+**Cause:** console PR routed pins to `/observatory`, but this branch still had the old Observatory page with **no `flyToPin` consumer** — Aladin always booted to M42.
+**Fix:** restored Atlas `observatory.astro` (Miriade + `applyFlyToPinIfAny`) and only clear `flyToPin` after a successful jump.
