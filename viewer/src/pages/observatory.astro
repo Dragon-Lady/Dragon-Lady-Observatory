@@ -38,7 +38,7 @@ const LENS = { id: 'aladin', label: 'Atlas', icon: '🔭' };
       <div id="now-chip" class="pointer-events-none absolute left-3 bottom-3 rounded-full border border-white/10 bg-black/60 px-3 py-1 text-xs text-mist-300 backdrop-blur">
         <span class="mr-1.5 inline-block h-2 w-2 animate-pulse rounded-full bg-emerald-400"></span>
         <span id="now-showing">Atlas</span>
-        <span class="ml-2 text-[10px] text-mist-500" id="atlas-build" title="Build stamp — if you don't see pinfix 9, the wrapper is serving old code">· pinfix 9</span>
+        <span class="ml-2 text-[10px] text-mist-500" id="atlas-build" title="Build stamp — if you don't see pinfix 10, the wrapper is serving old code">· pinfix 10</span>
       </div>
 
       <!-- Bottom-right control group: Snapshot + Wide.
@@ -106,13 +106,51 @@ const LENS = { id: 'aladin', label: 'Atlas', icon: '🔭' };
     #sky-stage:fullscreen { height: 100dvh; min-height: 0; border-radius: 0; border: 0; }
     #sky-stage:-webkit-full-screen { height: 100dvh; min-height: 0; border-radius: 0; border: 0; }
     /* In full screen the engines own the corners — hide our info chip so it doesn't cover their controls. */
-    #sky-stage:fullscreen #now-chip { display: none; }
+    #sky-stage:fullscreen #now-chip,
     #sky-stage:-webkit-full-screen #now-chip { display: none; }
 
-    /* Header hiding + moving of custom Snapshot/Wide buttons is driven by JS
-       (forceHideHeaderIfImmersive + observers + capture listeners). Aladin's "fullscreen"
-       is often a container resize, not a true document fullscreenElement, so we use
-       rect + top checks + pointer events for immediate response. */
+    /* True browser fullscreen on the stage: pin our camera chrome to the stage edges. */
+    #sky-stage:fullscreen #sky-controls,
+    #sky-stage:-webkit-full-screen #sky-controls {
+      position: fixed !important;
+      bottom: 12px !important;
+      right: 12px !important;
+      top: auto !important;
+      left: auto !important;
+      z-index: 2147483000 !important;
+    }
+    #sky-stage:fullscreen #survey-toggle,
+    #sky-stage:-webkit-full-screen #survey-toggle {
+      position: fixed !important;
+      bottom: 14px !important;
+      left: 50% !important;
+      top: auto !important;
+      right: auto !important;
+      transform: translateX(-50%) !important;
+      z-index: 2147483000 !important;
+    }
+
+    /* When Aladin does its own expand, we reparent these onto <body> — keep them pinned. */
+    #sky-controls.dlo-fs-park {
+      position: fixed !important;
+      bottom: 12px !important;
+      right: 12px !important;
+      top: auto !important;
+      left: auto !important;
+      z-index: 2147483000 !important;
+      opacity: 0.92 !important;
+    }
+    #survey-toggle.dlo-fs-park {
+      position: fixed !important;
+      bottom: 14px !important;
+      left: 50% !important;
+      top: auto !important;
+      right: auto !important;
+      transform: translateX(-50%) !important;
+      z-index: 2147483000 !important;
+      opacity: 0.92 !important;
+    }
+    #now-chip.dlo-fs-park { display: none !important; }
   </style>
 
   <!-- Aladin engine (external CDN) — keep inline so Astro doesn't try to bundle the global. -->
@@ -1341,25 +1379,111 @@ const LENS = { id: 'aladin', label: 'Atlas', icon: '🔭' };
       }
 
       // === PARK CAMERA CONTROLS WHEN ALADIN GOES IMMERSIVE ===
-      // Aladin's built-in full-screen expands #aladin-lite-div to position:fixed full-window
-      // while #sky-stage stays mid-page. Our Mystery/Pin/Snapshot/Wide are absolute to the
-      // stage — so they read as "floating in the center" of the sky. Detect immersive and
-      // re-park them fixed to the real viewport bottom. (Site header is gone; don't bail on it.)
+      // Aladin's internal fullscreen makes #aladin-lite-div position:fixed full-window while
+      // #sky-controls stay inside #sky-stage (mid-page). Even position:fixed can be trapped by
+      // a containing block on the stage — buttons look "moved up" into the middle of the sky.
+      // Fix: detect immersive, reparent controls onto <body>, pin to real viewport bottom.
+      var parkedOnBody = false;
+
+      function clearParkStyles(el) {
+        if (!el) return;
+        el.classList.remove('dlo-fs-park');
+        [
+          'position', 'bottom', 'right', 'top', 'left', 'transform',
+          'opacity', 'z-index', 'display', 'visibility',
+        ].forEach(function (p) { el.style.removeProperty(p); });
+      }
+
+      function parkInto(host) {
+        if (!host) host = document.body;
+        var controls = document.getElementById('sky-controls');
+        var surveyToggle = document.getElementById('survey-toggle');
+        var chip = document.getElementById('now-chip');
+        // Append as last children so they paint above Aladin's canvas layers.
+        if (surveyToggle && surveyToggle.parentElement !== host) host.appendChild(surveyToggle);
+        if (chip && chip.parentElement !== host) host.appendChild(chip);
+        if (controls && controls.parentElement !== host) host.appendChild(controls);
+        if (controls) controls.classList.add('dlo-fs-park');
+        if (surveyToggle) surveyToggle.classList.add('dlo-fs-park');
+        if (chip) chip.classList.add('dlo-fs-park');
+        // Inline pin as well — class alone may lose if host isn't body.
+        if (controls) {
+          controls.style.setProperty('position', 'fixed', 'important');
+          controls.style.setProperty('bottom', '12px', 'important');
+          controls.style.setProperty('right', '12px', 'important');
+          controls.style.setProperty('top', 'auto', 'important');
+          controls.style.setProperty('left', 'auto', 'important');
+          controls.style.setProperty('z-index', '2147483000', 'important');
+          controls.style.setProperty('opacity', '0.92', 'important');
+        }
+        if (surveyToggle) {
+          surveyToggle.style.setProperty('position', 'fixed', 'important');
+          surveyToggle.style.setProperty('bottom', '14px', 'important');
+          surveyToggle.style.setProperty('left', '50%', 'important');
+          surveyToggle.style.setProperty('top', 'auto', 'important');
+          surveyToggle.style.setProperty('right', 'auto', 'important');
+          surveyToggle.style.setProperty('transform', 'translateX(-50%)', 'important');
+          surveyToggle.style.setProperty('z-index', '2147483000', 'important');
+          surveyToggle.style.setProperty('opacity', '0.92', 'important');
+        }
+        if (chip) chip.style.setProperty('display', 'none', 'important');
+        parkedOnBody = true;
+      }
+
+      function parkOnBody() { parkInto(document.body); }
+
+      function restoreToStage() {
+        var stage = document.getElementById('sky-stage');
+        if (!stage) return;
+        var controls = document.getElementById('sky-controls');
+        var surveyToggle = document.getElementById('survey-toggle');
+        var chip = document.getElementById('now-chip');
+        // Put back in original order: survey, chip, controls (matches markup).
+        if (surveyToggle) {
+          clearParkStyles(surveyToggle);
+          if (surveyToggle.parentElement !== stage) stage.appendChild(surveyToggle);
+        }
+        if (chip) {
+          clearParkStyles(chip);
+          if (chip.parentElement !== stage) stage.appendChild(chip);
+        }
+        if (controls) {
+          clearParkStyles(controls);
+          if (controls.parentElement !== stage) stage.appendChild(controls);
+        }
+        parkedOnBody = false;
+      }
+
+      function detectImmersive() {
+        var fs = document.fullscreenElement || document.webkitFullscreenElement;
+        if (fs) {
+          return { mode: 'std', el: fs };
+        }
+        var aladin = document.getElementById('aladin-lite-div');
+        if (!aladin) return null;
+        var rect = aladin.getBoundingClientRect();
+        var style = window.getComputedStyle(aladin);
+        var nearlyFull =
+          rect.width > window.innerWidth * 0.85 &&
+          rect.height > window.innerHeight * 0.85;
+        var pinnedFixed = style.position === 'fixed' && nearlyFull;
+        var nearTopFull = nearlyFull && rect.top < 12;
+        if (pinnedFixed || nearTopFull) return { mode: 'aladin', el: aladin };
+        if (
+          nearlyFull &&
+          (style.position === 'absolute' || style.position === 'fixed') &&
+          (parseInt(style.zIndex, 10) > 100 || rect.top < 40)
+        ) {
+          return { mode: 'aladin', el: aladin };
+        }
+        return null;
+      }
+
       function forceHideHeaderIfImmersive() {
-        const header = document.querySelector('header');
-        const aladin = document.getElementById('aladin-lite-div');
-        const target = aladin || document.getElementById('sky-stage');
-        if (!target) return;
+        var header = document.querySelector('header');
+        var immersive = detectImmersive();
 
-        const rect = target.getBoundingClientRect();
-        const isStdFs = !!(document.fullscreenElement || document.webkitFullscreenElement);
-
-        // Immersive = true fullscreen OR Aladin's internal expand (nearly full viewport, near top).
-        const veryTall = rect.height > window.innerHeight * 0.92;
-        const nearTop = rect.top < 8;
-        const isImmersive = isStdFs || (veryTall && nearTop);
-
-        if (isImmersive) {
+        if (immersive) {
           if (header) {
             header.style.setProperty('display', 'none', 'important');
             header.style.setProperty('visibility', 'hidden', 'important');
@@ -1369,35 +1493,10 @@ const LENS = { id: 'aladin', label: 'Atlas', icon: '🔭' };
             header.style.setProperty('padding', '0', 'important');
           }
 
-          // Park Snapshot / Pin / Mystery / Wide on the real viewport bottom-right.
-          const controls = document.getElementById('sky-controls');
-          if (controls) {
-            controls.style.setProperty('position', 'fixed', 'important');
-            controls.style.setProperty('bottom', '10px', 'important');
-            controls.style.setProperty('right', '10px', 'important');
-            controls.style.setProperty('top', 'auto', 'important');
-            controls.style.setProperty('left', 'auto', 'important');
-            controls.style.removeProperty('display');
-            controls.style.removeProperty('visibility');
-            controls.style.setProperty('opacity', '0.88', 'important');
-            controls.style.setProperty('z-index', '950', 'important');
-          }
-
-          // Deep Sky / Milky Way — bottom-center of the viewport.
-          const surveyToggle = document.getElementById('survey-toggle');
-          if (surveyToggle) {
-            surveyToggle.style.setProperty('position', 'fixed', 'important');
-            surveyToggle.style.setProperty('bottom', '14px', 'important');
-            surveyToggle.style.setProperty('left', '50%', 'important');
-            surveyToggle.style.setProperty('right', 'auto', 'important');
-            surveyToggle.style.setProperty('top', 'auto', 'important');
-            surveyToggle.style.setProperty('transform', 'translateX(-50%)', 'important');
-            surveyToggle.style.setProperty('opacity', '0.9', 'important');
-            surveyToggle.style.setProperty('z-index', '940', 'important');
-          }
-
-          const chip = document.getElementById('now-chip');
-          if (chip) chip.style.setProperty('display', 'none', 'important');
+          // Always reparent into the visible fullscreen host (fs element, or body for
+          // Aladin's fake expand). Body-only park is invisible during true fullscreen.
+          var host = immersive.mode === 'std' ? immersive.el : document.body;
+          parkInto(host);
         } else {
           if (header) {
             header.style.removeProperty('display');
@@ -1407,62 +1506,30 @@ const LENS = { id: 'aladin', label: 'Atlas', icon: '🔭' };
             header.style.removeProperty('margin');
             header.style.removeProperty('padding');
           }
-
-          const controls = document.getElementById('sky-controls');
-          if (controls) {
-            controls.style.removeProperty('position');
-            controls.style.removeProperty('bottom');
-            controls.style.removeProperty('right');
-            controls.style.removeProperty('top');
-            controls.style.removeProperty('left');
-            controls.style.removeProperty('opacity');
-            controls.style.removeProperty('z-index');
-            controls.style.removeProperty('display');
-            controls.style.removeProperty('visibility');
-          }
-
-          const surveyToggle = document.getElementById('survey-toggle');
-          if (surveyToggle) {
-            surveyToggle.style.removeProperty('position');
-            surveyToggle.style.removeProperty('bottom');
-            surveyToggle.style.removeProperty('left');
-            surveyToggle.style.removeProperty('right');
-            surveyToggle.style.removeProperty('top');
-            surveyToggle.style.removeProperty('transform');
-            surveyToggle.style.removeProperty('opacity');
-            surveyToggle.style.removeProperty('z-index');
-          }
-
-          const chip = document.getElementById('now-chip');
-          if (chip) chip.style.removeProperty('display');
+          restoreToStage();
         }
       }
 
-      // Fire on every fullscreen-related event
       ['fullscreenchange', 'webkitfullscreenchange', 'mozfullscreenchange', 'MSFullscreenChange']
-        .forEach(evt => document.addEventListener(evt, forceHideHeaderIfImmersive));
+        .forEach(function (evt) { document.addEventListener(evt, forceHideHeaderIfImmersive); });
 
       window.addEventListener('resize', forceHideHeaderIfImmersive);
 
-      // This is the key for Aladin's internal button: watch the actual container size
-      const stageObs = document.getElementById('sky-stage');
+      var stageObs = document.getElementById('sky-stage');
       if (stageObs && typeof ResizeObserver !== 'undefined') {
-        const ro = new ResizeObserver(() => forceHideHeaderIfImmersive());
+        var ro = new ResizeObserver(function () { forceHideHeaderIfImmersive(); });
         ro.observe(stageObs);
       }
 
-      // Also watch the inner Aladin div (where the real controls live)
-      const aladinDiv = document.getElementById('aladin-lite-div');
+      var aladinDiv = document.getElementById('aladin-lite-div');
       if (aladinDiv) {
         if (typeof ResizeObserver !== 'undefined') {
-          const ro2 = new ResizeObserver(() => forceHideHeaderIfImmersive());
+          var ro2 = new ResizeObserver(function () { forceHideHeaderIfImmersive(); });
           ro2.observe(aladinDiv);
         }
 
-        // === IMMEDIATE PARK ON INTERACTION ===
-        const forceHideNow = () => {
-          // Optional legacy header hide if one ever returns.
-          const header = document.querySelector('header');
+        var forceHideNow = function () {
+          var header = document.querySelector('header');
           if (header) {
             header.style.setProperty('display', 'none', 'important');
             header.style.setProperty('visibility', 'hidden', 'important');
@@ -1471,38 +1538,30 @@ const LENS = { id: 'aladin', label: 'Atlas', icon: '🔭' };
             header.style.setProperty('margin', '0', 'important');
             header.style.setProperty('padding', '0', 'important');
           }
-          setTimeout(forceHideHeaderIfImmersive, 60);
+          setTimeout(forceHideHeaderIfImmersive, 30);
+          setTimeout(forceHideHeaderIfImmersive, 120);
+          setTimeout(forceHideHeaderIfImmersive, 400);
         };
 
-        // Capture phase on pointer events so we react the instant the user clicks Aladin's full-screen button
         aladinDiv.addEventListener('pointerdown', forceHideNow, { capture: true });
         aladinDiv.addEventListener('mousedown', forceHideNow, { capture: true });
         aladinDiv.addEventListener('click', forceHideNow, { capture: true });
 
-        // MutationObserver to catch when Aladin changes the container style/class during full-screen
         if (typeof MutationObserver !== 'undefined') {
-          const mo = new MutationObserver(() => {
-            const r = aladinDiv.getBoundingClientRect();
-            if (r.height > window.innerHeight * 0.8 && r.top < 8) {
-              forceHideNow();
-            } else {
-              forceHideHeaderIfImmersive();
-            }
+          var mo = new MutationObserver(function () {
+            forceHideHeaderIfImmersive();
           });
           mo.observe(aladinDiv, { attributes: true, attributeFilter: ['style', 'class'], childList: false, subtree: false });
         }
       }
 
-      // Very frequent check while in the page so it feels instant
       setInterval(forceHideHeaderIfImmersive, 180);
-
-      // Initial kicks + after any possible late layout
       setTimeout(forceHideHeaderIfImmersive, 50);
       setTimeout(forceHideHeaderIfImmersive, 250);
       setTimeout(forceHideHeaderIfImmersive, 700);
       setTimeout(forceHideHeaderIfImmersive, 1400);
 
-      document.addEventListener('keydown', (e) => {
+      document.addEventListener('keydown', function (e) {
         if (e.key === 'Escape') {
           setTimeout(forceHideHeaderIfImmersive, 50);
           setTimeout(forceHideHeaderIfImmersive, 200);
