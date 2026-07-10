@@ -73,83 +73,19 @@ const skyConstellations = [
     <audio id="sky-ambient-audio" loop preload="metadata" playsinline src={base + 'audio/nebula-drift.mp3'}></audio>
   </section>
 
-  <!-- Sky Events — inline tonight list (no Explore detour) -->
-  <section class="mb-8" id="sky-events-inline">
+  <!-- My Pins — primary personal shelf -->
+  <section class="mb-8" id="my-pins">
     <div class="mb-4 flex flex-wrap items-end justify-between gap-3">
       <div>
-        <h2 class="text-xl font-semibold text-mist-100">Sky Events</h2>
-        <p class="text-xs text-mist-500 mt-0.5">Pin one → opens Atlas. No extra page hop.</p>
+        <h2 class="text-xl font-semibold text-mist-100">My Pins</h2>
+        <p class="text-xs text-mist-500 mt-0.5">Saved sky views — click a card to fly Atlas there.</p>
       </div>
-      <div class="flex flex-wrap items-center gap-3">
-        <a
-          href="#my-pins"
-          class="inline-flex items-center gap-1.5 rounded-md border border-void-700 px-3 py-1.5 text-sm text-mist-200 hover:border-void-500 hover:text-mist-100 transition-colors"
-        >
-          My Pins
-          <span class="text-mist-500 text-xs">↓</span>
-        </a>
-        <a href={base + 'sky-events'} class="text-xs text-mist-500 hover:text-mist-300">Full page ↗</a>
-      </div>
-    </div>
-
-    <div class="mb-6">
-      <div class="text-xs uppercase tracking-[0.14em] text-mist-500 mb-3">Tonight / soon</div>
-      <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        {skyEvents.map((item) => (
-          <div
-            class="rounded-xl border border-void-700 bg-void-900 p-4 hover:border-void-500 transition-colors"
-            data-sky-tile
-            data-type="event"
-            data-id={item.id}
-            data-name={item.name}
-            data-desc={item.desc}
-          >
-            <div class="flex justify-between items-start gap-3">
-              <div class="min-w-0">
-                <div class="font-medium text-mist-100">{item.name}</div>
-                <div class="mt-1 text-mist-400 text-sm leading-snug">{item.desc}</div>
-              </div>
-              <button type="button" class="pin-btn shrink-0 px-3 py-1.5 text-xs rounded-full border border-void-600 text-mist-300 hover:bg-emerald-900/30 hover:border-emerald-700 hover:text-emerald-300 transition-all">
-                Pin this
-              </button>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-
-    <div>
-      <div class="text-xs uppercase tracking-[0.14em] text-mist-500 mb-3">Constellations</div>
-      <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {skyConstellations.map((item) => (
-          <div
-            class="rounded-xl border border-void-700 bg-void-900 p-4 hover:border-void-500 transition-colors"
-            data-sky-tile
-            data-type="constellation"
-            data-id={item.id}
-            data-name={item.name}
-            data-desc={item.desc}
-          >
-            <div class="flex justify-between items-start gap-3">
-              <div class="min-w-0">
-                <div class="font-medium text-mist-100">{item.name}</div>
-                <div class="mt-1 text-mist-400 text-sm leading-snug">{item.desc}</div>
-              </div>
-              <button type="button" class="pin-btn shrink-0 px-3 py-1.5 text-xs rounded-full border border-void-600 text-mist-300 hover:bg-emerald-900/30 hover:border-emerald-700 hover:text-emerald-300 transition-all">
-                Pin this
-              </button>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  </section>
-
-  <!-- My Pins — shelf lives below Sky Events (bottom of the personal console) -->
-  <section class="mb-8" id="my-pins">
-    <div class="mb-4">
-      <h2 class="text-xl font-semibold text-mist-100">My Pins</h2>
-      <p class="text-xs text-mist-500 mt-0.5">Saved sky views — click a card to fly Atlas there.</p>
+      <a
+        href="#sky-events-inline"
+        class="text-xs text-mist-500 hover:text-mist-300"
+      >
+        Sky Events ↓
+      </a>
     </div>
 
     <div id="pins-restore-bar" class="hidden mb-4 rounded-xl border border-amber-700/50 bg-void-900 p-4">
@@ -213,6 +149,65 @@ const skyConstellations = [
         No pins match your search.
       </div>
     </div>
+  </section>
+
+  <!-- Sky Events — quiet invitations; full grid lives on /sky-events -->
+  <section class="mb-10" id="sky-events-inline">
+    <div class="mb-3 flex flex-wrap items-end justify-between gap-3">
+      <div>
+        <h2 class="text-lg font-semibold text-mist-100">Sky Events</h2>
+        <p class="text-xs text-mist-500 mt-0.5">A few invitations. Pin one to open Atlas.</p>
+      </div>
+      <a href={base + 'sky-events'} class="text-xs text-mist-500 hover:text-mist-300">Full guide ↗</a>
+    </div>
+
+    <ul class="divide-y divide-void-800 border-y border-void-800">
+      {skyEvents.map((item) => (
+        <li
+          class="flex flex-wrap items-center justify-between gap-3 py-3"
+          data-sky-tile
+          data-type="event"
+          data-id={item.id}
+          data-name={item.name}
+          data-desc={item.desc}
+        >
+          <div class="min-w-0">
+            <div class="text-sm font-medium text-mist-100">{item.name}</div>
+            <div class="text-xs text-mist-500 mt-0.5 leading-snug">{item.desc}</div>
+          </div>
+          <button type="button" class="pin-btn shrink-0 text-xs text-mist-400 hover:text-signal-300 underline-offset-2 hover:underline">
+            Pin
+          </button>
+        </li>
+      ))}
+    </ul>
+
+    <details class="mt-4 group">
+      <summary class="cursor-pointer select-none text-xs text-mist-500 hover:text-mist-300 list-none flex items-center gap-2">
+        <span class="text-mist-600 group-open:rotate-90 transition-transform">▸</span>
+        Constellations
+      </summary>
+      <ul class="mt-2 divide-y divide-void-800/80 border-t border-void-800/80">
+        {skyConstellations.map((item) => (
+          <li
+            class="flex flex-wrap items-center justify-between gap-3 py-2.5"
+            data-sky-tile
+            data-type="constellation"
+            data-id={item.id}
+            data-name={item.name}
+            data-desc={item.desc}
+          >
+            <div class="min-w-0">
+              <div class="text-sm text-mist-200">{item.name}</div>
+              <div class="text-xs text-mist-500 mt-0.5 leading-snug">{item.desc}</div>
+            </div>
+            <button type="button" class="pin-btn shrink-0 text-xs text-mist-400 hover:text-signal-300 underline-offset-2 hover:underline">
+              Pin
+            </button>
+          </li>
+        ))}
+      </ul>
+    </details>
   </section>
 
   <!-- Everything overhead (optional, noisy catalog) — heavily de-emphasized; focus is on the personal Observatory -->
