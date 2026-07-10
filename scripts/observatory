@@ -1,0 +1,97 @@
+#!/usr/bin/env bash
+# Dragon Lady Observatory — local Atlas wrapper (Chuck / Talon · 2026-07-10)
+# Replaces Oracle's older cheat if it was still pointed at M42-boot code.
+#
+# Usage (from anywhere, once on PATH or via full path):
+#   ./scripts/observatory
+#   observatory            # if linked into ~/bin or similar
+#
+# Litmus: Atlas bottom-left must show  · pinfix 8
+# If you don't see that stamp, this wrapper is not what the browser is hitting.
+
+set -euo pipefail
+
+BRANCH="${DLO_BRANCH:-cursor/console-pins-cleanup-27c8}"
+PORT="${DLO_PORT:-4321}"
+HOST="${DLO_HOST:-127.0.0.1}"
+BUILD_STAMP="pinfix 8"
+
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+VIEWER="$REPO_ROOT/viewer"
+
+cd "$REPO_ROOT"
+
+echo "=== Dragon Lady Observatory ==="
+echo "repo:   $REPO_ROOT"
+echo "branch: want $BRANCH"
+echo "url:    http://${HOST}:${PORT}/observatory"
+echo "stamp:  Atlas chip must show  · ${BUILD_STAMP}"
+echo ""
+
+if ! command -v git >/dev/null 2>&1; then
+  echo "git not found — cannot verify branch."
+  exit 1
+fi
+
+CURRENT="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo unknown)"
+echo "git:    on $CURRENT @ $(git rev-parse --short HEAD 2>/dev/null || echo '?')"
+
+if [[ "$CURRENT" != "$BRANCH" ]]; then
+  echo ""
+  echo "⚠  Not on $BRANCH (Orion slingshot fixes live there)."
+  if [[ "${DLO_AUTO_CHECKOUT:-1}" == "1" ]]; then
+    echo "→ fetching + checking out $BRANCH …"
+    git fetch origin "$BRANCH" 2>/dev/null || git fetch origin
+    git checkout "$BRANCH"
+    git pull --ff-only origin "$BRANCH" 2>/dev/null || true
+    echo "git:    now $(git rev-parse --abbrev-ref HEAD) @ $(git rev-parse --short HEAD)"
+  else
+    echo "Set DLO_AUTO_CHECKOUT=1 to auto-switch, or: git checkout $BRANCH"
+    exit 2
+  fi
+else
+  # Stay current when already on the right branch
+  git pull --ff-only origin "$BRANCH" 2>/dev/null || true
+fi
+
+# Sanity: new Atlas must not hardcode M42 boot
+if grep -n "target: 'M42'" "$VIEWER/src/pages/observatory.astro" >/dev/null 2>&1; then
+  echo ""
+  echo "✗ observatory.astro still has target: 'M42' — wrong tree / stale file."
+  echo "  Refusing to start. Pull $BRANCH or fix the path this wrapper uses."
+  exit 3
+fi
+
+if ! grep -q "$BUILD_STAMP" "$VIEWER/src/pages/observatory.astro" 2>/dev/null; then
+  echo ""
+  echo "✗ Build stamp '$BUILD_STAMP' not found in observatory.astro."
+  echo "  This checkout is behind the anti-Orion fix. git pull and retry."
+  exit 3
+fi
+
+cd "$VIEWER"
+
+if [[ ! -d node_modules/astro ]]; then
+  echo "→ npm install …"
+  npm install
+fi
+
+# Free the port if a stale astro is holding it
+if command -v lsof >/dev/null 2>&1; then
+  PIDS="$(lsof -tiTCP:${PORT} -sTCP:LISTEN 2>/dev/null || true)"
+  if [[ -n "${PIDS}" ]]; then
+    echo "→ freeing port ${PORT}: $PIDS"
+    # shellcheck disable=SC2086
+    kill $PIDS 2>/dev/null || true
+    sleep 1
+  fi
+fi
+
+echo ""
+echo "Starting Atlas…"
+echo "  Open http://${HOST}:${PORT}/observatory"
+echo "  Confirm bottom-left shows:  · ${BUILD_STAMP}"
+echo "  Hi 42 is Favorites-only. Moon/Venus use live Miriade."
+echo ""
+
+exec npx astro dev --host "$HOST" --port "$PORT"

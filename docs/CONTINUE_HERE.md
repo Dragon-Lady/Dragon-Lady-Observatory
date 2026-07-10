@@ -1,7 +1,29 @@
 # CONTINUE HERE — Dragon Lady's Observatory
 
 **Authority:** This file wins if other docs disagree for console/pin handoff in this repo.
-**Last updated:** 2026-07-10 (console My Pins pass)
+**Last updated:** 2026-07-10 (anti-Orion + fresh `observatory` wrapper)
+
+---
+
+## Local wrapper (Oracle cheat → Chuck refresh)
+
+If Atlas still boots Orion / pins “change back,” the old wrapper is probably serving **stale M42-boot code**.
+
+```bash
+# from repo root — new wrapper refuses to start if target:'M42' is still present
+./scripts/observatory
+```
+
+Optional install as the `observatory` command:
+
+```bash
+chmod +x scripts/observatory
+ln -sf "$(pwd)/scripts/observatory" ~/bin/observatory   # or ~/.local/bin
+```
+
+**Litmus:** Atlas bottom-left chip must show `· pinfix 8`. No stamp → wrong tree.
+
+Branch: `cursor/console-pins-cleanup-27c8` · tip includes forced non-Orion boot + Moon/Venus→Miriade.
 
 ---
 
