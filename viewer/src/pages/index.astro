@@ -325,13 +325,28 @@ const catalogCount = loadCatalog().length;
 
   /**
    * Last-resort seed for the known Jul 10 session pins if both main + backup are empty.
-   * Does not invent unknown pins — only mystery glow + HD 23514 (Simbad coords).
+   * Does not invent unknown pins — mystery glow + HD 23514 + Hi 42 favorite.
    */
   function seedKnownSessionPinsIfEmpty(pins) {
     if (Array.isArray(pins) && pins.length > 0) return pins;
     const HD_RA = 56.65996751;
     const HD_DEC = 22.91977776;
+    const M42_RA = 83.8221;
+    const M42_DEC = -5.3911;
     const seeded = [
+      {
+        id: 'favorite-m42-orion-nebula',
+        createdAt: new Date().toISOString(),
+        label: 'M42 · Orion Nebula',
+        note: 'Hi 42 — Hitchhiker nod. Favorite pin (no longer the Atlas boot default). 05 35 17.3  -05 23 28',
+        source: 'observatory',
+        favorite: true,
+        ra: M42_RA,
+        dec: M42_DEC,
+        fov: 1.5,
+        viewState: { lat: M42_DEC, lng: M42_RA, altitude: 1.5, ra: M42_RA, dec: M42_DEC, fov: 1.5 },
+        thumbnailData: '',
+      },
       {
         id: 'mre7i3zqed9sm',
         createdAt: '2026-07-10T00:37:41.942Z',
@@ -378,6 +393,48 @@ const catalogCount = loadCatalog().length;
     ];
     safeWritePins(seeded);
     return seeded;
+  }
+
+  /** Ensure Hi 42 exists as a favorite even when the shelf already has other pins. */
+  function ensureM42FavoriteOnConsole(pins) {
+    if (!Array.isArray(pins)) return pins;
+    const id = 'favorite-m42-orion-nebula';
+    const M42_RA = 83.8221;
+    const M42_DEC = -5.3911;
+    let changed = false;
+    const hasFavId = pins.some((p) => p && p.id === id);
+    const legacy = pins.find((p) => p && labelLooksLikeM42(p.label));
+    if (hasFavId) {
+      pins = pins.map((p) => {
+        if (!p || p.id !== id) return p;
+        if (p.favorite) return p;
+        changed = true;
+        return Object.assign({}, p, { favorite: true });
+      });
+    } else if (legacy) {
+      pins = pins.map((p) => {
+        if (p !== legacy) return p;
+        changed = true;
+        return Object.assign({}, p, { favorite: true });
+      });
+    } else {
+      changed = true;
+      pins = [{
+        id: id,
+        createdAt: new Date().toISOString(),
+        label: 'M42 · Orion Nebula',
+        note: 'Hi 42 — Hitchhiker nod. Favorite pin (no longer the Atlas boot default). 05 35 17.3  -05 23 28',
+        source: 'observatory',
+        favorite: true,
+        ra: M42_RA,
+        dec: M42_DEC,
+        fov: 1.5,
+        viewState: { lat: M42_DEC, lng: M42_RA, altitude: 1.5, ra: M42_RA, dec: M42_DEC, fov: 1.5 },
+        thumbnailData: '',
+      }].concat(pins);
+    }
+    if (changed) safeWritePins(pins);
+    return pins;
   }
 
   // Only strip true M42-default coords under a non-M42 label. Do NOT strip catalog
@@ -773,12 +830,13 @@ const catalogCount = loadCatalog().length;
         try {
           const toast = document.createElement('div');
           toast.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:3000;background:#0f1420;border:1px solid #36415a;color:#e9edf5;padding:10px 22px;border-radius:9999px;font-size:13px;';
-          toast.textContent = 'Re-seeded HD 23514 + mystery glow (moon pin needs re-P if missing)';
+          toast.textContent = 'Re-seeded HD 23514 + mystery glow + Hi 42 favorite';
           document.body.appendChild(toast);
           setTimeout(function () { toast.remove(); }, 5200);
         } catch (e) {}
       }
     }
+    pins = ensureM42FavoriteOnConsole(pins);
     pins = scrubM42PoisonedPins(pins);
 
     const backup = readPinsBackup();

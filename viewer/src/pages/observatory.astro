@@ -136,33 +136,83 @@ const LENS = { id: 'aladin', label: 'Atlas', icon: '🔭' };
       var MYSTERY_COO = '02 47 52.13  +21 23 30.4';
       var MYSTERY_LABEL = 'Mystery glow near Moon · Jul 9';
 
+      // Hi 42 — kept as a *favorite pin*, not the Atlas boot default (boot default caused Orion slingshots).
+      var M42_PIN_ID = 'favorite-m42-orion-nebula';
+      var M42_RA = 83.8221;
+      var M42_DEC = -5.3911;
+      var M42_FOV = 1.5;
+      var M42_LABEL = 'M42 · Orion Nebula';
+      var M42_COO = '05 35 17.3  -05 23 28';
+      var LAST_VIEW_KEY = 'dlo-last-atlas-view';
+
+      function readLastAtlasView() {
+        try {
+          var raw = localStorage.getItem(LAST_VIEW_KEY);
+          if (!raw) return null;
+          var v = JSON.parse(raw);
+          if (v && isFinite(Number(v.ra)) && isFinite(Number(v.dec))) {
+            return { ra: Number(v.ra), dec: Number(v.dec), fov: Number(v.fov) };
+          }
+        } catch (e) {}
+        return null;
+      }
+
+      function saveLastAtlasView(ra, dec, fov) {
+        try {
+          if (!isFinite(ra) || !isFinite(dec)) return;
+          localStorage.setItem(LAST_VIEW_KEY, JSON.stringify({
+            ra: ra,
+            dec: dec,
+            fov: isFinite(fov) && fov > 0 ? fov : 18,
+            at: new Date().toISOString(),
+          }));
+        } catch (e) {}
+      }
+
+      function readPinsArray() {
+        var pins = [];
+        try {
+          var raw = localStorage.getItem('personalPins');
+          if (raw && raw !== 'undefined' && raw !== 'null') {
+            var parsed = JSON.parse(raw);
+            if (Array.isArray(parsed)) pins = parsed.filter(Boolean);
+            else if (parsed && typeof parsed === 'object') {
+              pins = Object.values(parsed).filter(function (p) { return p && typeof p === 'object'; });
+            }
+          }
+        } catch (e) { pins = []; }
+        if (!pins.length) {
+          try {
+            var bak = localStorage.getItem('personalPins:backup');
+            if (bak && bak !== 'undefined' && bak !== 'null') {
+              var bp = JSON.parse(bak);
+              if (Array.isArray(bp) && bp.length) {
+                pins = bp.filter(Boolean);
+                localStorage.setItem('personalPins', JSON.stringify(pins));
+              }
+            }
+          } catch (e2) {}
+        }
+        return pins;
+      }
+
+      function writePinsArray(pins) {
+        if (!Array.isArray(pins)) return;
+        try {
+          var prev = localStorage.getItem('personalPins');
+          if (prev && prev !== '[]' && prev !== 'undefined' && prev !== 'null') {
+            localStorage.setItem('personalPins:backup', prev);
+          }
+        } catch (e) {}
+        localStorage.setItem('personalPins', JSON.stringify(pins));
+      }
+
       function ensureMysteryGlowPin() {
         try {
           var note =
             'Typed coords while bloom was visible under the Moon. Likely DSS saturation (Simbad empty @ 60″). Screenshots archived. ' +
             MYSTERY_COO;
-          var raw = localStorage.getItem('personalPins');
-          var pins = [];
-          try {
-            if (raw && raw !== 'undefined' && raw !== 'null') {
-              var parsed = JSON.parse(raw);
-              if (Array.isArray(parsed)) pins = parsed.filter(Boolean);
-              else if (parsed && typeof parsed === 'object') pins = Object.values(parsed).filter(function (p) { return p && typeof p === 'object'; });
-            }
-          } catch (e) { pins = []; }
-          // Never seed-write over a mysteriously empty parse if backup still has life.
-          if (!pins.length) {
-            try {
-              var bak = localStorage.getItem('personalPins:backup');
-              if (bak && bak !== 'undefined' && bak !== 'null') {
-                var bp = JSON.parse(bak);
-                if (Array.isArray(bp) && bp.length) {
-                  pins = bp.filter(Boolean);
-                  localStorage.setItem('personalPins', JSON.stringify(pins));
-                }
-              }
-            } catch (e2) {}
-          }
+          var pins = readPinsArray();
           var already = pins.some(function (p) { return p && p.id === MYSTERY_ID; });
           if (!already) {
             pins.unshift({
@@ -195,14 +245,62 @@ const LENS = { id: 'aladin', label: 'Atlas', icon: '🔭' };
                 description: 'Seeded from typed coords after bloom vanished (2026-07-09)',
               },
             });
-            try {
-              var prev = localStorage.getItem('personalPins');
-              if (prev && prev !== '[]' && prev !== 'undefined' && prev !== 'null') {
-                localStorage.setItem('personalPins:backup', prev);
-              }
-            } catch (e3) {}
-            localStorage.setItem('personalPins', JSON.stringify(pins));
+            writePinsArray(pins);
           }
+        } catch (e) {}
+      }
+
+      /** Hi 42 lives on the Favorites shelf — never as the silent Atlas boot target. */
+      function ensureM42FavoritePin() {
+        try {
+          var pins = readPinsArray();
+          var existing = pins.find(function (p) { return p && p.id === M42_PIN_ID; });
+          if (existing) {
+            if (!existing.favorite) {
+              existing.favorite = true;
+              writePinsArray(pins);
+            }
+            return;
+          }
+          // Also adopt an older user-made M42 pin if present.
+          var legacy = pins.find(function (p) {
+            if (!p || !p.label) return false;
+            var s = String(p.label).toLowerCase();
+            return /\bm\s*42\b/.test(s) || /\borion\s+nebula\b/.test(s) || /\bhi\s*42\b/.test(s);
+          });
+          if (legacy) {
+            legacy.favorite = true;
+            if (!isFinite(Number(legacy.ra))) legacy.ra = M42_RA;
+            if (!isFinite(Number(legacy.dec))) legacy.dec = M42_DEC;
+            writePinsArray(pins);
+            return;
+          }
+          pins.unshift({
+            id: M42_PIN_ID,
+            createdAt: new Date().toISOString(),
+            label: M42_LABEL,
+            note: 'Hi 42 — Hitchhiker nod. Kept as a favorite so Atlas no longer boots here (stops Orion slingshots). ' + M42_COO,
+            source: 'observatory',
+            favorite: true,
+            ra: M42_RA,
+            dec: M42_DEC,
+            fov: M42_FOV,
+            viewState: {
+              lat: M42_DEC,
+              lng: M42_RA,
+              altitude: M42_FOV,
+              ra: M42_RA,
+              dec: M42_DEC,
+              fov: M42_FOV,
+              coo: M42_COO,
+            },
+            thumbnailData: '',
+            recoveryMeta: {
+              originalCoordinates: { ra: M42_RA, dec: M42_DEC, fov: M42_FOV, coo: M42_COO, frame: 'ICRS' },
+              description: 'Favorite pin — was formerly the hardcoded Atlas boot default',
+            },
+          });
+          writePinsArray(pins);
         } catch (e) {}
       }
 
@@ -221,6 +319,7 @@ const LENS = { id: 'aladin', label: 'Atlas', icon: '🔭' };
             try { if (typeof a.setFov === 'function') a.setFov(MYSTERY_FOV); } catch (e) {}
           }, 200);
           if (nowShowing) nowShowing.textContent = MYSTERY_LABEL;
+          saveLastAtlasView(MYSTERY_RA, MYSTERY_DEC, MYSTERY_FOV);
           console.log('[observatory] mystery glow locked', MYSTERY_COO);
         } catch (e) {
           console.warn('[observatory] mystery fly failed', e);
@@ -228,15 +327,22 @@ const LENS = { id: 'aladin', label: 'Atlas', icon: '🔭' };
       }
 
       ensureMysteryGlowPin();
+      ensureM42FavoritePin();
 
       function bootAladin() {
         if (aladinBooted || typeof A === 'undefined') return;
         aladinBooted = true;
         A.init.then(function () {
+          // Calm equatorial default — NOT M42. Last successful view wins when present.
+          // M42 is a favorite pin now (Hi 42), opened on purpose from My Pins.
+          var last = readLastAtlasView();
+          var bootRa = last ? last.ra : 0;
+          var bootDec = last ? last.dec : 0;
+          var bootFov = last && isFinite(last.fov) && last.fov > 0 ? last.fov : 40;
           window.__aladin = A.aladin('#aladin-lite-div', {
             survey: currentSurvey,
-            fov: 18,
-            target: 'M42',  // Hi 42 — your special first-click default (Hitchhiker nod). Stays unless a pin overrides.
+            fov: bootFov,
+            target: bootRa + ' ' + bootDec,
             cooFrame: 'equatorial',
             projection: 'SIN',
             showReticle: true,
@@ -246,9 +352,23 @@ const LENS = { id: 'aladin', label: 'Atlas', icon: '🔭' };
             showGotoControl: true,
             showSimbadPointerControl: true,
           });
+          if (nowShowing) {
+            nowShowing.textContent = last ? 'Atlas · last view' : 'Atlas';
+          }
           // Drive from console/Sky Events pin if one was chosen (with retries)
           setTimeout(() => applyFlyToPinIfAny(0), 700);
-          // Keep manual navigation in control: use typed coordinates or saved pins.
+          // Persist wherever the eye rests (for next calm boot)
+          setInterval(function () {
+            try {
+              var a = window.__aladin;
+              if (!a || typeof a.getRaDec !== 'function') return;
+              var rd = a.getRaDec();
+              if (!rd || rd.length < 2) return;
+              var fovArr = typeof a.getFov === 'function' ? a.getFov() : null;
+              var f = fovArr && isFinite(fovArr[0]) ? Number(fovArr[0]) : NaN;
+              saveLastAtlasView(Number(rd[0]), Number(rd[1]), f);
+            } catch (e) {}
+          }, 8000);
         });
       }
 
@@ -333,10 +453,8 @@ const LENS = { id: 'aladin', label: 'Atlas', icon: '🔭' };
         return target;
       }
 
-      // Default Atlas boot target. Pins that still carry these coords (but a different label)
-      // are treated as M42-poisoned leftovers from earlier slingshots.
-      const M42_RA = 83.822;
-      const M42_DEC = -5.391;
+      // Pins that still carry M42 coords under another label are treated as
+      // leftovers from when Atlas booted on Orion (Hi 42 is a favorite now).
       function isNearM42(ra, dec) {
         if (!isFinite(ra) || !isFinite(dec)) return false;
         const dra = Math.abs((((ra - M42_RA) % 360) + 540) % 360 - 180);
@@ -545,6 +663,7 @@ const LENS = { id: 'aladin', label: 'Atlas', icon: '🔭' };
             if (nowShowing) {
               nowShowing.textContent = ssoName + ' · live sky';
             }
+            saveLastAtlasView(raDeg, decDeg, ssoDesiredFov(ssoName).final);
             return { raDeg: raDeg, decDeg: decDeg };
           });
       }
@@ -564,6 +683,7 @@ const LENS = { id: 'aladin', label: 'Atlas', icon: '🔭' };
               try { if (typeof a.setFov === 'function') a.setFov(fovFinal); } catch (e) {}
             }, 200);
             if (nowShowing) nowShowing.textContent = displayLabel || target;
+            saveLastAtlasView(ra, dec, fovFinal);
             healPinCoords(pinId, displayLabel, ra, dec, fovFinal);
           } catch (e) {
             console.warn('[observatory] landAt failed', target, e);
@@ -586,6 +706,7 @@ const LENS = { id: 'aladin', label: 'Atlas', icon: '🔭' };
                 var rd = typeof a.getRaDec === 'function' ? a.getRaDec() : null;
                 if (rd && rd.length >= 2 && isFinite(Number(rd[0])) && isFinite(Number(rd[1]))) {
                   healPinCoords(pinId, displayLabel, Number(rd[0]), Number(rd[1]), fovFinal);
+                  saveLastAtlasView(Number(rd[0]), Number(rd[1]), fovFinal);
                 }
               } catch (e) {}
               setTimeout(function () {
@@ -594,7 +715,7 @@ const LENS = { id: 'aladin', label: 'Atlas', icon: '🔭' };
               if (nowShowing) nowShowing.textContent = displayLabel || target;
             },
             error: function () {
-              // Aladin's built-in Sesame missed — do not leave the M42 default; hit CDS directly.
+              // Aladin's built-in Sesame missed — hit CDS directly (do not rely on any Orion boot).
               httpFallback();
             },
           });
@@ -618,29 +739,39 @@ const LENS = { id: 'aladin', label: 'Atlas', icon: '🔭' };
 
           // Coordinate pins (from Observatory P-key): prefer exact RA/Dec over label resolve.
           // Do NOT clear flyToPin until a jump path succeeds — clearing early caused Orion slingshots
-          // when Aladin was present but goto still failed / raced the M42 default.
+          // when Aladin was present but goto still failed / raced the old M42 boot default.
           // Only trust explicit ra/dec (not lat/lng) — Sky Events still stores placeholder lat/lng.
           // Catalog-named pins (HD 23514, NGC …): NEVER trust stored camera coords — those are often
-          // the M42 boot default or whatever field was on screen when P was hit (e.g. mystery glow).
+          // the old M42 boot default or whatever field was on screen when P was hit.
           const vs = data.viewState || {};
           let ra = Number(data.ra != null ? data.ra : vs.ra);
           let dec = Number(data.dec != null ? data.dec : vs.dec);
           const fov = Number(data.fov != null ? data.fov : (vs.fov != null ? vs.fov : vs.altitude));
           const label = (data.label || data.title || data.name || '').trim();
           const catalogId = extractCatalogId(label);
+          const pinId = data.id;
 
-          if (catalogId && !labelLooksLikeM42(label)) {
+          // Authority pins: always use known coords (never Sesame / never poisoned snapshots).
+          if (pinId === MYSTERY_ID || /mystery glow near moon/i.test(label)) {
+            ra = MYSTERY_RA;
+            dec = MYSTERY_DEC;
+          } else if (pinId === M42_PIN_ID || labelLooksLikeM42(label)) {
+            ra = M42_RA;
+            dec = M42_DEC;
+          }
+
+          if (catalogId && !labelLooksLikeM42(label) && pinId !== MYSTERY_ID) {
             console.warn('[observatory] catalog pin — resolving by name, ignoring stored coords', catalogId, ra, dec);
             localStorage.removeItem('flyToPin');
             flyToDeepSky(a, catalogId, {
               label: label,
-              pinId: data.id,
+              pinId: pinId,
               fov: isFinite(fov) && fov > 0 ? fov : 2.5,
             });
             return;
           }
 
-          if (isFinite(ra) && isFinite(dec) && isNearM42(ra, dec) && label && !labelLooksLikeM42(label)) {
+          if (isFinite(ra) && isFinite(dec) && isNearM42(ra, dec) && label && !labelLooksLikeM42(label) && pinId !== M42_PIN_ID) {
             console.warn('[observatory] ignoring M42-poisoned pin coords for label', label, ra, dec);
             ra = NaN;
             dec = NaN;
@@ -649,9 +780,10 @@ const LENS = { id: 'aladin', label: 'Atlas', icon: '🔭' };
             try {
               a.gotoRaDec(ra, dec);
               placeSsoMarker(a, ra, dec, (label || 'Pinned sky').trim());
-              const f = isFinite(fov) && fov > 0 ? fov : 2;
+              const f = isFinite(fov) && fov > 0 ? fov : (pinId === MYSTERY_ID ? MYSTERY_FOV : (pinId === M42_PIN_ID ? M42_FOV : 2));
               setTimeout(() => { try { if (typeof a.setFov === 'function') a.setFov(f); } catch (e) {} }, 200);
               if (nowShowing) nowShowing.textContent = (label || 'Pinned · live sky').trim();
+              saveLastAtlasView(ra, dec, f);
               localStorage.removeItem('flyToPin');
               return;
             } catch (e) {
@@ -671,12 +803,12 @@ const LENS = { id: 'aladin', label: 'Atlas', icon: '🔭' };
           localStorage.removeItem('flyToPin');
           if (ssoName) {
             flyToSolarSystem(a, ssoName).catch(function (err) {
-              console.warn('[observatory] SSO fly-to failed, falling back to gotoObject', ssoName, err);
-              // Last resort: still try Sesame (will usually fail for planets) so behavior is explicit.
-              flyToDeepSky(a, ssoName, { label: label, pinId: data.id });
+              console.warn('[observatory] SSO fly-to failed', ssoName, err);
+              // Do NOT Sesame-fallback planets/Moon — that silently left you on the old Orion boot.
+              if (nowShowing) nowShowing.textContent = ssoName + ' · ephemeris missed';
             });
           } else {
-            flyToDeepSky(a, target, { label: label, pinId: data.id, fov: fov });
+            flyToDeepSky(a, target, { label: label, pinId: pinId, fov: fov });
           }
         } catch (e) {}
       }
