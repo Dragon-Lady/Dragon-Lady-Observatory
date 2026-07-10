@@ -485,6 +485,10 @@ const catalogCount = loadCatalog().length;
     const vs = pin.viewState || {};
     let sky = resolveSkyCoords(pin);
     const catalogId = extractCatalogId(pin.label);
+    const labelKey = String(pin.label || '').trim().toLowerCase();
+    const isSso = /^(?:next\s+)?(?:full\s+)?(moon|mercury|venus|mars|jupiter|saturn|uranus|neptune)\b/.test(labelKey)
+      || /^venus-evening\b/.test(labelKey)
+      || labelKey === 'venus' || labelKey === 'moon';
     // Don't ship M42-default coords under a non-M42 label — forces Sesame/label path.
     if (sky.hasSky && isNearM42(sky.ra, sky.dec) && !labelLooksLikeM42(pin.label)) {
       sky = { ra: NaN, dec: NaN, fov: NaN, hasSky: false };
@@ -492,6 +496,10 @@ const catalogCount = loadCatalog().length;
     // Catalog pins: Observatory resolves by name; omit camera-snapshot coords from handoff.
     if (catalogId && !labelLooksLikeM42(pin.label)) {
       sky = { ra: NaN, dec: NaN, fov: Number.isFinite(sky.fov) ? sky.fov : NaN, hasSky: false };
+    }
+    // Moon/Venus/planets: never ship snapshot coords — Observatory uses live Miriade.
+    if (isSso) {
+      sky = { ra: NaN, dec: NaN, fov: NaN, hasSky: false };
     }
     const lat = safeNumber(vs.lat, sky.hasSky ? sky.dec : 0);
     const lng = safeNumber(vs.lng, sky.hasSky ? sky.ra : 0);

@@ -39,6 +39,7 @@ const LENS = { id: 'aladin', label: 'Atlas', icon: '🔭' };
       <div id="now-chip" class="pointer-events-none absolute left-3 bottom-3 rounded-full border border-white/10 bg-black/60 px-3 py-1 text-xs text-mist-300 backdrop-blur">
         <span class="mr-1.5 inline-block h-2 w-2 animate-pulse rounded-full bg-emerald-400"></span>
         <span id="now-showing">Atlas</span>
+        <span class="ml-2 text-[10px] text-mist-500" id="atlas-build" title="Build stamp — if you don't see this, the wrapper is serving old code">· pinfix 7</span>
       </div>
 
       <!-- Bottom-right control group: Snapshot + Wide.
@@ -794,6 +795,21 @@ const LENS = { id: 'aladin', label: 'Atlas', icon: '🔭' };
           const label = (data.label || data.title || data.name || '').trim();
           const catalogId = extractCatalogId(label);
           const pinId = data.id;
+          const earlyTarget = normalizePinTarget(label);
+          const ssoName = resolveSolarSystemName(earlyTarget) || resolveSolarSystemName(label);
+
+          // Moon / Venus / planets: ALWAYS live ephemeris. Never trust camera-snapshot
+          // coords (those are often Orion from the old boot or a wide-field P).
+          if (ssoName) {
+            console.warn('[observatory] SSO pin — Miriade only, ignoring stored coords', ssoName, ra, dec);
+            localStorage.removeItem('flyToPin');
+            if (nowShowing) nowShowing.textContent = ssoName + ' · finding…';
+            flyToSolarSystem(a, ssoName).catch(function (err) {
+              console.warn('[observatory] SSO fly-to failed', ssoName, err);
+              if (nowShowing) nowShowing.textContent = ssoName + ' · ephemeris missed';
+            });
+            return;
+          }
 
           // Authority pins: always use known coords (never Sesame / never poisoned snapshots).
           if (pinId === MYSTERY_ID || /mystery glow near moon/i.test(label)) {
@@ -845,18 +861,8 @@ const LENS = { id: 'aladin', label: 'Atlas', icon: '🔭' };
           }
 
           const target = normalizePinTarget(label);
-          const ssoName = resolveSolarSystemName(target);
-
           localStorage.removeItem('flyToPin');
-          if (ssoName) {
-            flyToSolarSystem(a, ssoName).catch(function (err) {
-              console.warn('[observatory] SSO fly-to failed', ssoName, err);
-              // Do NOT Sesame-fallback planets/Moon — that silently left you on the old Orion boot.
-              if (nowShowing) nowShowing.textContent = ssoName + ' · ephemeris missed';
-            });
-          } else {
-            flyToDeepSky(a, target, { label: label, pinId: pinId, fov: fov });
-          }
+          flyToDeepSky(a, target, { label: label, pinId: pinId, fov: fov });
         } catch (e) {}
       }
 
