@@ -34,6 +34,17 @@ const catalogCount = loadCatalog().length;
       <p class="text-xs text-mist-500 mt-0.5">Saved sky views — click a card to fly Atlas there.</p>
     </div>
 
+    <div id="pins-restore-bar" class="hidden mb-4 rounded-xl border border-amber-700/50 bg-void-900 p-4">
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <div class="text-sm text-mist-200">
+          Local backup found (<span data-backup-count>0</span> pins). Main shelf looks empty.
+        </div>
+        <button id="restore-pins-backup" type="button" class="px-3 py-1.5 rounded-lg border border-amber-700/60 text-amber-100 hover:bg-amber-900/20 text-sm">
+          Restore backup
+        </button>
+      </div>
+    </div>
+
     <div class="mb-6">
       <div class="mb-3 flex flex-wrap gap-2" id="pins-chips">
         <button data-chip="all" class="chip px-3 py-1 text-sm rounded-full border border-void-700 bg-void-900 text-mist-300 hover:border-void-500">All</button>
@@ -208,6 +219,10 @@ const catalogCount = loadCatalog().length;
   // got poisoned during earlier Orion slingshots — strip them so label/Sesame can win.
   const M42_RA = 83.822;
   const M42_DEC = -5.391;
+  const PINS_KEY = 'personalPins';
+  const PINS_BACKUP_KEY = 'personalPins:backup';
+  const PINS_BACKUP_META = 'personalPins:backupMeta';
+
   function isNearM42(ra, dec) {
     if (!Number.isFinite(ra) || !Number.isFinite(dec)) return false;
     const dra = Math.abs((((ra - M42_RA) % 360) + 540) % 360 - 180);
@@ -225,23 +240,155 @@ const catalogCount = loadCatalog().length;
     if (!catalog) return null;
     return catalog[1].replace(/\s+/g, ' ').replace(/^messier\s*/i, 'M').replace(/^m\s+/i, 'M');
   }
+
+  function coercePinsArray(raw) {
+    if (Array.isArray(raw)) return raw.filter(Boolean);
+    if (raw && typeof raw === 'object') {
+      // Legacy/object-shaped store — never treat as empty wipe fuel.
+      const vals = Object.values(raw).filter(function (p) { return p && typeof p === 'object'; });
+      if (vals.length) return vals;
+    }
+    return [];
+  }
+
+  function readPinsRaw() {
+    try {
+      const txt = localStorage.getItem(PINS_KEY);
+      if (txt == null || txt === '' || txt === 'undefined' || txt === 'null') return [];
+      return coercePinsArray(JSON.parse(txt));
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function readPinsBackup() {
+    try {
+      const txt = localStorage.getItem(PINS_BACKUP_KEY);
+      if (txt == null || txt === '' || txt === 'undefined' || txt === 'null') return [];
+      return coercePinsArray(JSON.parse(txt));
+    } catch (e) {
+      return [];
+    }
+  }
+
+  /** Snapshot non-empty pin lists before automated rewrites. */
+  function backupPinsIfNeeded(pins) {
+    if (!Array.isArray(pins) || pins.length === 0) return;
+    try {
+      localStorage.setItem(PINS_BACKUP_KEY, JSON.stringify(pins));
+      localStorage.setItem(PINS_BACKUP_META, JSON.stringify({ at: new Date().toISOString(), count: pins.length }));
+    } catch (e) {}
+  }
+
+  /**
+   * Safe write: never replace a non-empty store with [] unless allowEmpty.
+   * Always refresh backup when writing a non-empty list.
+   */
+  function safeWritePins(nextPins, opts) {
+    opts = opts || {};
+    const allowEmpty = !!opts.allowEmpty;
+    if (!Array.isArray(nextPins)) {
+      console.warn('[pins] refused to write non-array');
+      return false;
+    }
+    const current = readPinsRaw();
+    if (nextPins.length === 0 && current.length > 0 && !allowEmpty) {
+      console.warn('[pins] refused to wipe', current.length, 'pins with empty write');
+      backupPinsIfNeeded(current);
+      return false;
+    }
+    if (current.length > 0) backupPinsIfNeeded(current);
+    try {
+      const payload = JSON.stringify(nextPins);
+      if (typeof payload !== 'string') {
+        console.warn('[pins] stringify failed');
+        return false;
+      }
+      localStorage.setItem(PINS_KEY, payload);
+      if (nextPins.length > 0) backupPinsIfNeeded(nextPins);
+      return true;
+    } catch (e) {
+      console.warn('[pins] write failed', e);
+      return false;
+    }
+  }
+
+  /** If main key is empty but backup has pins, restore them. */
+  function restorePinsFromBackupIfEmpty() {
+    const current = readPinsRaw();
+    if (current.length > 0) return { restored: false, pins: current };
+    const backup = readPinsBackup();
+    if (backup.length === 0) return { restored: false, pins: current };
+    const ok = safeWritePins(backup, { allowEmpty: false });
+    return { restored: ok, pins: ok ? backup : current, count: backup.length };
+  }
+
+  /**
+   * Last-resort seed for the known Jul 10 session pins if both main + backup are empty.
+   * Does not invent unknown pins — only mystery glow + HD 23514 (Simbad coords).
+   */
+  function seedKnownSessionPinsIfEmpty(pins) {
+    if (Array.isArray(pins) && pins.length > 0) return pins;
+    const HD_RA = 56.65996751;
+    const HD_DEC = 22.91977776;
+    const seeded = [
+      {
+        id: 'mre7i3zqed9sm',
+        createdAt: '2026-07-10T00:37:41.942Z',
+        label: 'HD 23514 High Motion Star',
+        note: 'Recovered after localStorage wipe · Simbad 03 46 38.39  +22 55 11.2',
+        source: 'observatory',
+        ra: HD_RA,
+        dec: HD_DEC,
+        fov: 2.5,
+        coordsHealed: 'HD 23514',
+        viewState: { lat: HD_DEC, lng: HD_RA, altitude: 2.5, ra: HD_RA, dec: HD_DEC, fov: 2.5 },
+        thumbnailData: '',
+      },
+      {
+        id: 'mystery-moon-2026-07-09',
+        createdAt: '2026-07-10T00:30:09.592Z',
+        label: 'Mystery glow near Moon · Jul 9',
+        note: 'Typed coords while bloom was visible under the Moon. Likely DSS saturation (Simbad empty @ 60″). Screenshots archived. 02 47 52.13  +21 23 30.4',
+        source: 'observatory',
+        ra: 41.96720833333333,
+        dec: 21.391777777777776,
+        fov: 0.5,
+        viewState: {
+          lat: 21.391777777777776,
+          lng: 41.96720833333333,
+          altitude: 0.5,
+          ra: 41.96720833333333,
+          dec: 21.391777777777776,
+          fov: 0.5,
+          coo: '02 47 52.13  +21 23 30.4',
+        },
+        thumbnailData: '',
+        recoveryMeta: {
+          originalCoordinates: {
+            ra: 41.96720833333333,
+            dec: 21.391777777777776,
+            fov: 0.5,
+            coo: '02 47 52.13  +21 23 30.4',
+            frame: 'ICRS',
+          },
+          description: 'Re-seeded after localStorage wipe (2026-07-10)',
+        },
+      },
+    ];
+    safeWritePins(seeded);
+    return seeded;
+  }
+
+  // Only strip true M42-default coords under a non-M42 label. Do NOT strip catalog
+  // pins' coords on load — that rewrite path was too aggressive and risked data loss.
   function scrubM42PoisonedPins(pins) {
     if (!Array.isArray(pins)) return pins;
     let changed = false;
     const cleaned = pins.map((pin) => {
       if (!pin || labelLooksLikeM42(pin.label)) return pin;
       const sky = resolveSkyCoords(pin);
-      const catalogId = extractCatalogId(pin.label);
-      // Catalog-named pins often still carry the camera field from when P was hit
-      // (M42 boot OR the mystery-Moon bloom). Strip so fly-to resolves by name.
-      const poisoned =
-        (sky.hasSky && isNearM42(sky.ra, sky.dec)) ||
-        (catalogId && sky.hasSky);
-      if (!poisoned) return pin;
-      // Keep catalog coords only if we already healed them (flag) — otherwise strip.
-      if (catalogId && pin.coordsHealed === catalogId && sky.hasSky && !isNearM42(sky.ra, sky.dec)) {
-        return pin;
-      }
+      if (!sky.hasSky || !isNearM42(sky.ra, sky.dec)) return pin;
       changed = true;
       const next = Object.assign({}, pin);
       delete next.ra;
@@ -252,9 +399,7 @@ const catalogCount = loadCatalog().length;
         delete next.viewState.ra;
         delete next.viewState.dec;
         delete next.viewState.fov;
-        // Old mapping stored sky in lat/lng — drop those too when they match M42
-        // or when this is a catalog pin (lat/lng were the wrong field snapshot).
-        if (catalogId || isNearM42(Number(next.viewState.lng), Number(next.viewState.lat))) {
+        if (isNearM42(Number(next.viewState.lng), Number(next.viewState.lat))) {
           delete next.viewState.lat;
           delete next.viewState.lng;
           delete next.viewState.altitude;
@@ -262,82 +407,8 @@ const catalogCount = loadCatalog().length;
       }
       return next;
     });
-    if (changed) {
-      try { localStorage.setItem('personalPins', JSON.stringify(cleaned)); } catch (e) {}
-    }
+    if (changed) safeWritePins(cleaned);
     return cleaned;
-  }
-
-  function parseSesameRaDec(text) {
-    const m = String(text || '').match(/%J\s+([+-]?\d+(?:\.\d+)?)\s+([+-]?\d+(?:\.\d+)?)/);
-    if (!m) return null;
-    const ra = Number(m[1]);
-    const dec = Number(m[2]);
-    if (!Number.isFinite(ra) || !Number.isFinite(dec)) return null;
-    return { ra, dec };
-  }
-
-  /** Fill true catalog coords onto named pins so cards stop showing mystery/M42 leftovers. */
-  function healCatalogPinsAsync(pins, onDone) {
-    if (!Array.isArray(pins) || !pins.length) return;
-    const jobs = pins
-      .map((pin) => {
-        if (!pin) return null;
-        const catalogId = extractCatalogId(pin.label);
-        if (!catalogId || labelLooksLikeM42(pin.label)) return null;
-        if (pin.coordsHealed === catalogId) {
-          const sky = resolveSkyCoords(pin);
-          if (sky.hasSky && !isNearM42(sky.ra, sky.dec)) return null;
-        }
-        return { pin, catalogId };
-      })
-      .filter(Boolean);
-    if (!jobs.length) return;
-
-    let pending = jobs.length;
-    let changed = false;
-    const byId = {};
-    pins.forEach((p) => { if (p && p.id) byId[p.id] = p; });
-
-    jobs.forEach(({ pin, catalogId }) => {
-      const url = 'https://cdsweb.u-strasbg.fr/cgi-bin/nph-sesame/-oI/A?' + encodeURIComponent(catalogId);
-      fetch(url)
-        .then((r) => { if (!r.ok) throw new Error('Sesame ' + r.status); return r.text(); })
-        .then((text) => {
-          const coords = parseSesameRaDec(text);
-          if (!coords) return;
-          const target = byId[pin.id] || pin;
-          target.ra = coords.ra;
-          target.dec = coords.dec;
-          if (!Number.isFinite(Number(target.fov)) || Number(target.fov) <= 0) target.fov = 2.5;
-          target.coordsHealed = catalogId;
-          target.viewState = Object.assign({}, target.viewState || {}, {
-            lat: coords.dec,
-            lng: coords.ra,
-            ra: coords.ra,
-            dec: coords.dec,
-            altitude: target.fov,
-            fov: target.fov,
-          });
-          changed = true;
-        })
-        .catch(() => {})
-        .finally(() => {
-          pending -= 1;
-          if (pending === 0) {
-            if (changed) {
-              try {
-                const all = JSON.parse(localStorage.getItem('personalPins') || '[]');
-                if (Array.isArray(all)) {
-                  const merged = all.map((p) => (p && byId[p.id] ? byId[p.id] : p));
-                  localStorage.setItem('personalPins', JSON.stringify(merged));
-                }
-              } catch (e) {}
-            }
-            if (typeof onDone === 'function') onDone(changed);
-          }
-        });
-    });
   }
 
   function pinSourceBadge(pin) {
@@ -361,9 +432,9 @@ const catalogCount = loadCatalog().length;
     if (sky.hasSky && isNearM42(sky.ra, sky.dec) && !labelLooksLikeM42(pin.label)) {
       sky = { ra: NaN, dec: NaN, fov: NaN, hasSky: false };
     }
-    // Catalog pins: never ship unhealed camera-snapshot coords (mystery field / M42 boot).
-    if (catalogId && !labelLooksLikeM42(pin.label) && pin.coordsHealed !== catalogId) {
-      sky = { ra: NaN, dec: NaN, fov: NaN, hasSky: false };
+    // Catalog pins: Observatory resolves by name; omit camera-snapshot coords from handoff.
+    if (catalogId && !labelLooksLikeM42(pin.label)) {
+      sky = { ra: NaN, dec: NaN, fov: Number.isFinite(sky.fov) ? sky.fov : NaN, hasSky: false };
     }
     const lat = safeNumber(vs.lat, sky.hasSky ? sky.dec : 0);
     const lng = safeNumber(vs.lng, sky.hasSky ? sky.ra : 0);
@@ -386,6 +457,9 @@ const catalogCount = loadCatalog().length;
         payload.fov = sky.fov;
         payload.viewState.fov = sky.fov;
       }
+    } else if (Number.isFinite(sky.fov)) {
+      payload.fov = sky.fov;
+      payload.viewState.fov = sky.fov;
     }
     return payload;
   }
@@ -681,32 +755,40 @@ const catalogCount = loadCatalog().length;
     const empty = document.getElementById('pins-empty');
     const noResults = document.getElementById('pins-no-results');
 
-    let pins = [];
-    try {
-      pins = JSON.parse(localStorage.getItem('personalPins') || '[]');
-    } catch {
-      pins = [];
+    let pins = readPinsRaw();
+    const recovered = restorePinsFromBackupIfEmpty();
+    if (recovered.restored) {
+      pins = recovered.pins;
+      try {
+        const toast = document.createElement('div');
+        toast.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:3000;background:#0f1420;border:1px solid #36415a;color:#e9edf5;padding:10px 22px;border-radius:9999px;font-size:13px;';
+        toast.textContent = 'Restored ' + recovered.count + ' pins from local backup';
+        document.body.appendChild(toast);
+        setTimeout(function () { toast.remove(); }, 4200);
+      } catch (e) {}
     }
-    if (!Array.isArray(pins)) pins = [];
+    if (!pins.length) {
+      pins = seedKnownSessionPinsIfEmpty(pins);
+      if (pins.length) {
+        try {
+          const toast = document.createElement('div');
+          toast.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:3000;background:#0f1420;border:1px solid #36415a;color:#e9edf5;padding:10px 22px;border-radius:9999px;font-size:13px;';
+          toast.textContent = 'Re-seeded HD 23514 + mystery glow (moon pin needs re-P if missing)';
+          document.body.appendChild(toast);
+          setTimeout(function () { toast.remove(); }, 5200);
+        } catch (e) {}
+      }
+    }
     pins = scrubM42PoisonedPins(pins);
-    // Heal HD/NGC/… pins that still lack trusted Simbad coords (wrong-field snapshots).
-    if (!window.__dloHealingCatalogPins) {
-      const needsHeal = pins.some(function (pin) {
-        if (!pin) return false;
-        const catalogId = extractCatalogId(pin.label);
-        if (!catalogId || labelLooksLikeM42(pin.label)) return false;
-        if (pin.coordsHealed === catalogId) {
-          const sky = resolveSkyCoords(pin);
-          return !(sky.hasSky && !isNearM42(sky.ra, sky.dec));
-        }
-        return true;
-      });
-      if (needsHeal) {
-        window.__dloHealingCatalogPins = true;
-        healCatalogPinsAsync(pins, function (changed) {
-          window.__dloHealingCatalogPins = false;
-          if (changed) renderMyPins();
-        });
+
+    const backup = readPinsBackup();
+    const restoreBar = document.getElementById('pins-restore-bar');
+    if (restoreBar) {
+      if (pins.length === 0 && backup.length > 0) {
+        restoreBar.classList.remove('hidden');
+        restoreBar.querySelector('[data-backup-count]') && (restoreBar.querySelector('[data-backup-count]').textContent = String(backup.length));
+      } else if (pins.length > 0) {
+        restoreBar.classList.add('hidden');
       }
     }
 
@@ -813,11 +895,9 @@ const catalogCount = loadCatalog().length;
         if (pin.thumbnailData && !hasRealThumb) {
           pin.thumbnailData = '';
           try {
-            const all = JSON.parse(localStorage.getItem('personalPins') || '[]');
-            if (Array.isArray(all)) {
-              const cleaned = all.map((p) => (p && p.id === pin.id ? Object.assign({}, p, { thumbnailData: '' }) : p));
-              localStorage.setItem('personalPins', JSON.stringify(cleaned));
-            }
+            const all = readPinsRaw();
+            const cleaned = all.map((p) => (p && p.id === pin.id ? Object.assign({}, p, { thumbnailData: '' }) : p));
+            safeWritePins(cleaned);
           } catch (e) {}
         }
       }
@@ -892,7 +972,7 @@ const catalogCount = loadCatalog().length;
         e.stopImmediatePropagation();
         if (!confirm('Remove this pin?')) return;
         const updated = pins.filter(p => p.id !== pin.id);
-        localStorage.setItem('personalPins', JSON.stringify(updated));
+        safeWritePins(updated, { allowEmpty: true });
         renderMyPins();
       });
 
@@ -903,7 +983,7 @@ const catalogCount = loadCatalog().length;
           e.stopImmediatePropagation();
           pin.favorite = !pin.favorite;
           const updated = pins.map(p => p.id === pin.id ? pin : p);
-          localStorage.setItem('personalPins', JSON.stringify(updated));
+          safeWritePins(updated);
           renderMyPins();
         });
       }
@@ -968,7 +1048,7 @@ const catalogCount = loadCatalog().length;
           if (newLabel) pin.label = newLabel;
           pin.note = newNote || undefined;
           const updated = pins.map(p => p.id === pin.id ? pin : p);
-          localStorage.setItem('personalPins', JSON.stringify(updated));
+          safeWritePins(updated);
           renderMyPins();
         });
 
@@ -1024,7 +1104,7 @@ const catalogCount = loadCatalog().length;
     const exportBtn = document.getElementById('export-pins');
     if (exportBtn) {
       exportBtn.addEventListener('click', () => {
-        const pins = JSON.parse(localStorage.getItem('personalPins') || '[]');
+        const pins = readPinsRaw();
         const date = new Date().toISOString().split('T')[0];
         const blob = new Blob([JSON.stringify(pins, null, 2)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
@@ -1035,6 +1115,22 @@ const catalogCount = loadCatalog().length;
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
+      });
+    }
+
+    // Restore from local backup
+    const restoreBtn = document.getElementById('restore-pins-backup');
+    if (restoreBtn) {
+      restoreBtn.addEventListener('click', () => {
+        const backup = readPinsBackup();
+        if (!backup.length) {
+          alert('No local backup found in this browser.');
+          return;
+        }
+        if (!confirm('Restore ' + backup.length + ' pins from local backup?')) return;
+        if (safeWritePins(backup)) {
+          renderMyPins();
+        }
       });
     }
 
@@ -1058,11 +1154,7 @@ const catalogCount = loadCatalog().length;
               return;
             }
 
-            let current = [];
-            try {
-              current = JSON.parse(localStorage.getItem('personalPins') || '[]');
-            } catch {}
-
+            let current = readPinsRaw();
             const existingIds = new Set(current.map(p => p.id));
             let added = 0;
 
@@ -1074,7 +1166,7 @@ const catalogCount = loadCatalog().length;
               }
             });
 
-            localStorage.setItem('personalPins', JSON.stringify(current));
+            safeWritePins(current);
             renderMyPins();
 
             const msg = added === 1 ? '1 pin imported' : `${added} pins imported`;

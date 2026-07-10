@@ -51,7 +51,7 @@ const base = import.meta.env.BASE_URL;
     </div>
   </div>
 
-  <script is:inline>
+  <script is:inline define:vars={{ base }}>
     const events = [
       { id: 'moon', name: 'Moon', desc: 'Our nearest neighbor — always a good test target for the camera.' },
       { id: 'venus-evening', name: 'Venus', desc: 'Brightest planet in the evening or morning sky. Great for testing jumps.' },
@@ -67,7 +67,6 @@ const base = import.meta.env.BASE_URL;
       { id: 'ursa-major', name: 'Ursa Major', desc: 'The Great Bear. Home to the Big Dipper and a reliable northern guide.' },
       { id: 'scorpius', name: 'Scorpius', desc: 'The Scorpion. A striking summer constellation with a bright red heart.' },
     ];
-
     const defaultViews = {
       'moon': { lat: 18, lng: -35, altitude: 1.9 },
       'venus-evening': { lat: 8, lng: -65, altitude: 2.1 },
@@ -83,11 +82,35 @@ const base = import.meta.env.BASE_URL;
 
     function readPins() {
       try {
-        const pins = JSON.parse(localStorage.getItem('personalPins') || '[]');
+        const raw = localStorage.getItem('personalPins');
+        if (!raw || raw === 'undefined' || raw === 'null') {
+          // Try backup before declaring empty
+          const bak = localStorage.getItem('personalPins:backup');
+          if (bak && bak !== 'undefined' && bak !== 'null') {
+            const bp = JSON.parse(bak);
+            if (Array.isArray(bp) && bp.length) {
+              localStorage.setItem('personalPins', JSON.stringify(bp));
+              return bp;
+            }
+          }
+          return [];
+        }
+        const pins = JSON.parse(raw);
         return Array.isArray(pins) ? pins : [];
       } catch {
         return [];
       }
+    }
+
+    function writePins(pinsNow) {
+      if (!Array.isArray(pinsNow)) return;
+      try {
+        const prev = localStorage.getItem('personalPins');
+        if (prev && prev !== '[]' && prev !== 'undefined' && prev !== 'null') {
+          localStorage.setItem('personalPins:backup', prev);
+        }
+      } catch (e) {}
+      localStorage.setItem('personalPins', JSON.stringify(pinsNow));
     }
 
     function createTile(item, type) {
@@ -130,8 +153,9 @@ const base = import.meta.env.BASE_URL;
             label: item.name,
             note: item.desc,
             sourceEventId,
+            source: 'sky-events',
           });
-          localStorage.setItem('personalPins', JSON.stringify(pinsNow));
+          writePins(pinsNow);
         }
 
         btn.textContent = 'Pinned ✓';
@@ -159,11 +183,11 @@ const base = import.meta.env.BASE_URL;
 
     // Render events
     const eventsGrid = document.getElementById('events-grid');
-    events.forEach(item => eventsGrid.appendChild(createTile(item, 'event')));
+    if (eventsGrid) events.forEach(item => eventsGrid.appendChild(createTile(item, 'event')));
 
     // Render constellations
     const constGrid = document.getElementById('constellations-grid');
-    constellations.forEach(item => constGrid.appendChild(createTile(item, 'constellation')));
+    if (constGrid) constellations.forEach(item => constGrid.appendChild(createTile(item, 'constellation')));
   </script>
 
   <div class="mt-12 text-center">

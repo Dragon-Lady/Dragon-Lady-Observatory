@@ -141,8 +141,28 @@ const LENS = { id: 'aladin', label: 'Atlas', icon: '🔭' };
           var note =
             'Typed coords while bloom was visible under the Moon. Likely DSS saturation (Simbad empty @ 60″). Screenshots archived. ' +
             MYSTERY_COO;
-          var pins = JSON.parse(localStorage.getItem('personalPins') || '[]');
-          if (!Array.isArray(pins)) pins = [];
+          var raw = localStorage.getItem('personalPins');
+          var pins = [];
+          try {
+            if (raw && raw !== 'undefined' && raw !== 'null') {
+              var parsed = JSON.parse(raw);
+              if (Array.isArray(parsed)) pins = parsed.filter(Boolean);
+              else if (parsed && typeof parsed === 'object') pins = Object.values(parsed).filter(function (p) { return p && typeof p === 'object'; });
+            }
+          } catch (e) { pins = []; }
+          // Never seed-write over a mysteriously empty parse if backup still has life.
+          if (!pins.length) {
+            try {
+              var bak = localStorage.getItem('personalPins:backup');
+              if (bak && bak !== 'undefined' && bak !== 'null') {
+                var bp = JSON.parse(bak);
+                if (Array.isArray(bp) && bp.length) {
+                  pins = bp.filter(Boolean);
+                  localStorage.setItem('personalPins', JSON.stringify(pins));
+                }
+              }
+            } catch (e2) {}
+          }
           var already = pins.some(function (p) { return p && p.id === MYSTERY_ID; });
           if (!already) {
             pins.unshift({
@@ -175,6 +195,12 @@ const LENS = { id: 'aladin', label: 'Atlas', icon: '🔭' };
                 description: 'Seeded from typed coords after bloom vanished (2026-07-09)',
               },
             });
+            try {
+              var prev = localStorage.getItem('personalPins');
+              if (prev && prev !== '[]' && prev !== 'undefined' && prev !== 'null') {
+                localStorage.setItem('personalPins:backup', prev);
+              }
+            } catch (e3) {}
             localStorage.setItem('personalPins', JSON.stringify(pins));
           }
         } catch (e) {}
@@ -359,8 +385,15 @@ const LENS = { id: 'aladin', label: 'Atlas', icon: '🔭' };
       function healPinCoords(pinId, label, ra, dec, fov) {
         try {
           if (!isFinite(ra) || !isFinite(dec)) return;
-          var pins = JSON.parse(localStorage.getItem('personalPins') || '[]');
-          if (!Array.isArray(pins)) return;
+          var raw = localStorage.getItem('personalPins');
+          var pins = [];
+          try {
+            if (raw && raw !== 'undefined' && raw !== 'null') {
+              var parsed = JSON.parse(raw);
+              if (Array.isArray(parsed)) pins = parsed.filter(Boolean);
+            }
+          } catch (e) { return; }
+          if (!pins.length) return;
           var changed = false;
           var f = isFinite(fov) && fov > 0 ? fov : NaN;
           pins = pins.map(function (p) {
@@ -384,14 +417,36 @@ const LENS = { id: 'aladin', label: 'Atlas', icon: '🔭' };
             changed = true;
             return next;
           });
-          if (changed) localStorage.setItem('personalPins', JSON.stringify(pins));
+          if (changed) {
+            try { localStorage.setItem('personalPins:backup', JSON.stringify(pins)); } catch (e) {}
+            localStorage.setItem('personalPins', JSON.stringify(pins));
+          }
         } catch (e) {}
       }
 
       function scrubM42PoisonedPinsLocal() {
         try {
-          var pins = JSON.parse(localStorage.getItem('personalPins') || '[]');
-          if (!Array.isArray(pins)) return;
+          var raw = localStorage.getItem('personalPins');
+          var pins = [];
+          try {
+            if (raw && raw !== 'undefined' && raw !== 'null') {
+              var parsed = JSON.parse(raw);
+              if (Array.isArray(parsed)) pins = parsed.filter(Boolean);
+            }
+          } catch (e) { return; }
+          if (!pins.length) {
+            // Attempt backup restore before giving up.
+            try {
+              var bak = localStorage.getItem('personalPins:backup');
+              if (bak && bak !== 'undefined' && bak !== 'null') {
+                var bp = JSON.parse(bak);
+                if (Array.isArray(bp) && bp.length) {
+                  localStorage.setItem('personalPins', JSON.stringify(bp));
+                }
+              }
+            } catch (e2) {}
+            return;
+          }
           var changed = false;
           var cleaned = pins.map(function (pin) {
             if (!pin || labelLooksLikeM42(pin.label)) return pin;
@@ -416,7 +471,10 @@ const LENS = { id: 'aladin', label: 'Atlas', icon: '🔭' };
             }
             return next;
           });
-          if (changed) localStorage.setItem('personalPins', JSON.stringify(cleaned));
+          if (changed) {
+            try { localStorage.setItem('personalPins:backup', JSON.stringify(pins)); } catch (e) {}
+            localStorage.setItem('personalPins', JSON.stringify(cleaned));
+          }
         } catch (e) {}
       }
       scrubM42PoisonedPinsLocal();
@@ -717,8 +775,29 @@ const LENS = { id: 'aladin', label: 'Atlas', icon: '🔭' };
           };
 
           try {
-            var pins = JSON.parse(localStorage.getItem('personalPins') || '[]');
-            if (!Array.isArray(pins)) pins = [];
+            var pins = [];
+            try {
+              var rawPins = localStorage.getItem('personalPins');
+              if (rawPins && rawPins !== 'undefined' && rawPins !== 'null') {
+                var parsedPins = JSON.parse(rawPins);
+                if (Array.isArray(parsedPins)) pins = parsedPins.filter(Boolean);
+                else if (parsedPins && typeof parsedPins === 'object') {
+                  pins = Object.values(parsedPins).filter(function (p) { return p && typeof p === 'object'; });
+                }
+              }
+            } catch (eParse) { pins = []; }
+            if (!pins.length) {
+              try {
+                var bakPins = localStorage.getItem('personalPins:backup');
+                if (bakPins) {
+                  var bpins = JSON.parse(bakPins);
+                  if (Array.isArray(bpins) && bpins.length) pins = bpins.filter(Boolean);
+                }
+              } catch (eBak) {}
+            }
+            try {
+              if (pins.length) localStorage.setItem('personalPins:backup', JSON.stringify(pins));
+            } catch (eBak2) {}
             pins.unshift(pin);
             localStorage.setItem('personalPins', JSON.stringify(pins));
             toastPin('Pinned · ' + label, true);
