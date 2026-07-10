@@ -1,35 +1,49 @@
 #!/usr/bin/env bash
-# Dragon Lady Observatory — local Atlas wrapper (Chuck / Talon · 2026-07-10)
-# Replaces Oracle's older cheat if it was still pointed at M42-boot code.
+# Dragon Lady Observatory — Chuck's Atlas wrapper (2026-07-10)
+# Runs SIDE-BY-SIDE with Oracle's cosmic-terminal cheat (usually :4321).
+# This one uses :4331 by default so they don't collide.
 #
-# Usage (from anywhere, once on PATH or via full path):
 #   ./scripts/observatory
-#   observatory            # if linked into ~/bin or similar
+#   open http://127.0.0.1:4331/observatory
+#   litmus: bottom-left shows  · pinfix 8
 #
-# Litmus: Atlas bottom-left must show  · pinfix 8
-# If you don't see that stamp, this wrapper is not what the browser is hitting.
+# Oracle's wrapper = old tree / M42 boot until we point it here.
+# Chuck's wrapper  = this branch, anti-Orion, pinfix 8.
 
 set -euo pipefail
 
 BRANCH="${DLO_BRANCH:-cursor/console-pins-cleanup-27c8}"
-PORT="${DLO_PORT:-4321}"
+# 4331 on purpose — leave Oracle's cosmic cheat on 4321 until you retire it
+PORT="${DLO_PORT:-4331}"
 HOST="${DLO_HOST:-127.0.0.1}"
 BUILD_STAMP="pinfix 8"
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 VIEWER="$REPO_ROOT/viewer"
+LOG="${TMPDIR:-/tmp}/dlo-observatory-chuck.log"
 
 cd "$REPO_ROOT"
 
-echo "=== Dragon Lady Observatory ==="
+echo "=== Dragon Lady Observatory · Chuck wrapper ==="
 echo "repo:   $REPO_ROOT"
-echo "branch: want $BRANCH"
-echo "url:    http://${HOST}:${PORT}/observatory"
-echo "stamp:  Atlas chip must show  · ${BUILD_STAMP}"
+echo "branch: $BRANCH"
+echo "bind:   http://${HOST}:${PORT}/"
+echo "atlas:  http://127.0.0.1:${PORT}/observatory"
+echo "stamp:  must show  · ${BUILD_STAMP}"
+echo "log:    $LOG"
+echo "(Oracle's cosmic cheat can keep :4321 — this one is :${PORT})"
 echo ""
 
 if ! command -v git >/dev/null 2>&1; then
-  echo "git not found — cannot verify branch."
+  echo "✗ git not found"
+  exit 1
+fi
+if ! command -v node >/dev/null 2>&1; then
+  echo "✗ node not found — install Node 20+ then retry"
+  exit 1
+fi
+if ! command -v npm >/dev/null 2>&1; then
+  echo "✗ npm not found"
   exit 1
 fi
 
@@ -37,50 +51,49 @@ CURRENT="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo unknown)"
 echo "git:    on $CURRENT @ $(git rev-parse --short HEAD 2>/dev/null || echo '?')"
 
 if [[ "$CURRENT" != "$BRANCH" ]]; then
-  echo ""
-  echo "⚠  Not on $BRANCH (Orion slingshot fixes live there)."
-  if [[ "${DLO_AUTO_CHECKOUT:-1}" == "1" ]]; then
-    echo "→ fetching + checking out $BRANCH …"
-    git fetch origin "$BRANCH" 2>/dev/null || git fetch origin
-    git checkout "$BRANCH"
-    git pull --ff-only origin "$BRANCH" 2>/dev/null || true
-    echo "git:    now $(git rev-parse --abbrev-ref HEAD) @ $(git rev-parse --short HEAD)"
-  else
-    echo "Set DLO_AUTO_CHECKOUT=1 to auto-switch, or: git checkout $BRANCH"
+  echo "→ switching to $BRANCH …"
+  git fetch origin "$BRANCH" 2>/dev/null || git fetch origin || true
+  if ! git checkout "$BRANCH"; then
+    echo "✗ could not checkout $BRANCH"
     exit 2
   fi
+  git pull --ff-only origin "$BRANCH" 2>/dev/null || true
+  echo "git:    now $(git rev-parse --abbrev-ref HEAD) @ $(git rev-parse --short HEAD)"
 else
-  # Stay current when already on the right branch
   git pull --ff-only origin "$BRANCH" 2>/dev/null || true
 fi
 
-# Sanity: new Atlas must not hardcode M42 boot
-if grep -n "target: 'M42'" "$VIEWER/src/pages/observatory.astro" >/dev/null 2>&1; then
-  echo ""
-  echo "✗ observatory.astro still has target: 'M42' — wrong tree / stale file."
-  echo "  Refusing to start. Pull $BRANCH or fix the path this wrapper uses."
+ASTRO_PAGE="$VIEWER/src/pages/observatory.astro"
+if [[ ! -f "$ASTRO_PAGE" ]]; then
+  echo "✗ missing $ASTRO_PAGE — wrong repo root?"
   exit 3
 fi
 
-if ! grep -q "$BUILD_STAMP" "$VIEWER/src/pages/observatory.astro" 2>/dev/null; then
-  echo ""
-  echo "✗ Build stamp '$BUILD_STAMP' not found in observatory.astro."
-  echo "  This checkout is behind the anti-Orion fix. git pull and retry."
+if grep -n "target: 'M42'" "$ASTRO_PAGE" >/dev/null 2>&1; then
+  echo "✗ This checkout still hardcodes target: 'M42' (Orion boot)."
+  echo "  Wrong tree. Stay on $BRANCH and git pull."
   exit 3
 fi
+
+if ! grep -q "$BUILD_STAMP" "$ASTRO_PAGE"; then
+  echo "✗ Build stamp '$BUILD_STAMP' not in observatory.astro — checkout is behind."
+  echo "  git pull origin $BRANCH and retry."
+  exit 3
+fi
+echo "✓ anti-Orion page present ($BUILD_STAMP)"
 
 cd "$VIEWER"
 
 if [[ ! -d node_modules/astro ]]; then
-  echo "→ npm install …"
+  echo "→ npm install (first run) …"
   npm install
 fi
 
-# Free the port if a stale astro is holding it
+# Do NOT kill Oracle's :4321. Only free OUR port.
 if command -v lsof >/dev/null 2>&1; then
-  PIDS="$(lsof -tiTCP:${PORT} -sTCP:LISTEN 2>/dev/null || true)"
+  PIDS="$(lsof -tiTCP:"${PORT}" -sTCP:LISTEN 2>/dev/null || true)"
   if [[ -n "${PIDS}" ]]; then
-    echo "→ freeing port ${PORT}: $PIDS"
+    echo "→ freeing Chuck port ${PORT}: $PIDS"
     # shellcheck disable=SC2086
     kill $PIDS 2>/dev/null || true
     sleep 1
@@ -88,10 +101,11 @@ if command -v lsof >/dev/null 2>&1; then
 fi
 
 echo ""
-echo "Starting Atlas…"
-echo "  Open http://${HOST}:${PORT}/observatory"
-echo "  Confirm bottom-left shows:  · ${BUILD_STAMP}"
-echo "  Hi 42 is Favorites-only. Moon/Venus use live Miriade."
+echo "Starting Astro on ${HOST}:${PORT} …"
+echo "  → http://127.0.0.1:${PORT}/observatory"
+echo "  → look for  · ${BUILD_STAMP}  bottom-left"
+echo "  (leave Cosmic/Oracle on :4321 alone for now)"
 echo ""
 
-exec npx astro dev --host "$HOST" --port "$PORT"
+# Host 127.0.0.1 is reachable locally; log so "cannot be reached" is diagnosable.
+npx astro dev --host "$HOST" --port "$PORT" 2>&1 | tee "$LOG"

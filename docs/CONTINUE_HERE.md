@@ -7,23 +7,16 @@
 
 ## Local wrapper (Oracle cheat → Chuck refresh)
 
-If Atlas still boots Orion / pins “change back,” the old wrapper is probably serving **stale M42-boot code**.
+**Two wrappers:** Cosmic/Oracle (often `:4321`, old M42 boot) vs Chuck (`./scripts/observatory` on **`:4331`**). See `docs/TWO_WRAPPERS.md`.
 
 ```bash
-# from repo root — new wrapper refuses to start if target:'M42' is still present
-./scripts/observatory
-```
-
-Optional install as the `observatory` command:
-
-```bash
+git checkout cursor/console-pins-cleanup-27c8 && git pull
 chmod +x scripts/observatory
-ln -sf "$(pwd)/scripts/observatory" ~/bin/observatory   # or ~/.local/bin
+./scripts/observatory
+# open http://127.0.0.1:4331/observatory  — look for · pinfix 8
 ```
 
-**Litmus:** Atlas bottom-left chip must show `· pinfix 8`. No stamp → wrong tree.
-
-Branch: `cursor/console-pins-cleanup-27c8` · tip includes forced non-Orion boot + Moon/Venus→Miriade.
+**Litmus:** Atlas bottom-left chip must show `· pinfix 8`. No stamp → you’re still on Oracle’s port/tree.
 
 ---
 
