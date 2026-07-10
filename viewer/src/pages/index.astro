@@ -29,8 +29,8 @@ const skyConstellations = [
 ---
 
 <Base title="Dragon Lady’s Observatory">
-  <!-- celestial hero — one composition: brand, sky, quiet dragon, one CTA group -->
-  <section class="sky -mx-4 mb-8 rounded-none border-b border-void-800 px-4 py-10 sm:rounded-xl sm:border sm:py-14">
+  <!-- celestial hero — owns the first viewport; My Pins starts below the fold -->
+  <section class="sky -mx-4 mb-8 flex min-h-[calc(100dvh-3rem)] flex-col justify-center rounded-none border-b border-void-800 px-4 py-12 sm:min-h-[calc(100dvh-4rem)] sm:rounded-xl sm:border sm:py-16">
     <div class="sky-twinkle" aria-hidden="true"></div>
     <div class="sky-dragon" aria-hidden="true">
       <img
@@ -1561,7 +1561,7 @@ const skyConstellations = [
 
   // Ambient music — icon tap like the Android app; M hotkey like Dragon Eye.
   // Default quiet. Pref: localStorage dlo-ambient = 'on' | 'off'
-  // Drop your Suno/harp loop at viewer/public/audio/celestial-harp.mp3
+  // Drop your Suno/harp loop at viewer/public/audio/nebula-drift.mp3
   (function setupAmbientMusic() {
     const KEY = 'dlo-ambient';
     const btn = document.getElementById('sky-ambient-btn');
@@ -1604,7 +1604,7 @@ const skyConstellations = [
       }
     }
 
-    // Soft stand-in harp pad until celestial-harp.mp3 lands (her Suno track).
+    // Soft stand-in harp pad until nebula-drift.mp3 lands (her Suno track).
     function startGlass() {
       try {
         const AC = window.AudioContext || window.webkitAudioContext;
@@ -1696,13 +1696,13 @@ const skyConstellations = [
       toggle();
     });
 
-    // Probe for the real Suno/harp file; glass pad is the sketch stand-in.
+    // Probe for Nebula Drift; glass pad is the sketch stand-in.
     try {
       fetch(audio.src, { method: 'HEAD', cache: 'no-store' })
         .then(function (res) {
           trackReady = !!(res && res.ok);
           if (!trackReady) {
-            btn.title = 'Music off — tap to hear a soft stand-in (drop celestial-harp.mp3 for your Suno track). M toggles.';
+            btn.title = 'Music off — tap for a soft stand-in (drop nebula-drift.mp3 for your track). M toggles.';
           }
           paint(false);
           if (prefOn()) play();
