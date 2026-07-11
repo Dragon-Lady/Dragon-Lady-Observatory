@@ -30,9 +30,13 @@ dist/
 viewer/dist/
 .astro/
 viewer/.astro/
-viewer/public/catalog/
-
-# data caches — catalogs/TLEs/snapshots are fetched at runtime, not committed
+# Ambient: Nebula Drift ships with the public build; other drops stay local
+viewer/public/audio/*.mp3
+viewer/public/audio/*.wav
+viewer/public/audio/*.ogg
+viewer/public/audio/*.m4a
+!viewer/public/audio/README.md
+!viewer/public/audio/nebula-drift.mp3
 data/cache/
 data/snapshots/
 data/.*/

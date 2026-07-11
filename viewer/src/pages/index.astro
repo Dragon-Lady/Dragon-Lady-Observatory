@@ -1,76 +1,120 @@
 ---
 import Base from '@/layouts/Base.astro';
 import RecordCard from '@/components/RecordCard.astro';
-import { allRecords, stats, domainsPresent, loadCatalog } from '@/lib/store';
+import { allRecords, domainsPresent, loadCatalog } from '@/lib/store';
 import { DOMAIN_LABEL } from '@/lib/display';
 import type { Domain } from '@/types';
 
 const records = allRecords();
-const s = stats();
 const present = domainsPresent();
 const allDomains: Domain[] = ['orbital', 'neo', 'space_weather', 'launch_reentry'];
 const base = import.meta.env.BASE_URL;
 const catalogCount = loadCatalog().length;
+
+const skyEvents = [
+  { id: 'moon', name: 'Moon', desc: 'Our nearest neighbor — always a good test target for the camera.' },
+  { id: 'venus-evening', name: 'Venus', desc: 'Brightest planet in the evening or morning sky.' },
+  { id: 'perseids', name: 'Perseid Meteor Shower', desc: 'Fast, bright meteors (peak in August).' },
+  { id: 'geminids', name: 'Geminids Meteor Shower', desc: 'Reliable December shower — often one of the years best.' },
+];
+
+const skyConstellations = [
+  { id: 'orion', name: 'Orion', desc: 'The Hunter. Winter sky landmark.' },
+  { id: 'pleiades', name: 'Pleiades', desc: 'The Seven Sisters — delicate open cluster.' },
+  { id: 'andromeda', name: 'Andromeda Galaxy', desc: 'Nearest major galactic neighbor.' },
+  { id: 'cassiopeia', name: 'Cassiopeia', desc: 'Bright W in the northern sky.' },
+  { id: 'ursa-major', name: 'Ursa Major', desc: 'Home of the Big Dipper.' },
+  { id: 'scorpius', name: 'Scorpius', desc: 'Summer scorpion with a red heart.' },
+];
 ---
 
 <Base title="Dragon Lady’s Observatory">
-  <!-- celestial hero -->
-  <section class="sky -mx-4 mb-6 rounded-none border-b border-void-800 px-4 py-10 sm:rounded-xl sm:border">
+  <!-- celestial hero — one composition: brand, sky, quiet dragon, one CTA group -->
+  <section class="sky -mx-4 mb-8 rounded-none border-b border-void-800 px-4 py-10 sm:rounded-xl sm:border sm:py-14">
+    <div class="sky-twinkle" aria-hidden="true"></div>
+    <div class="sky-dragon" aria-hidden="true">
+      <img
+        src={base + 'watermarks/dragon-watermark.png'}
+        alt=""
+        width="420"
+        height="420"
+        decoding="async"
+      />
+    </div>
     <div class="relative z-10 max-w-2xl">
-      <h1 class="text-2xl font-semibold tracking-tight text-mist-100 sm:text-3xl">The sky, watched.</h1>
-      <p class="mt-1 text-xs text-mist-500">Your personal observatory in the night sky.</p>
-      <p class="mt-3 text-mist-300">
-        A calm place to explore what’s overhead — satellites, stars, and quiet moments worth noticing.
-      </p>
-      <div class="mt-5 flex flex-wrap gap-4 text-sm text-mist-400">
-        <span><strong class="text-mist-100">{s.total}</strong> things overhead</span>
-        <span><strong class="text-mist-100">{s.anomalies}</strong> quiet moments saved</span>
-      </div>
-      <div class="mt-6 flex flex-wrap gap-3">
+      <h1 class="text-2xl font-semibold tracking-tight text-mist-100 sm:text-3xl">The Observatory</h1>
+      <p class="mt-2 text-mist-300">The sky, watched. Your pins. Your Atlas. Quiet moments worth keeping.</p>
+      <div class="mt-6 flex flex-wrap items-center gap-x-4 gap-y-3">
         <a href={base + 'observatory'} class="inline-flex items-center gap-2 rounded-md border border-void-700 px-5 py-2.5 text-sm font-medium text-mist-200 hover:bg-indigo-900/20 hover:border-indigo-700 hover:text-indigo-300 transition-colors">
-          🌌 The Observatory
+          Open the Observatory
         </a>
-        <a href={base + 'sky-events'} class="inline-flex items-center gap-2 rounded-md border border-void-700 px-5 py-2.5 text-sm font-medium text-mist-200 hover:bg-emerald-900/20 hover:border-emerald-700 hover:text-emerald-300 transition-colors">
-          ✨ Sky events
-        </a>
-        <a href={base + 'globe'} class="inline-flex items-center gap-2 rounded-md border border-void-700 px-5 py-2.5 text-sm font-medium text-mist-200/70 hover:text-mist-200 hover:border-void-500 transition-colors" title="View the sky from anywhere on Earth">
-          🌍 The Globe — View From Anywhere
-        </a>
+        <button
+          type="button"
+          id="sky-ambient-btn"
+          class="sky-ambient-btn"
+          aria-pressed="false"
+          aria-label="Music off. Click to listen."
+          title="Music — tap to play or quiet (M). Remembers on this device."
+        >
+          <svg class="sky-ambient-icon sky-ambient-icon--on" width="22" height="22" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 18V5l12-2v13" />
+            <circle cx="6" cy="18" r="3" />
+            <circle cx="18" cy="16" r="3" />
+          </svg>
+          <svg class="sky-ambient-icon sky-ambient-icon--off" width="22" height="22" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 18V5l12-2v13" />
+            <circle cx="6" cy="18" r="3" />
+            <circle cx="18" cy="16" r="3" />
+            <path d="M4 4l16 16" />
+          </svg>
+        </button>
       </div>
     </div>
+    <audio id="sky-ambient-audio" loop preload="metadata" playsinline src={base + 'audio/nebula-drift.mp3'}></audio>
   </section>
 
-  <!-- Your Observatory (primary personal experience) -->
-  <section class="mb-8">
-    <div class="mb-4">
-      <h2 class="text-xl font-semibold text-mist-100">Your observatory</h2>
-      <p class="text-xs text-mist-500 mt-0.5">The places in the sky that matter to you.</p>
+  <!-- My Pins — primary personal shelf -->
+  <section class="mb-8" id="my-pins">
+    <div class="mb-4 flex flex-wrap items-end justify-between gap-3">
+      <div>
+        <h2 class="text-xl font-semibold text-mist-100">My Pins</h2>
+        <p class="text-xs text-mist-500 mt-0.5">Saved sky views — click a card to fly Atlas there.</p>
+      </div>
+      <a
+        href="#sky-events-inline"
+        class="text-xs text-mist-500 hover:text-mist-300"
+      >
+        Sky Events ↓
+      </a>
     </div>
 
-    <!-- My Pins Section -->
-    <div class="mb-6">
-      <!-- Collection Filter Chips -->
-      <div class="mb-3 flex flex-wrap gap-2" id="pins-chips">
-        <!-- Chips start neutral; JS controls active state on load and clicks -->
-        <button data-chip="all" class="chip px-3 py-1 text-sm rounded-full border border-void-700 bg-void-900 text-mist-300 hover:border-void-500">All moments</button>
-        <button data-chip="favorites" class="chip px-3 py-1 text-sm rounded-full border border-void-700 bg-void-900 text-mist-300 hover:border-void-500">Favorites shelf</button>
-        <button data-chip="sky-events" class="chip px-3 py-1 text-sm rounded-full border border-void-700 bg-void-900 text-mist-300 hover:border-void-500">From Sky Events</button>
-        <button data-chip="quiet" class="chip px-3 py-1 text-sm rounded-full border border-void-700 bg-void-900 text-mist-300 hover:border-void-500">Quiet revisit</button>
-      </div>
-      <div id="chip-hint" class="hidden mb-3 text-xs text-mist-400"></div>
-
-      <!-- Vault Migration Banner -->
-      <div id="vault-banner" class="hidden mb-4 rounded-xl border border-void-700 bg-void-900 p-5" onclick="event.stopImmediatePropagation()">
-        <div class="text-mist-200 mb-3">You have a backup of your pins in the vault. Would you like to bring them into this browser?</div>
-        <div class="flex gap-3">
-          <button id="bring-home" class="px-4 py-1.5 text-sm rounded-lg bg-signal-400 text-void-950 font-medium">Bring them home</button>
-          <button id="not-now" class="px-4 py-1.5 text-sm rounded-lg border border-void-700 text-mist-300">Not now</button>
+    <div id="pins-restore-bar" class="hidden mb-4 rounded-xl border border-amber-700/50 bg-void-900 p-4">
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <div class="text-sm text-mist-200">
+          Shelf looks empty. Restore a backup or re-seed Hi 42 + mystery + HD 23514.
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <button id="restore-pins-backup" type="button" class="px-3 py-1.5 rounded-lg border border-amber-700/60 text-amber-100 hover:bg-amber-900/20 text-sm">
+            Restore backup (<span data-backup-count>0</span>)
+          </button>
+          <button id="seed-known-pins" type="button" class="px-3 py-1.5 rounded-lg border border-void-600 text-mist-200 hover:bg-void-800 text-sm">
+            Re-seed known pins
+          </button>
         </div>
       </div>
+    </div>
 
-      <div class="mb-4 flex items-center justify-between gap-4">
-        <div class="flex items-center gap-3">
-          <input id="pins-search" type="text" placeholder="Find a saved view..."
+    <div class="mb-6">
+      <div class="mb-3 flex flex-wrap gap-2" id="pins-chips">
+        <button data-chip="all" class="chip px-3 py-1 text-sm rounded-full border border-void-700 bg-void-900 text-mist-300 hover:border-void-500">All</button>
+        <button data-chip="favorites" class="chip px-3 py-1 text-sm rounded-full border border-void-700 bg-void-900 text-mist-300 hover:border-void-500">Favorites</button>
+        <button data-chip="sky-events" class="chip px-3 py-1 text-sm rounded-full border border-void-700 bg-void-900 text-mist-300 hover:border-void-500" title="Pins you saved from the Sky Events page">Pinned from Sky Events</button>
+        <button data-chip="quiet" class="chip px-3 py-1 text-sm rounded-full border border-void-700 bg-void-900 text-mist-300 hover:border-void-500">Quiet</button>
+      </div>
+
+      <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div class="flex flex-wrap items-center gap-3">
+          <input id="pins-search" type="text" placeholder="Find a pin…"
                  class="text-sm px-3 py-1.5 rounded-lg border border-void-700 bg-void-900 text-mist-200 placeholder:text-mist-500 focus:outline-none focus:border-void-500" style="width:180px;">
           <button id="clear-search" class="text-xs text-mist-500 hover:text-mist-300">clear</button>
           <select id="pins-sort" class="text-sm px-3 py-1.5 rounded-lg border border-void-700 bg-void-900 text-mist-200 focus:outline-none focus:border-void-500">
@@ -79,19 +123,17 @@ const catalogCount = loadCatalog().length;
             <option value="favorites">Favorites first</option>
           </select>
         </div>
-        <div class="flex gap-2 text-sm">
-          <button id="save-vault" class="px-3 py-1.5 rounded-lg border border-void-700 text-mist-300 hover:bg-void-800">Save to vault</button>
-          <button id="export-pins" class="px-3 py-1.5 rounded-lg border border-void-700 text-mist-300 hover:bg-void-800">Export my pins</button>
+        <div class="flex flex-wrap gap-2 text-sm">
+          <button id="export-pins" class="px-3 py-1.5 rounded-lg border border-void-700 text-mist-300 hover:bg-void-800">Export</button>
           <label class="px-3 py-1.5 rounded-lg border border-void-700 text-mist-300 hover:bg-void-800 cursor-pointer">
-            Import pins
+            Import
             <input type="file" id="import-pins" accept=".json" class="hidden" />
           </label>
         </div>
       </div>
 
-      <!-- Rediscover Strip -->
       <div id="rediscover-strip" class="hidden mb-5 rounded-xl border border-void-700 bg-void-900 p-4">
-        <div class="text-xs text-mist-400 mb-2">Some quiet views waiting for you</div>
+        <div class="text-xs text-mist-400 mb-2">Quiet views waiting</div>
         <div id="rediscover-items" class="flex flex-wrap gap-3 text-sm"></div>
       </div>
 
@@ -100,41 +142,72 @@ const catalogCount = loadCatalog().length;
       </div>
 
       <div id="pins-empty" class="hidden rounded-xl border border-dashed border-void-700 p-8 text-center">
-        <p class="text-mist-300">No pins yet. Open the telescope (or the globe) and press <strong>P</strong> on anything beautiful.</p>
+        <p class="text-mist-300">No pins yet. Open the Observatory and press <strong>P</strong> on anything beautiful.</p>
       </div>
 
       <div id="pins-no-results" class="hidden col-span-full text-center text-mist-400 text-sm py-6">
         No pins match your search.
       </div>
-
-      <div class="mt-2 text-sm text-mist-400">Last write to the vault wins. Your pins are always yours.</div>
     </div>
   </section>
 
-  <!-- The Observatory -->
-  <section class="mb-4">
-    <a href={base + 'observatory'} class="block rounded-2xl border border-signal-800/50 bg-void-900 p-6 hover:border-signal-600 hover:bg-void-800/30 transition-all group">
-      <div class="flex items-center justify-between">
-        <div>
-          <div class="font-medium text-mist-100 text-lg group-hover:text-signal-300 transition-colors">The Observatory</div>
-          <p class="mt-1 text-sm text-mist-300">Real sky — WorldWide Telescope and Aladin survey atlas</p>
-        </div>
-        <span class="text-signal-400 text-sm">Explore →</span>
+  <!-- Sky Events — quiet invitations; full grid lives on /sky-events -->
+  <section class="mb-10" id="sky-events-inline">
+    <div class="mb-3 flex flex-wrap items-end justify-between gap-3">
+      <div>
+        <h2 class="text-lg font-semibold text-mist-100">Sky Events</h2>
+        <p class="text-xs text-mist-500 mt-0.5">A few invitations. Pin one to open Atlas.</p>
       </div>
-    </a>
-  </section>
+      <a href={base + 'sky-events'} class="text-xs text-mist-500 hover:text-mist-300">Full guide ↗</a>
+    </div>
 
-  <!-- Sky Events teaser -->
-  <section class="mb-8">
-    <a href={base + 'sky-events'} class="block rounded-2xl border border-void-700 bg-void-900 p-6 hover:border-void-500 transition-colors">
-      <div class="flex items-center justify-between">
-        <div>
-          <div class="font-medium text-mist-100 text-lg">Sky Events</div>
-          <p class="mt-1 text-sm text-mist-300">Constellations and quiet moments worth noticing tonight and soon.</p>
-        </div>
-        <span class="text-signal-400 text-sm">Explore →</span>
-      </div>
-    </a>
+    <ul class="divide-y divide-void-800 border-y border-void-800">
+      {skyEvents.map((item) => (
+        <li
+          class="flex flex-wrap items-center justify-between gap-3 py-3"
+          data-sky-tile
+          data-type="event"
+          data-id={item.id}
+          data-name={item.name}
+          data-desc={item.desc}
+        >
+          <div class="min-w-0">
+            <div class="text-sm font-medium text-mist-100">{item.name}</div>
+            <div class="text-xs text-mist-500 mt-0.5 leading-snug">{item.desc}</div>
+          </div>
+          <button type="button" class="pin-btn shrink-0 text-xs text-mist-400 hover:text-signal-300 underline-offset-2 hover:underline">
+            Pin
+          </button>
+        </li>
+      ))}
+    </ul>
+
+    <details class="mt-4 group">
+      <summary class="cursor-pointer select-none text-xs text-mist-500 hover:text-mist-300 list-none flex items-center gap-2">
+        <span class="text-mist-600 group-open:rotate-90 transition-transform">▸</span>
+        Constellations
+      </summary>
+      <ul class="mt-2 divide-y divide-void-800/80 border-t border-void-800/80">
+        {skyConstellations.map((item) => (
+          <li
+            class="flex flex-wrap items-center justify-between gap-3 py-2.5"
+            data-sky-tile
+            data-type="constellation"
+            data-id={item.id}
+            data-name={item.name}
+            data-desc={item.desc}
+          >
+            <div class="min-w-0">
+              <div class="text-sm text-mist-200">{item.name}</div>
+              <div class="text-xs text-mist-500 mt-0.5 leading-snug">{item.desc}</div>
+            </div>
+            <button type="button" class="pin-btn shrink-0 text-xs text-mist-400 hover:text-signal-300 underline-offset-2 hover:underline">
+              Pin
+            </button>
+          </li>
+        ))}
+      </ul>
+    </details>
   </section>
 
   <!-- Everything overhead (optional, noisy catalog) — heavily de-emphasized; focus is on the personal Observatory -->
@@ -213,6 +286,354 @@ const catalogCount = loadCatalog().length;
     return Number.isFinite(parsed) ? parsed : fallback;
   };
 
+  function degToHms(raDeg) {
+    var x = ((Number(raDeg) % 360) + 360) % 360 / 15;
+    var h = Math.floor(x);
+    var mFloat = (x - h) * 60;
+    var m = Math.floor(mFloat);
+    var s = (mFloat - m) * 60;
+    return String(h).padStart(2, '0') + ' ' + String(m).padStart(2, '0') + ' ' + s.toFixed(1).padStart(4, '0');
+  }
+
+  function degToDms(decDeg) {
+    var sign = Number(decDeg) < 0 ? '-' : '+';
+    var x = Math.abs(Number(decDeg));
+    var d = Math.floor(x);
+    var mFloat = (x - d) * 60;
+    var m = Math.floor(mFloat);
+    var s = (mFloat - m) * 60;
+    return sign + String(d).padStart(2, '0') + ' ' + String(m).padStart(2, '0') + ' ' + s.toFixed(0).padStart(2, '0');
+  }
+
+  /** Best sky coords for a pin: top-level ra/dec/fov, else viewState. */
+  function resolveSkyCoords(pin) {
+    const vs = pin.viewState || {};
+    const ra = Number(pin.ra != null ? pin.ra : vs.ra);
+    const dec = Number(pin.dec != null ? pin.dec : vs.dec);
+    const fov = Number(pin.fov != null ? pin.fov : (vs.fov != null ? vs.fov : vs.altitude));
+    const hasSky = Number.isFinite(ra) && Number.isFinite(dec);
+    return {
+      ra: hasSky ? ra : NaN,
+      dec: hasSky ? dec : NaN,
+      fov: Number.isFinite(fov) && fov > 0 ? fov : NaN,
+      hasSky,
+    };
+  }
+
+  // Default Atlas boot (M42). Pins that still carry these coords under another label
+  // got poisoned during earlier Orion slingshots — strip them so label/Sesame can win.
+  const M42_RA = 83.822;
+  const M42_DEC = -5.391;
+  const PINS_KEY = 'personalPins';
+  const PINS_BACKUP_KEY = 'personalPins:backup';
+  const PINS_BACKUP_META = 'personalPins:backupMeta';
+
+  function isNearM42(ra, dec) {
+    if (!Number.isFinite(ra) || !Number.isFinite(dec)) return false;
+    const dra = Math.abs((((ra - M42_RA) % 360) + 540) % 360 - 180);
+    const ddec = Math.abs(dec - M42_DEC);
+    return dra < 1.5 && ddec < 1.5;
+  }
+  function labelLooksLikeM42(label) {
+    const s = String(label || '').trim().toLowerCase();
+    if (!s) return false;
+    return /\bm\s*42\b/.test(s) || /\borion\s+nebula\b/.test(s) || /^orion$/.test(s) || /\bhi\s*42\b/.test(s);
+  }
+  function extractCatalogId(label) {
+    const target = String(label || '').trim();
+    const catalog = target.match(/\b((?:HD|HR|HIP|NGC|IC|M|Messier)\s*\d+[a-z]?)\b/i);
+    if (!catalog) return null;
+    return catalog[1].replace(/\s+/g, ' ').replace(/^messier\s*/i, 'M').replace(/^m\s+/i, 'M');
+  }
+
+  function coercePinsArray(raw) {
+    if (Array.isArray(raw)) return raw.filter(Boolean);
+    if (raw && typeof raw === 'object') {
+      // Legacy/object-shaped store — never treat as empty wipe fuel.
+      const vals = Object.values(raw).filter(function (p) { return p && typeof p === 'object'; });
+      if (vals.length) return vals;
+    }
+    return [];
+  }
+
+  function readPinsRaw() {
+    try {
+      const txt = localStorage.getItem(PINS_KEY);
+      if (txt == null || txt === '' || txt === 'undefined' || txt === 'null') return [];
+      return coercePinsArray(JSON.parse(txt));
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function readPinsBackup() {
+    try {
+      const txt = localStorage.getItem(PINS_BACKUP_KEY);
+      if (txt == null || txt === '' || txt === 'undefined' || txt === 'null') return [];
+      return coercePinsArray(JSON.parse(txt));
+    } catch (e) {
+      return [];
+    }
+  }
+
+  /** Snapshot non-empty pin lists before automated rewrites. */
+  function backupPinsIfNeeded(pins) {
+    if (!Array.isArray(pins) || pins.length === 0) return;
+    try {
+      localStorage.setItem(PINS_BACKUP_KEY, JSON.stringify(pins));
+      localStorage.setItem(PINS_BACKUP_META, JSON.stringify({ at: new Date().toISOString(), count: pins.length }));
+    } catch (e) {}
+  }
+
+  /**
+   * Safe write: never replace a non-empty store with [] unless allowEmpty.
+   * Always refresh backup when writing a non-empty list.
+   */
+  function safeWritePins(nextPins, opts) {
+    opts = opts || {};
+    const allowEmpty = !!opts.allowEmpty;
+    if (!Array.isArray(nextPins)) {
+      console.warn('[pins] refused to write non-array');
+      return false;
+    }
+    const current = readPinsRaw();
+    if (nextPins.length === 0 && current.length > 0 && !allowEmpty) {
+      console.warn('[pins] refused to wipe', current.length, 'pins with empty write');
+      backupPinsIfNeeded(current);
+      return false;
+    }
+    if (current.length > 0) backupPinsIfNeeded(current);
+    try {
+      const payload = JSON.stringify(nextPins);
+      if (typeof payload !== 'string') {
+        console.warn('[pins] stringify failed');
+        return false;
+      }
+      localStorage.setItem(PINS_KEY, payload);
+      if (nextPins.length > 0) backupPinsIfNeeded(nextPins);
+      return true;
+    } catch (e) {
+      console.warn('[pins] write failed', e);
+      return false;
+    }
+  }
+
+  /** If main key is empty but backup has pins, restore them. */
+  function restorePinsFromBackupIfEmpty() {
+    const current = readPinsRaw();
+    if (current.length > 0) return { restored: false, pins: current };
+    const backup = readPinsBackup();
+    if (backup.length === 0) return { restored: false, pins: current };
+    const ok = safeWritePins(backup, { allowEmpty: false });
+    return { restored: ok, pins: ok ? backup : current, count: backup.length };
+  }
+
+  /**
+   * Last-resort seed for the known Jul 10 session pins if both main + backup are empty.
+   * Does not invent unknown pins — mystery glow + HD 23514 + Hi 42 favorite.
+   */
+  function seedKnownSessionPinsIfEmpty(pins) {
+    if (Array.isArray(pins) && pins.length > 0) return pins;
+    const HD_RA = 56.65996751;
+    const HD_DEC = 22.91977776;
+    const M42_RA = 83.8221;
+    const M42_DEC = -5.3911;
+    const seeded = [
+      {
+        id: 'favorite-m42-orion-nebula',
+        createdAt: new Date().toISOString(),
+        label: 'M42 · Orion Nebula',
+        note: 'Hi 42 — Hitchhiker nod. Favorite pin (no longer the Atlas boot default). 05 35 17.3  -05 23 28',
+        source: 'observatory',
+        favorite: true,
+        ra: M42_RA,
+        dec: M42_DEC,
+        fov: 1.5,
+        viewState: { lat: M42_DEC, lng: M42_RA, altitude: 1.5, ra: M42_RA, dec: M42_DEC, fov: 1.5 },
+        thumbnailData: '',
+      },
+      {
+        id: 'mre7i3zqed9sm',
+        createdAt: '2026-07-10T00:37:41.942Z',
+        label: 'HD 23514 High Motion Star',
+        note: 'Recovered after localStorage wipe · Simbad 03 46 38.39  +22 55 11.2',
+        source: 'observatory',
+        ra: HD_RA,
+        dec: HD_DEC,
+        fov: 2.5,
+        coordsHealed: 'HD 23514',
+        viewState: { lat: HD_DEC, lng: HD_RA, altitude: 2.5, ra: HD_RA, dec: HD_DEC, fov: 2.5 },
+        thumbnailData: '',
+      },
+      {
+        id: 'mystery-moon-2026-07-09',
+        createdAt: '2026-07-10T00:30:09.592Z',
+        label: 'Mystery glow near Moon · Jul 9',
+        note: 'Typed coords while bloom was visible under the Moon. Likely DSS saturation (Simbad empty @ 60″). Screenshots archived. 02 47 52.13  +21 23 30.4',
+        source: 'observatory',
+        ra: 41.96720833333333,
+        dec: 21.391777777777776,
+        fov: 0.5,
+        viewState: {
+          lat: 21.391777777777776,
+          lng: 41.96720833333333,
+          altitude: 0.5,
+          ra: 41.96720833333333,
+          dec: 21.391777777777776,
+          fov: 0.5,
+          coo: '02 47 52.13  +21 23 30.4',
+        },
+        thumbnailData: '',
+        recoveryMeta: {
+          originalCoordinates: {
+            ra: 41.96720833333333,
+            dec: 21.391777777777776,
+            fov: 0.5,
+            coo: '02 47 52.13  +21 23 30.4',
+            frame: 'ICRS',
+          },
+          description: 'Re-seeded after localStorage wipe (2026-07-10)',
+        },
+      },
+    ];
+    safeWritePins(seeded);
+    return seeded;
+  }
+
+  /** Ensure Hi 42 exists as a favorite even when the shelf already has other pins. */
+  function ensureM42FavoriteOnConsole(pins) {
+    if (!Array.isArray(pins)) return pins;
+    const id = 'favorite-m42-orion-nebula';
+    const M42_RA = 83.8221;
+    const M42_DEC = -5.3911;
+    let changed = false;
+    const hasFavId = pins.some((p) => p && p.id === id);
+    const legacy = pins.find((p) => p && labelLooksLikeM42(p.label));
+    if (hasFavId) {
+      pins = pins.map((p) => {
+        if (!p || p.id !== id) return p;
+        if (p.favorite) return p;
+        changed = true;
+        return Object.assign({}, p, { favorite: true });
+      });
+    } else if (legacy) {
+      pins = pins.map((p) => {
+        if (p !== legacy) return p;
+        changed = true;
+        return Object.assign({}, p, { favorite: true });
+      });
+    } else {
+      changed = true;
+      pins = [{
+        id: id,
+        createdAt: new Date().toISOString(),
+        label: 'M42 · Orion Nebula',
+        note: 'Hi 42 — Hitchhiker nod. Favorite pin (no longer the Atlas boot default). 05 35 17.3  -05 23 28',
+        source: 'observatory',
+        favorite: true,
+        ra: M42_RA,
+        dec: M42_DEC,
+        fov: 1.5,
+        viewState: { lat: M42_DEC, lng: M42_RA, altitude: 1.5, ra: M42_RA, dec: M42_DEC, fov: 1.5 },
+        thumbnailData: '',
+      }].concat(pins);
+    }
+    if (changed) safeWritePins(pins);
+    return pins;
+  }
+
+  // Only strip true M42-default coords under a non-M42 label. Do NOT strip catalog
+  // pins' coords on load — that rewrite path was too aggressive and risked data loss.
+  function scrubM42PoisonedPins(pins) {
+    if (!Array.isArray(pins)) return pins;
+    let changed = false;
+    const cleaned = pins.map((pin) => {
+      if (!pin || labelLooksLikeM42(pin.label)) return pin;
+      const sky = resolveSkyCoords(pin);
+      if (!sky.hasSky || !isNearM42(sky.ra, sky.dec)) return pin;
+      changed = true;
+      const next = Object.assign({}, pin);
+      delete next.ra;
+      delete next.dec;
+      delete next.fov;
+      if (next.viewState && typeof next.viewState === 'object') {
+        next.viewState = Object.assign({}, next.viewState);
+        delete next.viewState.ra;
+        delete next.viewState.dec;
+        delete next.viewState.fov;
+        if (isNearM42(Number(next.viewState.lng), Number(next.viewState.lat))) {
+          delete next.viewState.lat;
+          delete next.viewState.lng;
+          delete next.viewState.altitude;
+        }
+      }
+      return next;
+    });
+    if (changed) safeWritePins(cleaned);
+    return cleaned;
+  }
+
+  function pinSourceBadge(pin) {
+    if (pin.source === 'observatory' || (pin.id && String(pin.id).indexOf('mystery-moon') === 0)) {
+      return { text: 'Atlas', cls: 'text-signal-300/80' };
+    }
+    if (pin.sourceEventId || pin.source === 'sky-events') {
+      return { text: 'Sky Events', cls: 'text-emerald-400/80' };
+    }
+    if (pin.source === 'telescope') {
+      return { text: 'Telescope', cls: 'text-mist-400' };
+    }
+    return null;
+  }
+
+  function buildFlyToPayload(pin) {
+    const vs = pin.viewState || {};
+    let sky = resolveSkyCoords(pin);
+    const catalogId = extractCatalogId(pin.label);
+    const labelKey = String(pin.label || '').trim().toLowerCase();
+    const isSso = /^(?:next\s+)?(?:full\s+)?(moon|mercury|venus|mars|jupiter|saturn|uranus|neptune)\b/.test(labelKey)
+      || /^venus-evening\b/.test(labelKey)
+      || labelKey === 'venus' || labelKey === 'moon';
+    // Don't ship M42-default coords under a non-M42 label — forces Sesame/label path.
+    if (sky.hasSky && isNearM42(sky.ra, sky.dec) && !labelLooksLikeM42(pin.label)) {
+      sky = { ra: NaN, dec: NaN, fov: NaN, hasSky: false };
+    }
+    // Catalog pins: Observatory resolves by name; omit camera-snapshot coords from handoff.
+    if (catalogId && !labelLooksLikeM42(pin.label)) {
+      sky = { ra: NaN, dec: NaN, fov: Number.isFinite(sky.fov) ? sky.fov : NaN, hasSky: false };
+    }
+    // Moon/Venus/planets: never ship snapshot coords — Observatory uses live Miriade.
+    if (isSso) {
+      sky = { ra: NaN, dec: NaN, fov: NaN, hasSky: false };
+    }
+    const lat = safeNumber(vs.lat, sky.hasSky ? sky.dec : 0);
+    const lng = safeNumber(vs.lng, sky.hasSky ? sky.ra : 0);
+    const altitude = safeNumber(vs.altitude, Number.isFinite(sky.fov) ? sky.fov : 2.8);
+    const payload = {
+      id: pin.id,
+      label: pin.label,
+      viewState: {
+        lat,
+        lng,
+        altitude,
+      },
+    };
+    if (sky.hasSky) {
+      payload.ra = sky.ra;
+      payload.dec = sky.dec;
+      payload.viewState.ra = sky.ra;
+      payload.viewState.dec = sky.dec;
+      if (Number.isFinite(sky.fov)) {
+        payload.fov = sky.fov;
+        payload.viewState.fov = sky.fov;
+      }
+    } else if (Number.isFinite(sky.fov)) {
+      payload.fov = sky.fov;
+      payload.viewState.fov = sky.fov;
+    }
+    return payload;
+  }
+
   let activeChip = 'all';
 
   function getDaysSince(dateStr) {
@@ -237,9 +658,9 @@ const catalogCount = loadCatalog().length;
    * Creates the shareable Observatory card for a pin.
    *
    * Final direction:
-   * - The globe (3D Earth + satellite tracks, markers, data layers) is "noise".
+   * - The dedicated globe page is retired (quiet Earth view + click-to-go; we kept the saved script if we ever miss it).
    * - The desired "telescope / observatory angle" for sharing is the calm, contemplative, wonder-filled artistic sky.
-   * - Globe canvas thumbnails are NEVER included in the exported image (they are meaningless even to the creator later).
+   * - Globe-style canvas thumbnails are never included in the exported image (they are meaningless even to the creator later).
    * - Every share is a pure, self-contained artistic Observatory card: rich gradient sky + stars + minimal poetic text + the two watermarks.
    *
    * Watermarks (locked rules):
@@ -297,32 +718,15 @@ const catalogCount = loadCatalog().length;
       drawWatermarks(ctx, w, h, dragonImg, ladyImg);
     }
 
-    // === Watermark marks (locked rules) - CURRENT STATE ===
-    // Watermarks are COMPLETE (initial victory lap commenced 2026-06-03).
-    // Fixed assets (do not recreate):
+    // Fixed watermark assets:
     //   dragon (bottom-left): /watermarks/dragon-watermark.png (or .webp)
     //   lady (top-right): /watermarks/dragon-lady-mark.jpg  ← brightened 1.15x in prepare (project owner tweak: was too dark)
     //
-    // These three files from the real repo (Dragon-Lady-Observatory\viewer\public\watermarks\)
-    // are the final preserved artistic signatures.
-    // Code ONLY loads them directly (with minimal bg-strip + per-asset subject prep for dark card visibility) and draws at faint alpha in locked corners.
-    // No canvas silhouettes, no heavy processing, no recreation.
-    // Old history (iterations, GIMP, processor experiments, rate limits, preschool drawings, empty boxes) archived in GIMP_EDIT_INSTRUCTIONS.txt and session logs.
-    // Victory lap: boxes gone, real assets showing. One tweak applied for top-right brightness.
+    // Load them directly and draw them at faint alpha in locked corners.
 
     async function loadWatermarkAssets() {
-      // WATERMARKS COMPLETE (2026-06-03 per Goldwing delivery + project owner confirmation)
-      // Fixed assets live in the real repo and are the source of truth:
-      //   Dragon-Lady-Observatory\viewer\public\watermarks\dragon-lady-mark.jpg
-      //   Dragon-Lady-Observatory\viewer\public\watermarks\dragon-watermark.png
-      //   Dragon-Lady-Observatory\viewer\public\watermarks\dragon-watermark.webp
-      //
-      // Task: ONLY load these exact assets and preserve the ART exactly as provided.
-      // For the .jpg (lady scenic) we do a minimal bg-strip only (no contrast boost, no art alteration)
-      // so the rectangular "box" of the photo bg doesn't show — only the subject draws.
-      // For the png dragon (already transparent icon) we load raw to fully preserve.
-      // No heavy recreation, no old processing side-effects (no bright fill, no vague).
-      // Just load + light bg clean for jpg usability + draw faintly in the locked corners.
+      // Preserve the supplied artwork; only apply the minimal background cleanup
+      // needed for the artwork to blend into dark share cards.
 
       const dragonImg = new Image();
       const ladyImg = new Image();
@@ -423,7 +827,7 @@ const catalogCount = loadCatalog().length;
     }
 
     // (Old canvas silhouette helpers removed during cleanup. Watermarks are now strictly the preserved image assets only — no code paths for silhouettes remain.)
-    // Historical PAUSE/iteration details archived in GIMP_EDIT_INSTRUCTIONS.txt (see COMPLETE header there).
+    // Watermark assets are intentionally loaded directly without regeneration.
 
     // Draw both watermarks in the correct corners per locked rules.
     // ONLY load + preserve the fixed assets (see loadWatermarkAssets).
@@ -507,11 +911,89 @@ const catalogCount = loadCatalog().length;
       // Watermarks last (on top, correct corners) using Imagine assets
       drawWatermarks(ctx, canvas.width, canvas.height, dragonImg, ladyImg);
     } else {
-      // Pure calm artistic card for globe / other pins (no globe thumb ever)
+      // Pure calm artistic card for non-telescope pins (the retired globe page never contributed thumbs)
       drawPrettyFallback(ctx, canvas.width, canvas.height, dragonImg, ladyImg);
     }
 
     return canvas.toDataURL('image/png');
+  }
+
+  /** Deterministic 0..1 from string seed (for per-pin sky art). */
+  function hash01(str) {
+    let h = 2166136261;
+    const s = String(str || '');
+    for (let i = 0; i < s.length; i++) {
+      h ^= s.charCodeAt(i);
+      h = Math.imul(h, 16777619);
+    }
+    return ((h >>> 0) % 10000) / 10000;
+  }
+
+  /**
+   * Tiny seeded starfield for pins without a real Atlas thumb.
+   * Same pin always gets the same sky — feels personal, not random stock.
+   */
+  function seededSkyThumb(pin, sky, w = 320, h = 120) {
+    try {
+      const canvas = document.createElement('canvas');
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return '';
+
+      const seed = [
+        pin.id || '',
+        pin.label || '',
+        sky.hasSky ? sky.ra.toFixed(3) : '',
+        sky.hasSky ? sky.dec.toFixed(3) : '',
+      ].join('|');
+
+      const ra = sky.hasSky ? sky.ra : hash01(seed + ':ra') * 360;
+      const dec = sky.hasSky ? sky.dec : (hash01(seed + ':dec') * 180 - 90);
+      const hue = Math.floor(((dec + 90) / 180) * 210 + 190); // cool night blues/teals
+      const hue2 = (hue + 28 + Math.floor(hash01(seed + ':h2') * 40)) % 360;
+
+      const g = ctx.createLinearGradient(0, 0, w, h);
+      g.addColorStop(0, `hsl(${hue} 42% 10%)`);
+      g.addColorStop(0.55, `hsl(${hue2} 35% 7%)`);
+      g.addColorStop(1, `hsl(${(hue + 50) % 360} 28% 5%)`);
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, w, h);
+
+      // Soft nebula wash keyed to coords
+      const blobX = (ra / 360) * w;
+      const blobY = ((90 - dec) / 180) * h;
+      const rg = ctx.createRadialGradient(blobX, blobY, 4, blobX, blobY, Math.max(w, h) * 0.45);
+      rg.addColorStop(0, `hsla(${hue2} 55% 55% / 0.22)`);
+      rg.addColorStop(0.45, `hsla(${hue} 40% 40% / 0.08)`);
+      rg.addColorStop(1, 'transparent');
+      ctx.fillStyle = rg;
+      ctx.fillRect(0, 0, w, h);
+
+      const starCount = 28 + Math.floor(hash01(seed + ':n') * 22);
+      for (let i = 0; i < starCount; i++) {
+        const x = hash01(seed + ':x' + i) * w;
+        const y = hash01(seed + ':y' + i) * h;
+        const bright = hash01(seed + ':b' + i);
+        const r = bright > 0.88 ? 1.6 : bright > 0.6 ? 1.1 : 0.7;
+        ctx.beginPath();
+        ctx.fillStyle = bright > 0.82
+          ? `rgba(233,237,245,${0.55 + bright * 0.4})`
+          : `rgba(170,180,199,${0.35 + bright * 0.45})`;
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fill();
+        if (bright > 0.92) {
+          ctx.beginPath();
+          ctx.fillStyle = `rgba(155,228,239,${0.35 + bright * 0.25})`;
+          ctx.arc(x, y, r * 2.2, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      return canvas.toDataURL('image/jpeg', 0.82);
+    } catch (e) {
+      return '';
+    }
   }
 
   function renderMyPins() {
@@ -520,13 +1002,33 @@ const catalogCount = loadCatalog().length;
     const grid = document.getElementById('pins-grid');
     const empty = document.getElementById('pins-empty');
     const noResults = document.getElementById('pins-no-results');
-    const hint = document.getElementById('chip-hint');
 
-    let pins = [];
-    try {
-      pins = JSON.parse(localStorage.getItem('personalPins') || '[]');
-    } catch {
-      pins = [];
+    let pins = readPinsRaw();
+    const recovered = restorePinsFromBackupIfEmpty();
+    if (recovered.restored) {
+      pins = recovered.pins;
+      try {
+        const toast = document.createElement('div');
+        toast.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:3000;background:#0f1420;border:1px solid #36415a;color:#e9edf5;padding:10px 22px;border-radius:9999px;font-size:13px;';
+        toast.textContent = 'Restored ' + recovered.count + ' pins from local backup';
+        document.body.appendChild(toast);
+        setTimeout(function () { toast.remove(); }, 4200);
+      } catch (e) {}
+    }
+    // Do NOT auto-seed / rewrite the shelf on every load — that felt like "pins changed back."
+    // Empty shelf: offer restore/seed via the restore bar only.
+    pins = scrubM42PoisonedPins(pins);
+
+    const backup = readPinsBackup();
+    const restoreBar = document.getElementById('pins-restore-bar');
+    if (restoreBar) {
+      if (pins.length === 0) {
+        restoreBar.classList.remove('hidden');
+        const countEl = restoreBar.querySelector('[data-backup-count]');
+        if (countEl) countEl.textContent = String(backup.length);
+      } else {
+        restoreBar.classList.add('hidden');
+      }
     }
 
     const searchInput = document.getElementById('pins-search');
@@ -556,19 +1058,6 @@ const catalogCount = loadCatalog().length;
 
     grid.innerHTML = '';
 
-    // Chip hint
-    if (activeChip !== 'all') {
-      const messages = {
-        favorites: 'Your starred views',
-        'sky-events': 'Moments you pinned from events',
-        quiet: 'Some views wait patiently for you. They’ve been waiting a while.'
-      };
-      hint.textContent = messages[activeChip] || '';
-      hint.classList.remove('hidden');
-    } else {
-      hint.classList.add('hidden');
-    }
-
     if (pins.length === 0) {
       empty.classList.remove('hidden');
       noResults.classList.add('hidden');
@@ -577,12 +1066,22 @@ const catalogCount = loadCatalog().length;
 
     empty.classList.add('hidden');
 
-    if (sorted.length === 0 && searchTerm) {
+    if (sorted.length === 0) {
       noResults.classList.remove('hidden');
+      if (activeChip === 'sky-events') {
+        noResults.innerHTML =
+          'No Sky Events pins yet. <a href="' + base + 'sky-events" class="text-signal-400 hover:underline">Open Sky Events</a> and hit <strong>Pin this</strong> on Moon, Venus, or a constellation.';
+      } else if (searchTerm) {
+        noResults.textContent = 'No pins match your search.';
+      } else if (activeChip === 'favorites') {
+        noResults.textContent = 'No favorites yet — star a pin from All.';
+      } else {
+        noResults.textContent = 'No pins in this filter.';
+      }
       return;
-    } else {
-      noResults.classList.add('hidden');
     }
+    noResults.classList.add('hidden');
+    noResults.textContent = 'No pins match your search.';
 
     // Rediscover strip — shown primarily when Quiet revisit chip is active (per handoff intent)
     const rediscover = document.getElementById('rediscover-strip');
@@ -601,11 +1100,8 @@ const catalogCount = loadCatalog().length;
           el.onclick = (e) => {
             // Light protection even though not inside main cards
             e.stopImmediatePropagation?.();
-            localStorage.setItem('flyToPin', JSON.stringify({
-              id: pin.id,
-              viewState: pin.viewState
-            }));
-            window.location.href = base + 'globe';
+            localStorage.setItem('flyToPin', JSON.stringify(buildFlyToPayload(pin)));
+            window.location.href = base + 'observatory';
           };
           rediscoverItems.appendChild(el);
         });
@@ -618,69 +1114,109 @@ const catalogCount = loadCatalog().length;
 
     sorted.forEach((pin) => {
       const card = document.createElement('div');
-      const isFromSky = !!pin.sourceEventId;
-      card.className = `group rounded-xl border border-void-700 bg-void-900 p-5 hover:border-void-500 hover:-translate-y-0.5 transition-all duration-200 shadow-sm cursor-pointer ${isFromSky ? 'border-l-2 border-l-emerald-700' : ''}`;
+      const badge = pinSourceBadge(pin);
+      const isFromSky = badge && badge.text === 'Sky Events';
+      const isAtlas = badge && badge.text === 'Atlas';
+      card.className = `group overflow-hidden rounded-xl border border-void-700 bg-void-900 hover:border-void-500 hover:-translate-y-0.5 transition-all duration-200 shadow-sm cursor-pointer${isFromSky ? ' border-l-2 border-l-emerald-700' : ''}${isAtlas ? ' border-l-2 border-l-signal-600' : ''}`;
 
-      // Thumbnail (real or gradient fallback)
-      let thumbHTML = '';
+      // Thumbnail: real Atlas capture when present; else seeded sky art unique to this pin.
       const viewState = pin.viewState || {};
-      const lat = safeNumber(viewState.lat);
-      const lng = safeNumber(viewState.lng);
-      const altitude = safeNumber(viewState.altitude, 2.8);
+      const sky = resolveSkyCoords(pin);
+      const lat = safeNumber(viewState.lat, sky.hasSky ? sky.dec : 0);
+      const lng = safeNumber(viewState.lng, sky.hasSky ? sky.ra : 0);
       const label = escapeHtml(pin.label || 'Untitled Pin');
       const note = pin.note ? escapeHtml(pin.note) : '';
 
-      if (pin.thumbnailData) {
-        thumbHTML = `<img src="${escapeHtml(pin.thumbnailData)}" class="w-[52px] h-[38px] rounded-md object-cover flex-shrink-0 border border-void-700" />`;
-      } else {
+      const rawThumb = (typeof pin.thumbnailData === 'string') ? pin.thumbnailData : '';
+      const hasRealThumb = rawThumb.indexOf('data:image/') === 0 && rawThumb.length > 64;
+      let thumbSrc = hasRealThumb ? rawThumb : seededSkyThumb(pin, sky);
+      let gradientFallback = '';
+      if (!thumbSrc) {
         const hue = Math.floor(((lat + 90) / 180) * 360);
         const sat = 38 + Math.floor(Math.abs(lng) % 35);
         const light = 32 + Math.floor(Math.abs(lat) % 18);
-        thumbHTML = `<div style="width:52px;height:38px;border-radius:6px;background:linear-gradient(135deg, hsl(${hue},${sat}%,${light}%), hsl(${hue+30},${sat+10}%,${light-8}%));flex-shrink-0;border:1px solid #36415a;"></div>`;
+        gradientFallback = `background:linear-gradient(135deg, hsl(${hue},${sat}%,${light}%), hsl(${hue + 30},${sat + 10}%,${light - 8}%))`;
+      }
+
+      if (pin.thumbnailData && !hasRealThumb) {
+        pin.thumbnailData = '';
+        try {
+          const all = readPinsRaw();
+          const cleaned = all.map((p) => (p && p.id === pin.id ? Object.assign({}, p, { thumbnailData: '' }) : p));
+          safeWritePins(cleaned);
+        } catch (e) {}
       }
 
       const lastViewed = pin.updatedAt 
         ? `Last viewed ${Math.floor((Date.now() - new Date(pin.updatedAt).getTime()) / (1000*60*60*24))} days ago`
         : `Pinned ${new Date(pin.createdAt).toLocaleDateString()}`;
 
+      let coordLine = '';
+      if (sky.hasSky) {
+        const fovBit = Number.isFinite(sky.fov) ? ` · FOV ${sky.fov < 10 ? sky.fov.toFixed(2) : sky.fov.toFixed(0)}°` : '';
+        coordLine = `${degToHms(sky.ra)}  ${degToDms(sky.dec)}${fovBit}`;
+      } else {
+        coordLine = `lat ${lat.toFixed(2)} · lng ${lng.toFixed(2)}`;
+      }
+
+      const badgeHtml = badge
+        ? `<span class="text-[10px] ${badge.cls}">${escapeHtml(badge.text)}</span>`
+        : '';
+
+      const thumbBanner = thumbSrc
+        ? `<div class="pin-thumb-banner relative h-[88px] w-full overflow-hidden border-b border-void-800 bg-void-950">
+             <img src="${escapeHtml(thumbSrc)}" alt="" class="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]" loading="lazy" />
+             <div class="pointer-events-none absolute inset-0 bg-gradient-to-t from-void-900/50 to-transparent"></div>
+           </div>`
+        : `<div class="pin-thumb-banner relative h-[88px] w-full overflow-hidden border-b border-void-800" style="${gradientFallback || 'background:#0a0e17'}"></div>`;
+
       card.innerHTML = `
-        <div class="flex justify-between items-start">
-          <div class="flex items-center gap-2 min-w-0">
-            ${thumbHTML}
+        ${thumbBanner}
+        <div class="p-4">
+          <div class="flex justify-between items-start gap-2">
             <div class="min-w-0">
               <div class="font-medium text-mist-100 pin-label cursor-pointer hover:underline flex items-center gap-1.5">
                 ${label}
                 ${pin.favorite ? `<span class="text-yellow-400 text-sm">★</span>` : ''}
               </div>
-              <div class="text-[10px] text-mist-500 mt-0.5">${lastViewed}</div>
+              <div class="text-[10px] text-mist-500 mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                <span>${lastViewed}</span>
+                ${badgeHtml}
+              </div>
+            </div>
+            <div class="flex items-center gap-1 flex-shrink-0">
+              <button class="edit-btn text-xs px-2 py-0.5 rounded border border-void-600 text-mist-400 hover:text-mist-200" data-id="${pin.id}">Edit</button>
+              <button class="share-btn text-xs px-2 py-0.5 rounded border border-void-600 text-mist-400 hover:text-mist-200" data-id="${pin.id}">Share</button>
+              <button class="favorite-btn text-lg leading-none transition-colors ${pin.favorite ? 'text-yellow-400' : 'text-mist-400 hover:text-yellow-300'}" data-id="${pin.id}">★</button>
+              <button class="delete-pin text-mist-400 hover:text-red-400/80 text-xl leading-none transition-colors" data-id="${pin.id}">×</button>
             </div>
           </div>
-          <div class="flex items-center gap-1">
-            <button class="edit-btn text-xs px-2 py-0.5 rounded border border-void-600 text-mist-400 hover:text-mist-200" data-id="${pin.id}">Edit</button>
-            <button class="share-btn text-xs px-2 py-0.5 rounded border border-void-600 text-mist-400 hover:text-mist-200" data-id="${pin.id}">Share</button>
-            <button class="favorite-btn text-lg leading-none transition-colors ${pin.favorite ? 'text-yellow-400' : 'text-mist-400 hover:text-yellow-300'}" data-id="${pin.id}">★</button>
-            <button class="delete-pin text-mist-400 hover:text-red-400/80 text-xl leading-none transition-colors" data-id="${pin.id}">×</button>
-          </div>
+          ${note ? `<div class="mt-3 text-sm text-mist-300 pin-note cursor-pointer hover:underline line-clamp-2">${note}</div>` : ''}
+          <div class="mt-3 font-mono text-[10px] text-mist-500 tracking-wide">${escapeHtml(coordLine)}</div>
+          <div class="edit-panel hidden mt-4 border-t border-void-700 pt-4"></div>
         </div>
-        ${note ? `<div class="mt-3 text-sm text-mist-300 pin-note cursor-pointer hover:underline line-clamp-2">${note}</div>` : ''}
-        ${isFromSky ? `<div class="mt-2 text-[10px] text-emerald-400/70">from Sky Events</div>` : ''}
-        <div class="mt-3 text-[10px] text-mist-500">lat ${lat.toFixed(2)} · lng ${lng.toFixed(2)}</div>
-        <div class="edit-panel hidden mt-4 border-t border-void-700 pt-4"></div>
       `;
 
-      // Click card → fly to view on globe + pass pin identity
+      // Click card → fly to Atlas. Never steal Edit focus (inputs / Save / Cancel).
       card.addEventListener('click', (e) => {
-        if (e.target.classList.contains('delete-pin') || 
-            e.target.classList.contains('favorite-btn') ||
-            e.target.classList.contains('edit-btn') ||
-            e.target.classList.contains('share-btn')) return;
+        const t = e.target;
+        if (!(t instanceof Element)) return;
+        if (
+          t.closest('.edit-panel') ||
+          t.closest('.edit-btn') ||
+          t.closest('.delete-pin') ||
+          t.closest('.favorite-btn') ||
+          t.closest('.share-btn') ||
+          t.tagName === 'INPUT' ||
+          t.tagName === 'TEXTAREA' ||
+          t.tagName === 'BUTTON' ||
+          t.tagName === 'LABEL'
+        ) {
+          return;
+        }
 
-        // Pass both the viewState and the specific pin ID so the globe knows exactly which pin we're viewing
-        localStorage.setItem('flyToPin', JSON.stringify({
-          id: pin.id,
-          viewState: { lat, lng, altitude }
-        }));
-        window.location.href = base + 'globe';
+        localStorage.setItem('flyToPin', JSON.stringify(buildFlyToPayload(pin)));
+        window.location.href = base + 'observatory';
       });
 
       // Delete
@@ -688,7 +1224,7 @@ const catalogCount = loadCatalog().length;
         e.stopImmediatePropagation();
         if (!confirm('Remove this pin?')) return;
         const updated = pins.filter(p => p.id !== pin.id);
-        localStorage.setItem('personalPins', JSON.stringify(updated));
+        safeWritePins(updated, { allowEmpty: true });
         renderMyPins();
       });
 
@@ -699,7 +1235,7 @@ const catalogCount = loadCatalog().length;
           e.stopImmediatePropagation();
           pin.favorite = !pin.favorite;
           const updated = pins.map(p => p.id === pin.id ? pin : p);
-          localStorage.setItem('personalPins', JSON.stringify(updated));
+          safeWritePins(updated);
           renderMyPins();
         });
       }
@@ -734,33 +1270,43 @@ const catalogCount = loadCatalog().length;
       const editPanel = card.querySelector('.edit-panel');
 
       editBtn.addEventListener('click', (e) => {
+        e.preventDefault();
         e.stopImmediatePropagation();
         editPanel.innerHTML = `
           <div class="space-y-3">
             <input type="text" value="${escapeHtml(pin.label || '')}" class="edit-label w-full px-3 py-2 rounded-lg border border-void-700 bg-void-950 text-mist-100 text-sm" />
             <textarea class="edit-note w-full px-3 py-2 rounded-lg border border-void-700 bg-void-950 text-mist-100 text-sm" rows="3">${escapeHtml(pin.note || '')}</textarea>
             <div class="flex gap-2">
-              <button class="save-edit px-4 py-1.5 text-sm rounded-lg bg-signal-400 text-void-950 font-medium">Save</button>
-              <button class="cancel-edit px-4 py-1.5 text-sm rounded-lg border border-void-700 text-mist-300">Cancel</button>
+              <button type="button" class="save-edit px-4 py-1.5 text-sm rounded-lg bg-signal-400 text-void-950 font-medium">Save</button>
+              <button type="button" class="cancel-edit px-4 py-1.5 text-sm rounded-lg border border-void-700 text-mist-300">Cancel</button>
             </div>
           </div>
         `;
         editPanel.classList.remove('hidden');
+        // Keep all edit interactions on the card — do not bubble into fly-to-Aladin.
+        editPanel.addEventListener('click', (ev) => ev.stopPropagation());
+        editPanel.addEventListener('keydown', (ev) => ev.stopPropagation());
 
         const saveBtn = editPanel.querySelector('.save-edit');
         const cancelBtn = editPanel.querySelector('.cancel-edit');
+        const labelInput = editPanel.querySelector('.edit-label');
+        if (labelInput) setTimeout(() => labelInput.focus(), 0);
 
-        saveBtn.addEventListener('click', () => {
+        saveBtn.addEventListener('click', (ev) => {
+          ev.preventDefault();
+          ev.stopImmediatePropagation();
           const newLabel = editPanel.querySelector('.edit-label').value.trim();
           const newNote = editPanel.querySelector('.edit-note').value.trim();
           if (newLabel) pin.label = newLabel;
           pin.note = newNote || undefined;
           const updated = pins.map(p => p.id === pin.id ? pin : p);
-          localStorage.setItem('personalPins', JSON.stringify(updated));
+          safeWritePins(updated);
           renderMyPins();
         });
 
-        cancelBtn.addEventListener('click', () => {
+        cancelBtn.addEventListener('click', (ev) => {
+          ev.preventDefault();
+          ev.stopImmediatePropagation();
           editPanel.classList.add('hidden');
           editPanel.innerHTML = '';
         });
@@ -806,45 +1352,11 @@ const catalogCount = loadCatalog().length;
       });
     });
 
-    // Save to vault (3A-write) — unified to existing /api/vault-pins endpoint
-    const saveVaultBtn = document.getElementById('save-vault');
-    if (saveVaultBtn) {
-      saveVaultBtn.addEventListener('click', async () => {
-        const pins = JSON.parse(localStorage.getItem('personalPins') || '[]');
-        try {
-          const res = await fetch('/api/vault-pins', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ pins, lastSynced: new Date().toISOString() })
-          });
-          if (res.ok) {
-            const toast = document.createElement('div');
-            toast.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#0f1420;border:1px solid #36415a;color:#e9edf5;padding:10px 22px;border-radius:9999px;font-size:13px;';
-            toast.textContent = 'Saved to vault';
-            document.body.appendChild(toast);
-            setTimeout(() => toast.remove(), 2400);
-          } else {
-            const toast = document.createElement('div');
-            toast.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#0f1420;border:1px solid #5c3a3a;color:#e9edf5;padding:10px 22px;border-radius:9999px;font-size:13px;';
-            toast.textContent = 'Vault save did not complete';
-            document.body.appendChild(toast);
-            setTimeout(() => toast.remove(), 3000);
-          }
-        } catch (e) {
-          const toast = document.createElement('div');
-          toast.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#0f1420;border:1px solid #5c3a3a;color:#e9edf5;padding:10px 22px;border-radius:9999px;font-size:13px;';
-          toast.textContent = 'Could not reach vault';
-          document.body.appendChild(toast);
-          setTimeout(() => toast.remove(), 3000);
-        }
-      });
-    }
-
     // Export
     const exportBtn = document.getElementById('export-pins');
     if (exportBtn) {
       exportBtn.addEventListener('click', () => {
-        const pins = JSON.parse(localStorage.getItem('personalPins') || '[]');
+        const pins = readPinsRaw();
         const date = new Date().toISOString().split('T')[0];
         const blob = new Blob([JSON.stringify(pins, null, 2)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
@@ -855,6 +1367,39 @@ const catalogCount = loadCatalog().length;
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
+      });
+    }
+
+    // Restore from local backup
+    const restoreBtn = document.getElementById('restore-pins-backup');
+    if (restoreBtn) {
+      restoreBtn.addEventListener('click', () => {
+        const backup = readPinsBackup();
+        if (!backup.length) {
+          alert('No local backup found in this browser.');
+          return;
+        }
+        if (!confirm('Restore ' + backup.length + ' pins from local backup?')) return;
+        if (safeWritePins(backup)) {
+          renderMyPins();
+        }
+      });
+    }
+
+    const seedBtn = document.getElementById('seed-known-pins');
+    if (seedBtn) {
+      seedBtn.addEventListener('click', () => {
+        if (!confirm('Re-seed Hi 42 + mystery glow + HD 23514? This merges into an empty-ish shelf.')) return;
+        const seeded = seedKnownSessionPinsIfEmpty([]);
+        // Merge with anything currently present
+        const current = readPinsRaw();
+        const ids = new Set(current.map((p) => p && p.id));
+        seeded.forEach((p) => {
+          if (p && p.id && !ids.has(p.id)) current.push(p);
+        });
+        safeWritePins(current.length ? current : seeded);
+        try { localStorage.setItem('dlo-m42-favorite-seeded', '1'); } catch (e) {}
+        renderMyPins();
       });
     }
 
@@ -878,11 +1423,7 @@ const catalogCount = loadCatalog().length;
               return;
             }
 
-            let current = [];
-            try {
-              current = JSON.parse(localStorage.getItem('personalPins') || '[]');
-            } catch {}
-
+            let current = readPinsRaw();
             const existingIds = new Set(current.map(p => p.id));
             let added = 0;
 
@@ -894,7 +1435,7 @@ const catalogCount = loadCatalog().length;
               }
             });
 
-            localStorage.setItem('personalPins', JSON.stringify(current));
+            safeWritePins(current);
             renderMyPins();
 
             const msg = added === 1 ? '1 pin imported' : `${added} pins imported`;
@@ -919,8 +1460,6 @@ const catalogCount = loadCatalog().length;
 
     renderMyPins();
     updateChipVisuals();       // force correct initial highlighting
-    checkVaultAndShowBanner();
-
     const searchInput = document.getElementById('pins-search');
     const clearBtn = document.getElementById('clear-search');
     const sortSelect = document.getElementById('pins-sort');
@@ -941,66 +1480,236 @@ const catalogCount = loadCatalog().length;
     }
   }
 
-  async function checkVaultAndShowBanner() {
-    const banner = document.getElementById('vault-banner');
-    if (!banner || localStorage.getItem('vaultMigrationBannerDismissed')) return;
+  function setupSkyEventTiles() {
+    const defaultViews = {
+      moon: { lat: 18, lng: -35, altitude: 1.9 },
+      'venus-evening': { lat: 8, lng: -65, altitude: 2.1 },
+      perseids: { lat: 52, lng: 46, altitude: 2.0 },
+      geminids: { lat: 33, lng: -15, altitude: 2.0 },
+      orion: { lat: -8, lng: 84, altitude: 1.8 },
+      pleiades: { lat: 24, lng: 58, altitude: 1.9 },
+      andromeda: { lat: 41, lng: 10, altitude: 1.9 },
+      cassiopeia: { lat: 62, lng: -15, altitude: 1.8 },
+      'ursa-major': { lat: 55, lng: 20, altitude: 1.8 },
+      scorpius: { lat: -25, lng: 100, altitude: 2.0 },
+    };
 
-    try {
-      const res = await fetch('/api/vault-pins');
-      if (!res.ok) return;
+    document.querySelectorAll('#sky-events-inline [data-sky-tile]').forEach(function (el) {
+      const type = el.getAttribute('data-type');
+      const id = el.getAttribute('data-id');
+      const name = el.getAttribute('data-name');
+      const desc = el.getAttribute('data-desc') || '';
+      const sourceEventId = type + ':' + id;
+      const btn = el.querySelector('.pin-btn');
+      if (!btn) return;
 
-      const vaultData = await res.json();
-      if (!Array.isArray(vaultData.pins) || vaultData.pins.length === 0) return;
-
-      const localPins = JSON.parse(localStorage.getItem('personalPins') || '[]');
-
-      // Restored robust max-date scan (no more fragile pins[0] reliance)
-      const latestLocal = localPins.reduce((max, p) => {
-        const d = new Date(p.updatedAt || p.createdAt || 0);
-        return d > max ? d : max;
-      }, new Date(0));
-
-      const vaultNewer = vaultData.lastSynced && (!localPins.length || new Date(vaultData.lastSynced) > latestLocal);
-
-      if (vaultNewer || localPins.length === 0) {
-        banner.classList.remove('hidden');
-
-        const bringHome = document.getElementById('bring-home');
-        const notNow = document.getElementById('not-now');
-
-        if (bringHome) {
-          bringHome.onclick = (e) => {
-            e.stopImmediatePropagation();
-            let current = JSON.parse(localStorage.getItem('personalPins') || '[]');
-            const existingIds = new Set(current.map(p => p.id));
-            let added = 0;
-
-            vaultData.pins.forEach(pin => {
-              if (pin && pin.id && !existingIds.has(pin.id)) {
-                current.push(pin);
-                existingIds.add(pin.id);
-                added++;
-              }
-            });
-
-            localStorage.setItem('personalPins', JSON.stringify(current));
-            localStorage.setItem('vaultMigrationBannerDismissed', 'true');
-            banner.classList.add('hidden');
-            renderMyPins();
-          };
-        }
-
-        if (notNow) {
-          notNow.onclick = (e) => {
-            e.stopImmediatePropagation();
-            localStorage.setItem('vaultMigrationBannerDismissed', 'true');
-            banner.classList.add('hidden');
-          };
-        }
+      const pins = readPinsRaw();
+      if (pins.some(function (p) { return p && p.sourceEventId === sourceEventId; })) {
+        btn.textContent = 'Pinned ✓';
+        btn.disabled = true;
+        btn.classList.add('!border-emerald-700', '!text-emerald-400');
       }
-    } catch (e) {}
+
+      btn.addEventListener('click', function (e) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        const pinsNow = readPinsRaw();
+        const existing = pinsNow.find(function (pin) { return pin && pin.sourceEventId === sourceEventId; });
+        const pinId = existing ? existing.id : (Date.now().toString(36) + '-' + id);
+
+        if (!existing) {
+          pinsNow.unshift({
+            id: pinId,
+            createdAt: new Date().toISOString(),
+            viewState: defaultViews[id] || { lat: 0, lng: 0, altitude: 2.4 },
+            label: name,
+            note: desc,
+            sourceEventId: sourceEventId,
+            source: 'sky-events',
+          });
+          safeWritePins(pinsNow);
+        }
+
+        btn.textContent = 'Pinned ✓';
+        btn.disabled = true;
+        btn.classList.add('!border-emerald-700', '!text-emerald-400');
+
+        localStorage.setItem('flyToPin', JSON.stringify({
+          id: pinId,
+          label: name,
+          viewState: defaultViews[id] || { lat: 0, lng: 0, altitude: 2.4 },
+        }));
+
+        renderMyPins();
+
+        const toast = document.createElement('div');
+        toast.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:3000;background:#0f1420;border:1px solid #36415a;color:#e9edf5;padding:10px 22px;border-radius:9999px;font-size:13px;display:flex;gap:12px;align-items:center;';
+        toast.innerHTML = '<span>' + escapeHtml(name) + ' saved</span><a href="' + base + 'observatory" style="color:#6fd3e2;text-decoration:none;font-size:12px;">Open Atlas →</a>';
+        document.body.appendChild(toast);
+        setTimeout(function () { toast.remove(); }, 4200);
+      });
+    });
   }
 
   setupMyPins();
+  setupSkyEventTiles();
+
+  // Ambient music — icon tap like the Android app; M hotkey like Dragon Eye.
+  // Default quiet. Pref: localStorage dlo-ambient = 'on' | 'off'
+  // Drop your Suno/harp loop at viewer/public/audio/nebula-drift.mp3
+  (function setupAmbientMusic() {
+    const KEY = 'dlo-ambient';
+    const btn = document.getElementById('sky-ambient-btn');
+    const audio = document.getElementById('sky-ambient-audio');
+    if (!btn || !audio) return;
+
+    let trackReady = false;
+    let glassCtx = null;
+    let glassNodes = null;
+
+    function prefOn() {
+      try { return localStorage.getItem(KEY) === 'on'; } catch (e) { return false; }
+    }
+    function setPref(on) {
+      try { localStorage.setItem(KEY, on ? 'on' : 'off'); } catch (e) {}
+    }
+
+    function paint(on) {
+      btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+      btn.setAttribute('aria-label', on ? 'Music on. Click to quiet.' : 'Music off. Click to listen.');
+      btn.title = on
+        ? 'Music on — tap or press M to quiet'
+        : 'Music off — tap or press M to listen';
+    }
+
+    function stopGlass() {
+      if (!glassNodes) return;
+      try {
+        glassNodes.gains.forEach(function (g) {
+          g.gain.cancelScheduledValues(glassCtx.currentTime);
+          g.gain.setValueAtTime(g.gain.value, glassCtx.currentTime);
+          g.gain.linearRampToValueAtTime(0, glassCtx.currentTime + 0.4);
+        });
+        setTimeout(function () {
+          try { glassNodes.oscs.forEach(function (o) { o.stop(); }); } catch (e) {}
+          glassNodes = null;
+        }, 500);
+      } catch (e) {
+        glassNodes = null;
+      }
+    }
+
+    // Soft stand-in harp pad until nebula-drift.mp3 lands (her Suno track).
+    function startGlass() {
+      try {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) return false;
+        if (!glassCtx) glassCtx = new AC();
+        if (glassCtx.state === 'suspended') glassCtx.resume();
+        stopGlass();
+        const master = glassCtx.createGain();
+        master.gain.value = 0.045;
+        master.connect(glassCtx.destination);
+        // Gentle open fifths / high partials — glass-harp adjacent, not a song.
+        const freqs = [196, 247, 294, 392, 494, 588];
+        const oscs = [];
+        const gains = [];
+        freqs.forEach(function (f, i) {
+          const o = glassCtx.createOscillator();
+          const g = glassCtx.createGain();
+          o.type = i % 2 === 0 ? 'sine' : 'triangle';
+          o.frequency.value = f;
+          g.gain.value = 0;
+          o.connect(g);
+          g.connect(master);
+          o.start();
+          const t0 = glassCtx.currentTime;
+          g.gain.linearRampToValueAtTime(0.22 / (i + 1), t0 + 1.2 + i * 0.15);
+          // Slow shimmer
+          const lfo = glassCtx.createOscillator();
+          const lfoG = glassCtx.createGain();
+          lfo.frequency.value = 0.05 + i * 0.01;
+          lfoG.gain.value = 0.04;
+          lfo.connect(lfoG);
+          lfoG.connect(g.gain);
+          lfo.start();
+          oscs.push(o, lfo);
+          gains.push(g);
+        });
+        glassNodes = { oscs: oscs, gains: gains, master: master };
+        return true;
+      } catch (e) {
+        return false;
+      }
+    }
+
+    function play() {
+      if (trackReady) {
+        stopGlass();
+        audio.volume = 0.55;
+        const p = audio.play();
+        if (p && typeof p.then === 'function') {
+          p.then(function () { paint(true); setPref(true); })
+            .catch(function () {
+              // Autoplay blocked or missing file — try glass pad once.
+              if (startGlass()) { paint(true); setPref(true); }
+              else { paint(false); setPref(false); }
+            });
+        } else {
+          paint(true); setPref(true);
+        }
+        return;
+      }
+      if (startGlass()) { paint(true); setPref(true); }
+      else { paint(false); }
+    }
+
+    function quiet() {
+      try { audio.pause(); audio.currentTime = 0; } catch (e) {}
+      stopGlass();
+      paint(false);
+      setPref(false);
+    }
+
+    function toggle() {
+      const on = btn.getAttribute('aria-pressed') === 'true';
+      if (on) quiet();
+      else play();
+    }
+
+    btn.addEventListener('click', function (e) {
+      e.preventDefault();
+      toggle();
+    });
+
+    document.addEventListener('keydown', function (e) {
+      if (e.key !== 'm' && e.key !== 'M') return;
+      const tag = (e.target && e.target.tagName) || '';
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || (e.target && e.target.isContentEditable)) return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      e.preventDefault();
+      toggle();
+    });
+
+    // Probe for Nebula Drift; glass pad is the sketch stand-in.
+    try {
+      fetch(audio.src, { method: 'HEAD', cache: 'no-store' })
+        .then(function (res) {
+          trackReady = !!(res && res.ok);
+          if (!trackReady) {
+            btn.title = 'Music off — tap for a soft stand-in (drop nebula-drift.mp3 for your track). M toggles.';
+          }
+          paint(false);
+          if (prefOn()) play();
+        })
+        .catch(function () {
+          trackReady = false;
+          paint(false);
+          if (prefOn()) play();
+        });
+    } catch (e) {
+      paint(false);
+    }
+  })();
   </script>
 </Base>

@@ -30,32 +30,142 @@ a { color: var(--color-signal-400); text-decoration: none; }
 a:hover { text-decoration: underline; }
 *:focus-visible { outline: 2px solid var(--color-signal-400); outline-offset: 2px; border-radius: 2px; }
 
-/* starfield — pure CSS, no deps. Two layers of drifting points of light. */
+/* starfield — pure CSS, no deps. Brighter layers + a few twinkling anchors. */
 .sky {
   position: relative;
   background:
-    radial-gradient(1200px 500px at 70% -10%, rgba(111,211,226,0.10), transparent 60%),
-    radial-gradient(900px 600px at 10% 110%, rgba(91,107,133,0.12), transparent 55%),
+    radial-gradient(1100px 480px at 72% -8%, rgba(111,211,226,0.16), transparent 58%),
+    radial-gradient(800px 520px at 8% 108%, rgba(155,180,220,0.10), transparent 55%),
+    radial-gradient(600px 320px at 40% 40%, rgba(233,237,245,0.04), transparent 70%),
     var(--color-void-950);
   overflow: hidden;
 }
 .sky::before, .sky::after {
   content: "";
   position: absolute; inset: -2px;
+  pointer-events: none;
   background-image:
-    radial-gradient(1px 1px at 20px 30px, #fff, transparent),
+    /* bright anchors */
+    radial-gradient(2px 2px at 48px 36px, #fff, transparent),
+    radial-gradient(1.8px 1.8px at 210px 70px, #e9edf5, transparent),
+    radial-gradient(2.2px 2.2px at 340px 28px, #9be4ef, transparent),
+    radial-gradient(1.6px 1.6px at 420px 150px, #fff, transparent),
+    /* mid field */
+    radial-gradient(1.2px 1.2px at 20px 30px, #fff, transparent),
     radial-gradient(1px 1px at 130px 80px, #cdd5e3, transparent),
     radial-gradient(1.5px 1.5px at 220px 50px, #9be4ef, transparent),
     radial-gradient(1px 1px at 310px 120px, #fff, transparent),
     radial-gradient(1px 1px at 80px 160px, #aab4c7, transparent),
-    radial-gradient(1.5px 1.5px at 400px 200px, #fff, transparent);
+    radial-gradient(1.5px 1.5px at 400px 200px, #fff, transparent),
+    radial-gradient(1px 1px at 160px 190px, #cdd5e3, transparent),
+    radial-gradient(1.2px 1.2px at 280px 210px, #fff, transparent),
+    radial-gradient(1px 1px at 60px 220px, #9be4ef, transparent),
+    radial-gradient(1px 1px at 380px 90px, #e9edf5, transparent);
   background-repeat: repeat;
-  background-size: 450px 250px;
-  opacity: 0.5;
-  animation: drift 240s linear infinite;
+  background-size: 460px 260px;
+  opacity: 0.78;
+  animation: drift 200s linear infinite;
 }
-.sky::after { background-size: 300px 180px; opacity: 0.25; animation-duration: 360s; animation-direction: reverse; }
-@keyframes drift { from { transform: translateY(0); } to { transform: translateY(-250px); } }
+.sky::after {
+  background-size: 300px 180px;
+  opacity: 0.42;
+  animation-duration: 320s;
+  animation-direction: reverse;
+  filter: drop-shadow(0 0 1px rgba(155,228,239,0.35));
+}
+/* soft twinkle on a few fixed bright points (separate from drift layers) */
+.sky > .sky-twinkle {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  background-image:
+    radial-gradient(2.5px 2.5px at 18% 28%, rgba(255,255,255,0.95), transparent 60%),
+    radial-gradient(2px 2px at 72% 18%, rgba(155,228,239,0.9), transparent 60%),
+    radial-gradient(2.2px 2.2px at 58% 62%, rgba(233,237,245,0.85), transparent 60%),
+    radial-gradient(1.8px 1.8px at 88% 48%, rgba(255,255,255,0.8), transparent 60%),
+    radial-gradient(2px 2px at 32% 74%, rgba(205,213,227,0.85), transparent 60%);
+  animation: twinkle 4.8s ease-in-out infinite;
+}
+@keyframes drift { from { transform: translateY(0); } to { transform: translateY(-260px); } }
+@keyframes twinkle {
+  0%, 100% { opacity: 0.55; }
+  40% { opacity: 1; }
+  70% { opacity: 0.7; }
+}
+
+/* Quiet dragon — atmosphere in the hero, not a sticker. */
+.sky-dragon {
+  position: absolute;
+  right: -4%;
+  top: 50%;
+  transform: translateY(-52%);
+  width: min(52vw, 420px);
+  max-width: 480px;
+  pointer-events: none;
+  z-index: 2;
+  opacity: 0.16;
+  mix-blend-mode: screen;
+  filter: drop-shadow(0 0 28px rgba(111, 211, 226, 0.12));
+  animation: dragon-breathe 9s ease-in-out infinite;
+}
+.sky-dragon img {
+  display: block;
+  width: 100%;
+  height: auto;
+  user-select: none;
+}
+@keyframes dragon-breathe {
+  0%, 100% { opacity: 0.12; transform: translateY(-52%) scale(1); }
+  50% { opacity: 0.22; transform: translateY(-54%) scale(1.02); }
+}
+@media (max-width: 640px) {
+  .sky-dragon {
+    width: min(70vw, 280px);
+    right: -10%;
+    opacity: 0.12;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sky::before, .sky::after, .sky > .sky-twinkle, .sky-dragon {
+    animation: none !important;
+  }
+  .sky-dragon { opacity: 0.18; }
+}
+
+/* Ambient music icon — Android-app style tap to quiet; M hotkey like Dragon Eye. */
+.sky-ambient-btn {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  padding: 0;
+  margin: 0;
+  border: 1px solid var(--color-void-700);
+  border-radius: 0.5rem;
+  background: transparent;
+  color: var(--color-mist-400);
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+.sky-ambient-btn:hover {
+  color: var(--color-mist-200);
+  border-color: var(--color-void-600);
+  background: rgba(22, 29, 44, 0.55);
+}
+.sky-ambient-btn[aria-pressed="true"] {
+  color: var(--color-signal-300);
+  border-color: rgba(111, 211, 226, 0.35);
+}
+.sky-ambient-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.sky-ambient-btn .sky-ambient-icon { display: none; }
+.sky-ambient-btn[aria-pressed="true"] .sky-ambient-icon--on { display: block; }
+.sky-ambient-btn:not([aria-pressed="true"]) .sky-ambient-icon--off { display: block; }
 
 .tier-t1 { color: var(--color-t1); }
 .tier-t2 { color: var(--color-t2); }

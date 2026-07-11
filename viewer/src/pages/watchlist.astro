@@ -10,6 +10,7 @@ const index = Object.fromEntries(allRecords().map((r) => [r.id, {
 }]));
 ---
 <Base title="Watched">
+  <a href={base} class="mb-2 inline-block text-lg font-semibold tracking-tight text-mist-100 hover:text-signal-300 hover:no-underline" title="Back to console home">The Observatory</a>
   <h1 class="mb-1 text-2xl font-semibold text-mist-100">Watched</h1>
   <p class="mb-5 text-sm text-mist-400">Objects you've pinned. Stored on this device only.</p>
   <div id="watched" class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3"></div>

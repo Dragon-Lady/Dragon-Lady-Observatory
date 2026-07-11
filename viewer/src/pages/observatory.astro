@@ -1,150 +1,122 @@
 ---
 // observatory.astro — "The Observatory"
-// Interactive deep-sky exploration for the Dragon Lady Observatory.
-// Two real engines, switchable (James's selector pattern, fed real views this time):
-//   - Explore (WorldWide Telescope): fly/pan/zoom the real sky + 3D solar system.
-//   - Atlas   (Aladin Lite v3): fast survey atlas; search any object and it flies you there.
-// Both render REAL telescope survey imagery (DSS/2MASS/etc.) — not webcams, not canvas doodles.
-// Standalone prototype: does NOT touch telescope.astro. Mansion can fold the proven
-// wiring into his page if/when he wants it.
+// Aladin Lite v3 survey atlas (the working real-sky camera).
+// Free glide + click-to-identify on real telescope survey imagery (DSS/2MASS/etc.).
+// The WWT/Explore lens was removed — it was not usable for directed viewing on this setup.
+// Focus is on a clean, reliable Atlas experience with good object search and movement.
 import Base from '../layouts/Base.astro';
 
-const VIEWS = [
-  { id: 'wwt',    label: 'Explore',  icon: '🌌', hint: 'Fly through the real universe' },
-  { id: 'aladin', label: 'Atlas',    icon: '🔭', hint: 'Search any object, jump to it' },
-];
+// Single lens now: Atlas (Aladin). Explorer/WWT removed.
+const LENS = { id: 'aladin', label: 'Atlas', icon: '🔭' };
 ---
 
-<Base title="The Observatory" description="Real sky — WorldWide Telescope and Aladin survey atlas. Pan, zoom, and fly to galaxies and nebulae from real telescope survey imagery.">
-  <section class="space-y-4">
-    <div class="flex flex-col gap-1">
-      <h1 class="text-xl font-semibold tracking-tight text-mist-100">The Observatory</h1>
-      <p class="text-sm text-mist-400">
-        <strong>Current focus.</strong> Real sky, real survey imagery (WWT Explore + Aladin Atlas). 
-        Dedicated globe page is paused for now. See OBSERVATORY_HANDOFF.md.
+<Base title="Atlas" description="Real sky — Aladin survey atlas. Free glide, click-to-identify, and wide sky views on real telescope survey imagery (DSS/2MASS/etc).">
+  <section class="space-y-1">
+    <div class="flex flex-col gap-0.5 mb-2">
+      <a href={import.meta.env.BASE_URL} class="text-lg font-semibold tracking-tight text-mist-100 hover:text-signal-300 hover:no-underline" title="Back to console home">The Observatory</a>
+      <p class="text-xs text-mist-400">
+        Atlas — real sky. Zoom way out for the sky-globe view.
+        <span class="text-mist-500">Planets &amp; Moon: live ephemeris (Miriade). Press <kbd class="text-mist-300">P</kbd> (or Pin) to save this view. Snapshot for PNG.</span>
       </p>
     </div>
 
-    <!-- View selector: big, touch-friendly tabs (James's spec) -->
-    <div id="lens-selector" class="flex flex-wrap gap-2" role="tablist" aria-label="Sky view">
-      {VIEWS.map((v) => (
-        <button
-          type="button"
-          data-view={v.id}
-          role="tab"
-          class="lens-tab group flex items-center gap-2 rounded-xl border border-void-800 bg-void-900/70 px-4 py-2.5 text-sm text-mist-300 transition-colors hover:border-signal-400/50 hover:text-mist-100"
-        >
-          <span class="text-base leading-none">{v.icon}</span>
-          <span class="font-medium">{v.label}</span>
-          <span class="hidden text-xs text-mist-500 sm:inline">· {v.hint}</span>
-        </button>
-      ))}
+    <!-- Single clean stage for Aladin (the working camera). No tabs. -->
+    <div id="sky-stage" class="relative h-[68dvh] min-h-[420px] w-full overflow-hidden rounded-2xl border border-void-800 bg-black shadow-2xl">
+      <!-- Aladin Lite v3 atlas — the primary real-sky camera now. -->
+      <div id="aladin-lite-div" class="h-full w-full"></div>
     </div>
 
-    <!-- Stage: both engines mounted, one visible at a time -->
-    <div id="sky-stage" class="relative h-[68dvh] min-h-[420px] w-full overflow-hidden rounded-2xl border border-void-800 bg-black shadow-2xl">
-
-      <!-- WorldWide Telescope (research app embed). Pannable/zoomable real sky + gyroscope-ready for the Android build. -->
-      <div data-stage="wwt" class="absolute inset-0">
-        <iframe
-          id="wwt-frame"
-          title="WorldWide Telescope"
-          class="h-full w-full border-0"
-          src="https://web.wwtassets.org/research/latest/"
-          allow="accelerometer; gyroscope; clipboard-write; fullscreen"
-          allowfullscreen
-          loading="lazy"
-        ></iframe>
+    <!-- Camera chrome lives OUTSIDE #sky-stage so Aladin's .aladin-fullscreen
+         (position:fixed on the canvas) cannot trap these mid-sky. JS pins them
+         to the stage box in normal view, and to the viewport bottom in fullscreen. -->
+      <div id="survey-toggle" class="dlo-cam-chrome flex -translate-x-1/2 gap-1 rounded-full border border-white/10 bg-black/70 p-1 backdrop-blur">
+        <button type="button" data-survey="P/DSS2/color" class="survey-btn rounded-full px-3 py-1 text-xs font-medium text-mist-300 transition-colors hover:text-mist-100">Deep Sky</button>
+        <button type="button" data-survey="P/Mellinger/color" class="survey-btn rounded-full px-3 py-1 text-xs font-medium text-mist-300 transition-colors hover:text-mist-100">Milky Way</button>
       </div>
 
-      <!-- Aladin Lite v3 atlas. Init is lazy — only boots when this lens is first selected. -->
-      <div data-stage="aladin" class="absolute inset-0 hidden">
-        <div id="aladin-lite-div" class="h-full w-full"></div>
-        <!-- Survey toggle: best of both worlds — deep zoomable color vs painted Milky Way.
-             Anchored bottom-center so it never collides with Aladin's centered object popups. -->
-        <div class="absolute bottom-3 left-1/2 z-[600] flex -translate-x-1/2 gap-1 rounded-full border border-white/10 bg-black/70 p-1 backdrop-blur">
-          <button type="button" data-survey="P/DSS2/color" class="survey-btn rounded-full px-3 py-1 text-xs font-medium text-mist-300 transition-colors hover:text-mist-100">Deep Sky</button>
-          <button type="button" data-survey="P/Mellinger/color" class="survey-btn rounded-full px-3 py-1 text-xs font-medium text-mist-300 transition-colors hover:text-mist-100">Milky Way</button>
-        </div>
-      </div>
-
-      <!-- Tiny live "now showing" chip -->
-      <div id="now-chip" class="pointer-events-none absolute left-3 top-3 rounded-full border border-white/10 bg-black/60 px-3 py-1 text-xs text-mist-300 backdrop-blur">
+      <!-- Tiny live "now showing" chip - bottom-left to stay out of Aladin's top-right controls. -->
+      <div id="now-chip" class="dlo-cam-chrome pointer-events-none rounded-full border border-white/10 bg-black/60 px-3 py-1 text-xs text-mist-300 backdrop-blur">
         <span class="mr-1.5 inline-block h-2 w-2 animate-pulse rounded-full bg-emerald-400"></span>
-        <span id="now-showing">Explore</span>
+        <span id="now-showing">Atlas</span>
+        <span class="ml-2 text-[10px] text-signal-300" id="atlas-build" title="Build stamp — external browser must show pinfix 12 or it’s an old tab/port">· pinfix 12</span>
       </div>
 
-      <!-- Top-center control group: our own buttons, clear of both engines' corner controls. -->
-      <div id="sky-controls" class="absolute left-1/2 top-3 z-[700] flex -translate-x-1/2 items-center gap-2">
-        <!-- One-tap snapshot of the Atlas (Aladin) view. Hidden on Explore (WWT iframe is cross-origin). -->
+      <!-- Bottom-right control group: Snapshot + Wide.
+           In Aladin immersive/full-screen we *move* these to a stable bottom-right spot (see JS)
+           so they don't drift into the middle or cover native controls, but remain usable for
+           watermarked snapshots. In normal view they sit bottom-right out of the way. -->
+      <div id="sky-controls" class="dlo-cam-chrome flex items-center gap-2">
+        <button
+          id="sky-mystery"
+          type="button"
+          title="Jump to Mystery glow near Moon (Jul 9 typed coords)"
+          aria-label="Fly to mystery glow coordinates"
+          class="flex items-center gap-1.5 rounded-full border border-signal-400/40 bg-black/60 px-3 py-1 text-xs text-signal-300 backdrop-blur transition-colors hover:border-signal-400/70 hover:text-mist-100"
+        >
+          <span class="text-sm leading-none">✦</span>
+          <span>Mystery</span>
+        </button>
+        <button
+          id="sky-pin"
+          type="button"
+          title="Pin this view (or press P)"
+          aria-label="Pin this sky view"
+          class="flex items-center gap-1.5 rounded-full border border-white/10 bg-black/60 px-3 py-1 text-xs text-mist-300 backdrop-blur transition-colors hover:border-signal-400/50 hover:text-mist-100"
+        >
+          <span class="text-sm leading-none">📌</span>
+          <span>Pin</span>
+        </button>
         <button
           id="sky-snapshot"
           type="button"
           title="Save a snapshot of this view (PNG)"
           aria-label="Save a snapshot of this view"
-          class="hidden items-center gap-1.5 rounded-full border border-white/10 bg-black/60 px-3 py-1 text-xs text-mist-300 backdrop-blur transition-colors hover:border-signal-400/50 hover:text-mist-100"
+          class="flex items-center gap-1.5 rounded-full border border-white/10 bg-black/60 px-3 py-1 text-xs text-mist-300 backdrop-blur transition-colors hover:border-signal-400/50 hover:text-mist-100"
         >
           <span class="text-sm leading-none">📸</span>
           <span>Snapshot</span>
         </button>
-        <!-- Expand to full window. Fullscreens the whole stage (not the engine's iframe-bound button)
-             so the engines' left/right control rails never clip. -->
         <button
-          id="sky-expand"
+          id="wide-sky-btn"
           type="button"
-          title="Expand to full screen"
-          aria-label="Expand to full screen"
+          title="Wide sky / globe view (zoom way out)"
           class="flex items-center gap-1.5 rounded-full border border-white/10 bg-black/60 px-3 py-1 text-xs text-mist-300 backdrop-blur transition-colors hover:border-signal-400/50 hover:text-mist-100"
         >
-          <span id="sky-expand-icon" class="text-sm leading-none">⛶</span>
-          <span id="sky-expand-label">Full screen</span>
+          <span>🌐</span>
+          <span>Wide</span>
         </button>
       </div>
-    </div>
 
     <p class="text-xs text-mist-500">
-      Explore: WorldWide Telescope (American Astronomical Society). Atlas: Aladin Lite v3 /
-      CDS Strasbourg, showing DSS &amp; 2MASS survey imagery. Observation only.
+      Atlas — Aladin Lite v3 (CDS). Real survey imagery. Click objects for info. Observation only.
     </p>
-    <!-- Globe "camera from anywhere" integration note (populated when arriving from /globe?lat=..&lng=..) -->
-    <script is:inline>
-      (function(){
-        try {
-          const u = new URL(location.href);
-          const la = u.searchParams.get('lat');
-          const lo = u.searchParams.get('lng');
-          if (la && lo) {
-            const note = document.createElement('div');
-            note.style.cssText = 'position:absolute;bottom:12px;left:50%;transform:translateX(-50%);z-index:900;font-size:12px;background:#0f1420ee;border:1px solid #6fd3e2;color:#e9edf5;padding:6px 14px;border-radius:8px;backdrop-filter:blur(6px);max-width:90%;text-align:center;box-shadow:0 0 10px rgba(0,0,0,0.5)';
-            const lat = parseFloat(la).toFixed(2);
-            const lon = parseFloat(lo).toFixed(2);
-            note.innerHTML = `
-              <div style="margin-bottom:4px;font-weight:600">Globe camera at ${lat}, ${lon}</div>
-              <div style="font-size:11px;opacity:0.9">This is the Explorer (WWT) sky view from that point on Earth.<br>
-              In the WWT controls (bottom panel or search "location"), set Observing Location to Lat ${lat} Lon ${lon} to "land" and see the real sky/space from there.</div>
-            `;
-            const stage = document.getElementById('sky-stage');
-            if (stage) stage.appendChild(note);
-            // Keep it longer or until dismissed
-            const close = document.createElement('span');
-            close.textContent = '×';
-            close.style.cssText = 'position:absolute;top:2px;right:6px;cursor:pointer;font-size:14px;opacity:0.7';
-            close.onclick = () => note.remove();
-            note.appendChild(close);
-          }
-        } catch(e){}
-      })();
-    </script>
+    <!-- Location handoff notes from the retired globe are no longer injected here.
+         Pins and Sky Events now open the Observatory directly for free glide. -->
   </section>
 
-  <!-- When the stage is fullscreen, drop the box styling so the engine gets the entire viewport
-       and its edge controls (Atlas snapshot menu, zoom, layers) have room — no left/right clipping. -->
+  <!-- Give the immersive camera as much room as possible -->
   <style is:inline>
-    #sky-stage:fullscreen { height: 100dvh; min-height: 0; border-radius: 0; border: 0; }
-    #sky-stage:-webkit-full-screen { height: 100dvh; min-height: 0; border-radius: 0; border: 0; }
-    /* In full screen the engines own the corners — hide our info chip so it doesn't cover their controls. */
-    #sky-stage:fullscreen #now-chip { display: none; }
-    #sky-stage:-webkit-full-screen #now-chip { display: none; }
+    main { padding-top: 2px; padding-bottom: 4px; }
+  </style>
+
+  <!-- Camera chrome + fullscreen notes -->
+  <style is:inline>
+    #sky-stage:fullscreen,
+    #sky-stage:-webkit-full-screen {
+      height: 100dvh; min-height: 0; border-radius: 0; border: 0;
+    }
+    /* Always fixed; JS sets top/left/right/bottom from the live camera rect. */
+    .dlo-cam-chrome {
+      position: fixed !important;
+      z-index: 2147483000 !important;
+      margin: 0;
+    }
+    #survey-toggle.dlo-cam-chrome {
+      /* transform translateX(-50%) kept from markup for centering */
+    }
+    #now-chip.dlo-cam-chrome.dlo-cam-chrome-hide {
+      display: none !important;
+    }
   </style>
 
   <!-- Aladin engine (external CDN) — keep inline so Astro doesn't try to bundle the global. -->
@@ -152,23 +124,273 @@ const VIEWS = [
 
   <script is:inline>
     (function () {
+      // Atlas-only now. WWT/Explorer removed.
       const STORAGE_KEY = 'dlo-sky-lens';
-      const LABELS = { wwt: 'Explore', aladin: 'Atlas' };
-      const tabs = Array.from(document.querySelectorAll('.lens-tab'));
-      const stages = Array.from(document.querySelectorAll('[data-stage]'));
       const nowShowing = document.getElementById('now-showing');
       const surveyBtns = Array.from(document.querySelectorAll('.survey-btn'));
       let aladinBooted = false;
       let currentSurvey = 'P/DSS2/color';
 
+      // Mystery glow near Moon — seeded + button-forced (Jul 9 typed coords).
+      // Not one-shot: Mystery button always re-flies so authority is obeyed.
+      var MYSTERY_ID = 'mystery-moon-2026-07-09';
+      var MYSTERY_RA = (2 + 47 / 60 + 52.13 / 3600) * 15; // 02 47 52.13 → ~41.967°
+      var MYSTERY_DEC = 21 + 23 / 60 + 30.4 / 3600; // +21 23 30.4 → ~21.392°
+      var MYSTERY_FOV = 0.5;
+      var MYSTERY_COO = '02 47 52.13  +21 23 30.4';
+      var MYSTERY_LABEL = 'Mystery glow near Moon · Jul 9';
+
+      // Hi 42 — kept as a *favorite pin*, not the Atlas boot default (boot default caused Orion slingshots).
+      var M42_PIN_ID = 'favorite-m42-orion-nebula';
+      var M42_RA = 83.8221;
+      var M42_DEC = -5.3911;
+      var M42_FOV = 1.5;
+      var M42_LABEL = 'M42 · Orion Nebula';
+      var M42_COO = '05 35 17.3  -05 23 28';
+      var LAST_VIEW_KEY = 'dlo-last-atlas-view';
+      // Quiet boot field — north galactic pole-ish empty patch. NEVER Orion.
+      var SAFE_BOOT_RA = 192.75;   // ~12h 51m
+      var SAFE_BOOT_DEC = 27.13;   // +27°
+      var SAFE_BOOT_FOV = 40;
+      var SAFE_BOOT_TARGET = '12 51 00.0 +27 07 48'; // sexagesimal — Aladin parses this reliably
+      var allowM42AsLastView = false; // only true after an intentional Hi 42 / M42 favorite fly
+
+      function coordsNearM42(ra, dec) {
+        if (!isFinite(ra) || !isFinite(dec)) return false;
+        var dra = Math.abs((((ra - M42_RA) % 360) + 540) % 360 - 180);
+        var ddec = Math.abs(dec - M42_DEC);
+        return dra < 2.5 && ddec < 2.5;
+      }
+
+      function readLastAtlasView() {
+        try {
+          var raw = localStorage.getItem(LAST_VIEW_KEY);
+          if (!raw) return null;
+          var v = JSON.parse(raw);
+          if (v && isFinite(Number(v.ra)) && isFinite(Number(v.dec))) {
+            var ra = Number(v.ra);
+            var dec = Number(v.dec);
+            // Old Orion boot poisoned this key — ignore so we don't re-slingshot forever.
+            if (coordsNearM42(ra, dec)) {
+              try { localStorage.removeItem(LAST_VIEW_KEY); } catch (e) {}
+              console.warn('[observatory] cleared Orion-poisoned last view', ra, dec);
+              return null;
+            }
+            return { ra: ra, dec: dec, fov: Number(v.fov) };
+          }
+        } catch (e) {}
+        return null;
+      }
+
+      function saveLastAtlasView(ra, dec, fov, opts) {
+        try {
+          if (!isFinite(ra) || !isFinite(dec)) return;
+          opts = opts || {};
+          // Do not re-poison last-view with Orion unless this was an intentional M42 favorite fly.
+          if (coordsNearM42(ra, dec) && !opts.allowM42 && !allowM42AsLastView) {
+            return;
+          }
+          localStorage.setItem(LAST_VIEW_KEY, JSON.stringify({
+            ra: ra,
+            dec: dec,
+            fov: isFinite(fov) && fov > 0 ? fov : 18,
+            at: new Date().toISOString(),
+          }));
+        } catch (e) {}
+      }
+
+      function readPinsArray() {
+        var pins = [];
+        try {
+          var raw = localStorage.getItem('personalPins');
+          if (raw && raw !== 'undefined' && raw !== 'null') {
+            var parsed = JSON.parse(raw);
+            if (Array.isArray(parsed)) pins = parsed.filter(Boolean);
+            else if (parsed && typeof parsed === 'object') {
+              pins = Object.values(parsed).filter(function (p) { return p && typeof p === 'object'; });
+            }
+          }
+        } catch (e) { pins = []; }
+        if (!pins.length) {
+          try {
+            var bak = localStorage.getItem('personalPins:backup');
+            if (bak && bak !== 'undefined' && bak !== 'null') {
+              var bp = JSON.parse(bak);
+              if (Array.isArray(bp) && bp.length) {
+                pins = bp.filter(Boolean);
+                localStorage.setItem('personalPins', JSON.stringify(pins));
+              }
+            }
+          } catch (e2) {}
+        }
+        return pins;
+      }
+
+      function writePinsArray(pins) {
+        if (!Array.isArray(pins)) return;
+        try {
+          var prev = localStorage.getItem('personalPins');
+          if (prev && prev !== '[]' && prev !== 'undefined' && prev !== 'null') {
+            localStorage.setItem('personalPins:backup', prev);
+          }
+        } catch (e) {}
+        localStorage.setItem('personalPins', JSON.stringify(pins));
+      }
+
+      function ensureMysteryGlowPin() {
+        try {
+          var note =
+            'Typed coords while bloom was visible under the Moon. Likely DSS saturation (Simbad empty @ 60″). Screenshots archived. ' +
+            MYSTERY_COO;
+          var pins = readPinsArray();
+          var already = pins.some(function (p) { return p && p.id === MYSTERY_ID; });
+          if (!already) {
+            pins.unshift({
+              id: MYSTERY_ID,
+              createdAt: new Date().toISOString(),
+              label: MYSTERY_LABEL,
+              note: note,
+              source: 'observatory',
+              ra: MYSTERY_RA,
+              dec: MYSTERY_DEC,
+              fov: MYSTERY_FOV,
+              viewState: {
+                lat: MYSTERY_DEC,
+                lng: MYSTERY_RA,
+                altitude: MYSTERY_FOV,
+                ra: MYSTERY_RA,
+                dec: MYSTERY_DEC,
+                fov: MYSTERY_FOV,
+                coo: MYSTERY_COO,
+              },
+              thumbnailData: '',
+              recoveryMeta: {
+                originalCoordinates: {
+                  ra: MYSTERY_RA,
+                  dec: MYSTERY_DEC,
+                  fov: MYSTERY_FOV,
+                  coo: MYSTERY_COO,
+                  frame: 'ICRS',
+                },
+                description: 'Seeded from typed coords after bloom vanished (2026-07-09)',
+              },
+            });
+            writePinsArray(pins);
+          }
+        } catch (e) {}
+      }
+
+      /** Hi 42 lives on the Favorites shelf — never as the silent Atlas boot target. */
+      function ensureM42FavoritePin() {
+        try {
+          // Only seed once per browser unless user deleted the flag after removing the pin.
+          if (localStorage.getItem('dlo-m42-favorite-seeded') === '1') {
+            var pinsCheck = readPinsArray();
+            var stillThere = pinsCheck.some(function (p) {
+              return p && (p.id === M42_PIN_ID || (p.label && labelLooksLikeM42(p.label)));
+            });
+            if (stillThere) return;
+            // Pin was removed — don't keep resurrecting it every Observatory load.
+            return;
+          }
+          var pins = readPinsArray();
+          var existing = pins.find(function (p) { return p && p.id === M42_PIN_ID; });
+          if (existing) {
+            if (!existing.favorite) {
+              existing.favorite = true;
+              writePinsArray(pins);
+            }
+            localStorage.setItem('dlo-m42-favorite-seeded', '1');
+            return;
+          }
+          var legacy = pins.find(function (p) {
+            if (!p || !p.label) return false;
+            var s = String(p.label).toLowerCase();
+            return /\bm\s*42\b/.test(s) || /\borion\s+nebula\b/.test(s) || /\bhi\s*42\b/.test(s);
+          });
+          if (legacy) {
+            legacy.favorite = true;
+            if (!isFinite(Number(legacy.ra))) legacy.ra = M42_RA;
+            if (!isFinite(Number(legacy.dec))) legacy.dec = M42_DEC;
+            writePinsArray(pins);
+            localStorage.setItem('dlo-m42-favorite-seeded', '1');
+            return;
+          }
+          pins.unshift({
+            id: M42_PIN_ID,
+            createdAt: new Date().toISOString(),
+            label: M42_LABEL,
+            note: 'Hi 42 — Hitchhiker nod. Kept as a favorite so Atlas no longer boots here (stops Orion slingshots). ' + M42_COO,
+            source: 'observatory',
+            favorite: true,
+            ra: M42_RA,
+            dec: M42_DEC,
+            fov: M42_FOV,
+            viewState: {
+              lat: M42_DEC,
+              lng: M42_RA,
+              altitude: M42_FOV,
+              ra: M42_RA,
+              dec: M42_DEC,
+              fov: M42_FOV,
+              coo: M42_COO,
+            },
+            thumbnailData: '',
+            recoveryMeta: {
+              originalCoordinates: { ra: M42_RA, dec: M42_DEC, fov: M42_FOV, coo: M42_COO, frame: 'ICRS' },
+              description: 'Favorite pin — was formerly the hardcoded Atlas boot default',
+            },
+          });
+          writePinsArray(pins);
+          localStorage.setItem('dlo-m42-favorite-seeded', '1');
+        } catch (e) {}
+      }
+
+      function flyToMysteryGlow(attempt) {
+        attempt = attempt || 0;
+        var a = window.__aladin;
+        if (!a || typeof a.gotoRaDec !== 'function') {
+          if (attempt < 12) setTimeout(function () { flyToMysteryGlow(attempt + 1); }, 400);
+          else console.warn('[observatory] mystery fly: Atlas never woke');
+          return;
+        }
+        try {
+          a.gotoRaDec(MYSTERY_RA, MYSTERY_DEC);
+          placeSsoMarker(a, MYSTERY_RA, MYSTERY_DEC, MYSTERY_LABEL);
+          setTimeout(function () {
+            try { if (typeof a.setFov === 'function') a.setFov(MYSTERY_FOV); } catch (e) {}
+          }, 200);
+          if (nowShowing) nowShowing.textContent = MYSTERY_LABEL;
+          saveLastAtlasView(MYSTERY_RA, MYSTERY_DEC, MYSTERY_FOV);
+          console.log('[observatory] mystery glow locked', MYSTERY_COO);
+        } catch (e) {
+          console.warn('[observatory] mystery fly failed', e);
+        }
+      }
+
+      ensureMysteryGlowPin();
+      ensureM42FavoritePin();
+
       function bootAladin() {
         if (aladinBooted || typeof A === 'undefined') return;
         aladinBooted = true;
         A.init.then(function () {
+          // NEVER boot on M42. Aladin's own default / bad target parse has been landing on Orion.
+          // Force a safe field with gotoRaDec after init — do not trust the target: string alone.
+          var last = readLastAtlasView();
+          var bootFov = last && isFinite(last.fov) && last.fov > 0 ? last.fov : SAFE_BOOT_FOV;
+          var bootRa = last ? last.ra : SAFE_BOOT_RA;
+          var bootDec = last ? last.dec : SAFE_BOOT_DEC;
+          if (coordsNearM42(bootRa, bootDec)) {
+            bootRa = SAFE_BOOT_RA;
+            bootDec = SAFE_BOOT_DEC;
+            bootFov = SAFE_BOOT_FOV;
+            try { localStorage.removeItem(LAST_VIEW_KEY); } catch (e) {}
+          }
           window.__aladin = A.aladin('#aladin-lite-div', {
             survey: currentSurvey,
-            fov: 18,
-            target: 'M42',
+            fov: bootFov,
+            target: SAFE_BOOT_TARGET, // placeholder only — immediately overridden below
             cooFrame: 'equatorial',
             projection: 'SIN',
             showReticle: true,
@@ -178,6 +400,52 @@ const VIEWS = [
             showGotoControl: true,
             showSimbadPointerControl: true,
           });
+          try {
+            if (typeof window.__aladin.gotoRaDec === 'function') {
+              window.__aladin.gotoRaDec(bootRa, bootDec);
+            }
+            if (typeof window.__aladin.setFov === 'function') {
+              window.__aladin.setFov(bootFov);
+            }
+          } catch (e) {}
+          if (nowShowing) {
+            nowShowing.textContent = last && !coordsNearM42(bootRa, bootDec) ? 'Atlas · last view' : 'Atlas';
+          }
+          // Kick Orion again if Aladin still drifted there before pin handoff.
+          function kickOrionIfUnwanted() {
+            try {
+              if (allowM42AsLastView) return;
+              if (localStorage.getItem('flyToPin')) return;
+              var a = window.__aladin;
+              if (!a || typeof a.getRaDec !== 'function') return;
+              var rd = a.getRaDec();
+              if (!rd || rd.length < 2) return;
+              if (coordsNearM42(Number(rd[0]), Number(rd[1]))) {
+                console.warn('[observatory] Orion still on the lease — kicking to safe field');
+                if (typeof a.gotoRaDec === 'function') a.gotoRaDec(SAFE_BOOT_RA, SAFE_BOOT_DEC);
+                if (typeof a.setFov === 'function') a.setFov(SAFE_BOOT_FOV);
+                if (nowShowing) nowShowing.textContent = 'Atlas';
+                try { localStorage.removeItem(LAST_VIEW_KEY); } catch (e) {}
+              }
+            } catch (e) {}
+          }
+          setTimeout(kickOrionIfUnwanted, 300);
+          setTimeout(kickOrionIfUnwanted, 1200);
+          setTimeout(kickOrionIfUnwanted, 2500);
+          // Drive from console/Sky Events pin if one was chosen (with retries)
+          setTimeout(() => applyFlyToPinIfAny(0), 700);
+          // Persist wherever the eye rests (for next calm boot) — never auto-save Orion.
+          setInterval(function () {
+            try {
+              var a = window.__aladin;
+              if (!a || typeof a.getRaDec !== 'function') return;
+              var rd = a.getRaDec();
+              if (!rd || rd.length < 2) return;
+              var fovArr = typeof a.getFov === 'function' ? a.getFov() : null;
+              var f = fovArr && isFinite(fovArr[0]) ? Number(fovArr[0]) : NaN;
+              saveLastAtlasView(Number(rd[0]), Number(rd[1]), f);
+            } catch (e) {}
+          }, 8000);
         });
       }
 
@@ -193,7 +461,7 @@ const VIEWS = [
         currentSurvey = id;
         styleSurvey();
         var a = window.__aladin;
-        if (!a) return; // not booted yet — bootAladin will use currentSurvey
+        if (!a) return;
         try {
           if (typeof a.setBaseImageLayer === 'function' && typeof A !== 'undefined' && A.imageHiPS) {
             a.setBaseImageLayer(A.imageHiPS(id));
@@ -210,79 +478,627 @@ const VIEWS = [
       });
       styleSurvey();
 
-      function activeStyle(tab, on) {
-        tab.classList.toggle('border-signal-400', on);
-        tab.classList.toggle('text-mist-100', on);
-        tab.classList.toggle('bg-void-800', on);
-        tab.setAttribute('aria-selected', on ? 'true' : 'false');
+      const snapshotBtn = document.getElementById('sky-snapshot');
+      if (snapshotBtn) {
+        snapshotBtn.classList.add('flex');
+        snapshotBtn.classList.remove('hidden');
       }
 
-      var snapshotBtn = document.getElementById('sky-snapshot');
-      var currentView = 'wwt';
+      // Drive Atlas from a pin chosen in the console / Sky Events.
+      // Deep-sky names go through Sesame (gotoObject). Venus/Moon/planets do NOT resolve
+      // in Sesame — Aladin silently fails. For those we fetch live RA/Dec from Miriade
+      // (IMCCE ephemcc) and gotoRaDec + drop a marker so the spot is unmistakable.
+      const SSO_NAME_MAP = {
+        moon: 'Moon',
+        'full moon': 'Moon',
+        mercury: 'Mercury',
+        venus: 'Venus',
+        'venus-evening': 'Venus',
+        mars: 'Mars',
+        jupiter: 'Jupiter',
+        saturn: 'Saturn',
+        uranus: 'Uranus',
+        neptune: 'Neptune',
+      };
 
-      function show(view) {
-        currentView = view;
-        stages.forEach(function (s) { s.classList.toggle('hidden', s.dataset.stage !== view); });
-        tabs.forEach(function (t) { activeStyle(t, t.dataset.view === view); });
-        if (nowShowing) nowShowing.textContent = LABELS[view] || view;
-        if (view === 'aladin') bootAladin();
-        // Snapshot is available on both lenses — Atlas uses a native canvas grab; Explore (WWT) uses
-        // screen-frame capture since its iframe is cross-origin.
-        if (snapshotBtn) {
-          snapshotBtn.classList.remove('hidden');
-          snapshotBtn.classList.add('flex');
+      function extractCatalogId(label) {
+        const target = (label || '').trim();
+        const catalog = target.match(/\b((?:HD|HR|HIP|NGC|IC|M|Messier)\s*\d+[a-z]?)\b/i);
+        if (!catalog) return null;
+        return catalog[1].replace(/\s+/g, ' ').replace(/^messier\s*/i, 'M').replace(/^m\s+/i, 'M');
+      }
+
+      function normalizePinTarget(label) {
+        let target = (label || '').trim();
+        // Prefer a clean catalog id if the pin label has extra words ("HD 23514 star cluster").
+        const catalog = extractCatalogId(target);
+        if (catalog) return catalog;
+        target = target
+          .replace(/full moon/i, 'Moon')
+          .replace(/perseid/i, 'Perseids')
+          .replace(/geminid/i, 'Geminids')
+          .replace(/andromeda galaxy/i, 'Andromeda')
+          .replace(/andromeda/i, 'Andromeda')
+          .replace(/venus-evening/i, 'Venus')
+          .replace(/\bvenus\b/i, 'Venus');
+        // Do NOT rewrite bare "Orion" into the target from substrings inside other names.
+        if (/^orion(\s+nebula)?$/i.test(target) || /^m\s*42\b/i.test(target)) {
+          return 'M42';
         }
-        try { localStorage.setItem(STORAGE_KEY, view); } catch (e) {}
+        // Strip decorative suffixes like "· Jul 9" / "· live sky"
+        target = target.split('·')[0].trim();
+        return target;
       }
 
-      tabs.forEach(function (t) {
-        t.addEventListener('click', function () { show(t.dataset.view); });
+      // Pins that still carry M42 coords under another label are treated as
+      // leftovers from when Atlas booted on Orion (Hi 42 is a favorite now).
+      function isNearM42(ra, dec) {
+        if (!isFinite(ra) || !isFinite(dec)) return false;
+        const dra = Math.abs((((ra - M42_RA) % 360) + 540) % 360 - 180);
+        const ddec = Math.abs(dec - M42_DEC);
+        return dra < 1.5 && ddec < 1.5;
+      }
+      function labelLooksLikeM42(label) {
+        const s = String(label || '').trim().toLowerCase();
+        if (!s) return false;
+        return /\bm\s*42\b/.test(s) || /\borion\s+nebula\b/.test(s) || /^orion$/.test(s) || /\bhi\s*42\b/.test(s);
+      }
+
+      function resolveSolarSystemName(target) {
+        const key = String(target || '').trim().toLowerCase();
+        if (!key) return null;
+        if (SSO_NAME_MAP[key]) return SSO_NAME_MAP[key];
+        // Primary subject only — "Mystery glow near Moon" must NOT become live Moon.
+        const m = key.match(/^(?:next\s+)?(?:full\s+)?(moon|mercury|venus|mars|jupiter|saturn|uranus|neptune)\b/);
+        if (m) return SSO_NAME_MAP[m[1]] || (m[1].charAt(0).toUpperCase() + m[1].slice(1));
+        if (/^venus-evening\b/.test(key)) return 'Venus';
+        return null;
+      }
+
+      function parseSesameRaDec(text) {
+        const m = String(text || '').match(/%J\s+([+-]?\d+(?:\.\d+)?)\s+([+-]?\d+(?:\.\d+)?)/);
+        if (!m) return null;
+        const ra = Number(m[1]);
+        const dec = Number(m[2]);
+        if (!isFinite(ra) || !isFinite(dec)) return null;
+        return { ra: ra, dec: dec };
+      }
+
+      function resolveViaSesameHttp(target) {
+        const url = 'https://cdsweb.u-strasbg.fr/cgi-bin/nph-sesame/-oI/A?' + encodeURIComponent(target);
+        return fetch(url).then(function (r) {
+          if (!r.ok) throw new Error('Sesame HTTP ' + r.status);
+          return r.text();
+        }).then(function (text) {
+          const coords = parseSesameRaDec(text);
+          if (!coords) throw new Error('Sesame parse miss for ' + target);
+          return coords;
+        });
+      }
+
+      /** Rewrite a saved pin's sky coords after a successful catalog resolve (heals M42 / wrong-field poison). */
+      function healPinCoords(pinId, label, ra, dec, fov) {
+        try {
+          if (!isFinite(ra) || !isFinite(dec)) return;
+          var raw = localStorage.getItem('personalPins');
+          var pins = [];
+          try {
+            if (raw && raw !== 'undefined' && raw !== 'null') {
+              var parsed = JSON.parse(raw);
+              if (Array.isArray(parsed)) pins = parsed.filter(Boolean);
+            }
+          } catch (e) { return; }
+          if (!pins.length) return;
+          var changed = false;
+          var f = isFinite(fov) && fov > 0 ? fov : NaN;
+          pins = pins.map(function (p) {
+            if (!p) return p;
+            var match = (pinId && p.id === pinId) || (label && p.label === label);
+            if (!match) return p;
+            var next = Object.assign({}, p);
+            next.ra = ra;
+            next.dec = dec;
+            if (isFinite(f)) next.fov = f;
+            var cat = extractCatalogId(next.label || label);
+            if (cat) next.coordsHealed = cat;
+            next.viewState = Object.assign({}, next.viewState || {}, {
+              lat: dec,
+              lng: ra,
+              ra: ra,
+              dec: dec,
+              altitude: isFinite(f) ? f : (next.viewState && next.viewState.altitude) || 2.5,
+              fov: isFinite(f) ? f : (next.viewState && next.viewState.fov) || 2.5,
+            });
+            changed = true;
+            return next;
+          });
+          if (changed) {
+            try { localStorage.setItem('personalPins:backup', JSON.stringify(pins)); } catch (e) {}
+            localStorage.setItem('personalPins', JSON.stringify(pins));
+          }
+        } catch (e) {}
+      }
+
+      function scrubM42PoisonedPinsLocal() {
+        try {
+          var raw = localStorage.getItem('personalPins');
+          var pins = [];
+          try {
+            if (raw && raw !== 'undefined' && raw !== 'null') {
+              var parsed = JSON.parse(raw);
+              if (Array.isArray(parsed)) pins = parsed.filter(Boolean);
+            }
+          } catch (e) { return; }
+          if (!pins.length) {
+            // Attempt backup restore before giving up.
+            try {
+              var bak = localStorage.getItem('personalPins:backup');
+              if (bak && bak !== 'undefined' && bak !== 'null') {
+                var bp = JSON.parse(bak);
+                if (Array.isArray(bp) && bp.length) {
+                  localStorage.setItem('personalPins', JSON.stringify(bp));
+                }
+              }
+            } catch (e2) {}
+            return;
+          }
+          var changed = false;
+          var cleaned = pins.map(function (pin) {
+            if (!pin || labelLooksLikeM42(pin.label)) return pin;
+            var ra = Number(pin.ra != null ? pin.ra : (pin.viewState && pin.viewState.ra));
+            var dec = Number(pin.dec != null ? pin.dec : (pin.viewState && pin.viewState.dec));
+            if (!isFinite(ra) || !isFinite(dec) || !isNearM42(ra, dec)) return pin;
+            changed = true;
+            var next = Object.assign({}, pin);
+            delete next.ra;
+            delete next.dec;
+            delete next.fov;
+            if (next.viewState && typeof next.viewState === 'object') {
+              next.viewState = Object.assign({}, next.viewState);
+              delete next.viewState.ra;
+              delete next.viewState.dec;
+              delete next.viewState.fov;
+              if (isNearM42(Number(next.viewState.lng), Number(next.viewState.lat))) {
+                delete next.viewState.lat;
+                delete next.viewState.lng;
+                delete next.viewState.altitude;
+              }
+            }
+            return next;
+          });
+          if (changed) {
+            try { localStorage.setItem('personalPins:backup', JSON.stringify(pins)); } catch (e) {}
+            localStorage.setItem('personalPins', JSON.stringify(cleaned));
+          }
+        } catch (e) {}
+      }
+      scrubM42PoisonedPinsLocal();
+
+      // "+10:10:09.8" hours → degrees; "+12:50:22.9" sexagesimal degrees → degrees
+      function sexagesimalToDegrees(str, isHours) {
+        const s = String(str || '').trim();
+        const m = s.match(/^([+-]?)(\d+(?:\.\d+)?)(?::(\d+(?:\.\d+)?)(?::(\d+(?:\.\d+)?))?)?/);
+        if (!m) return NaN;
+        const sign = m[1] === '-' ? -1 : 1;
+        const a = parseFloat(m[2]) || 0;
+        const b = parseFloat(m[3]) || 0;
+        const c = parseFloat(m[4]) || 0;
+        const val = sign * (Math.abs(a) + b / 60 + c / 3600);
+        return isHours ? val * 15 : val;
+      }
+
+      function ssoDesiredFov(name) {
+        if (name === 'Venus') return { start: 35, mid: 35, final: 32 };
+        if (name === 'Moon') return { start: 30, mid: 30, final: 28 };
+        return { start: 40, mid: 35, final: 30 }; // other planets: start wider
+      }
+
+      function placeSsoMarker(a, raDeg, decDeg, name) {
+        try {
+          if (typeof A === 'undefined' || typeof A.catalog !== 'function' || typeof A.marker !== 'function') return;
+          if (window.__ssoMarkerCat && typeof a.removeOverlay === 'function') {
+            try { a.removeOverlay(window.__ssoMarkerCat); } catch (e) {}
+          } else if (window.__ssoMarkerCat && typeof a.removeLayer === 'function') {
+            try { a.removeLayer(window.__ssoMarkerCat); } catch (e) {}
+          }
+          const cat = A.catalog({ name: name + ' (now)', sourceSize: 18, color: '#f5c542' });
+          const marker = A.marker(raDeg, decDeg, {
+            popupTitle: name,
+            popupDesc: 'Live sky position · Miriade ephemeris (now)',
+          });
+          cat.addSources([marker]);
+          a.addCatalog(cat);
+          window.__ssoMarkerCat = cat;
+        } catch (e) {}
+      }
+
+      function applyFovSchedule(a, fov) {
+        setTimeout(() => { try { if (typeof a.setFov === 'function') a.setFov(fov.start); } catch (e) {} }, 200);
+        setTimeout(() => { try { if (typeof a.setFov === 'function') a.setFov(fov.mid); } catch (e) {} }, 450);
+        setTimeout(() => { try { if (typeof a.setFov === 'function') a.setFov(fov.final); } catch (e) {} }, 800);
+      }
+
+      function flyToSolarSystem(a, ssoName) {
+        const url = 'https://ssp.imcce.fr/webservices/miriade/api/ephemcc.php'
+          + '?-name=' + encodeURIComponent('p:' + ssoName)
+          + '&-ep=now&-mime=json&-tcoor=1';
+        return fetch(url)
+          .then(function (r) {
+            if (!r.ok) throw new Error('Miriade HTTP ' + r.status);
+            return r.json();
+          })
+          .then(function (json) {
+            const row = json && json.data && json.data[0];
+            if (!row || row.RA == null || row.DEC == null) throw new Error('Miriade empty');
+            const raDeg = sexagesimalToDegrees(row.RA, true);
+            const decDeg = sexagesimalToDegrees(row.DEC, false);
+            if (!isFinite(raDeg) || !isFinite(decDeg)) throw new Error('bad RA/Dec');
+            if (typeof a.gotoRaDec === 'function') a.gotoRaDec(raDeg, decDeg);
+            else if (typeof a.gotoObject === 'function') a.gotoObject(raDeg + ' ' + decDeg);
+            placeSsoMarker(a, raDeg, decDeg, ssoName);
+            applyFovSchedule(a, ssoDesiredFov(ssoName));
+            if (nowShowing) {
+              nowShowing.textContent = ssoName + ' · live sky';
+            }
+            saveLastAtlasView(raDeg, decDeg, ssoDesiredFov(ssoName).final);
+            return { raDeg: raDeg, decDeg: decDeg };
+          });
+      }
+
+      function flyToDeepSky(a, target, opts) {
+        opts = opts || {};
+        const displayLabel = (opts.label || target || '').trim();
+        const pinId = opts.pinId;
+        const desiredFov = Number(opts.fov);
+        const fovFinal = isFinite(desiredFov) && desiredFov > 0 ? Math.min(desiredFov, 8) : 2.5;
+
+        function landAt(ra, dec) {
+          try {
+            if (typeof a.gotoRaDec === 'function') a.gotoRaDec(ra, dec);
+            placeSsoMarker(a, ra, dec, displayLabel || target);
+            setTimeout(function () {
+              try { if (typeof a.setFov === 'function') a.setFov(fovFinal); } catch (e) {}
+            }, 200);
+            if (nowShowing) nowShowing.textContent = displayLabel || target;
+            saveLastAtlasView(ra, dec, fovFinal);
+            healPinCoords(pinId, displayLabel, ra, dec, fovFinal);
+          } catch (e) {
+            console.warn('[observatory] landAt failed', target, e);
+          }
+        }
+
+        function httpFallback() {
+          resolveViaSesameHttp(target).then(function (c) {
+            console.log('[observatory] Sesame HTTP resolved', target, c.ra, c.dec);
+            landAt(c.ra, c.dec);
+          }).catch(function (err) {
+            console.warn('[observatory] Sesame resolve failed for', target, err);
+          });
+        }
+
+        try {
+          a.gotoObject(target, {
+            success: function () {
+              try {
+                var rd = typeof a.getRaDec === 'function' ? a.getRaDec() : null;
+                if (rd && rd.length >= 2 && isFinite(Number(rd[0])) && isFinite(Number(rd[1]))) {
+                  healPinCoords(pinId, displayLabel, Number(rd[0]), Number(rd[1]), fovFinal);
+                  saveLastAtlasView(Number(rd[0]), Number(rd[1]), fovFinal);
+                }
+              } catch (e) {}
+              setTimeout(function () {
+                try { if (typeof a.setFov === 'function') a.setFov(fovFinal); } catch (e) {}
+              }, 200);
+              if (nowShowing) nowShowing.textContent = displayLabel || target;
+            },
+            error: function () {
+              // Aladin's built-in Sesame missed — hit CDS directly (do not rely on any Orion boot).
+              httpFallback();
+            },
+          });
+        } catch (e) {
+          httpFallback();
+        }
+      }
+
+      function applyFlyToPinIfAny(attempt = 0) {
+        try {
+          const raw = localStorage.getItem('flyToPin');
+          if (!raw) return;
+          const data = JSON.parse(raw);
+          if (!data) { localStorage.removeItem('flyToPin'); return; }
+
+          const a = window.__aladin;
+          if (!a || (typeof a.gotoObject !== 'function' && typeof a.gotoRaDec !== 'function')) {
+            if (attempt < 8) setTimeout(() => applyFlyToPinIfAny(attempt + 1), 550);
+            return;
+          }
+
+          // Coordinate pins (from Observatory P-key): prefer exact RA/Dec over label resolve.
+          // Do NOT clear flyToPin until a jump path succeeds — clearing early caused Orion slingshots
+          // when Aladin was present but goto still failed / raced the old M42 boot default.
+          // Only trust explicit ra/dec (not lat/lng) — Sky Events still stores placeholder lat/lng.
+          // Catalog-named pins (HD 23514, NGC …): NEVER trust stored camera coords — those are often
+          // the old M42 boot default or whatever field was on screen when P was hit.
+          const vs = data.viewState || {};
+          let ra = Number(data.ra != null ? data.ra : vs.ra);
+          let dec = Number(data.dec != null ? data.dec : vs.dec);
+          const fov = Number(data.fov != null ? data.fov : (vs.fov != null ? vs.fov : vs.altitude));
+          const label = (data.label || data.title || data.name || '').trim();
+          const catalogId = extractCatalogId(label);
+          const pinId = data.id;
+          const earlyTarget = normalizePinTarget(label);
+          const ssoName = resolveSolarSystemName(earlyTarget) || resolveSolarSystemName(label);
+
+          // Moon / Venus / planets: ALWAYS live ephemeris. Never trust camera-snapshot
+          // coords (those are often Orion from the old boot or a wide-field P).
+          if (ssoName) {
+            console.warn('[observatory] SSO pin — Miriade only, ignoring stored coords', ssoName, ra, dec);
+            localStorage.removeItem('flyToPin');
+            if (nowShowing) nowShowing.textContent = ssoName + ' · finding…';
+            flyToSolarSystem(a, ssoName).catch(function (err) {
+              console.warn('[observatory] SSO fly-to failed', ssoName, err);
+              if (nowShowing) nowShowing.textContent = ssoName + ' · ephemeris missed';
+            });
+            return;
+          }
+
+          // Authority pins: always use known coords (never Sesame / never poisoned snapshots).
+          if (pinId === MYSTERY_ID || /mystery glow near moon/i.test(label)) {
+            ra = MYSTERY_RA;
+            dec = MYSTERY_DEC;
+          } else if (pinId === M42_PIN_ID || labelLooksLikeM42(label)) {
+            ra = M42_RA;
+            dec = M42_DEC;
+            allowM42AsLastView = true; // intentional Hi 42 visit may become last view
+          }
+
+          if (catalogId && !labelLooksLikeM42(label) && pinId !== MYSTERY_ID) {
+            console.warn('[observatory] catalog pin — resolving by name, ignoring stored coords', catalogId, ra, dec);
+            localStorage.removeItem('flyToPin');
+            flyToDeepSky(a, catalogId, {
+              label: label,
+              pinId: pinId,
+              fov: isFinite(fov) && fov > 0 ? fov : 2.5,
+            });
+            return;
+          }
+
+          if (isFinite(ra) && isFinite(dec) && isNearM42(ra, dec) && label && !labelLooksLikeM42(label) && pinId !== M42_PIN_ID) {
+            console.warn('[observatory] ignoring M42-poisoned pin coords for label', label, ra, dec);
+            ra = NaN;
+            dec = NaN;
+          }
+          if (isFinite(ra) && isFinite(dec) && typeof a.gotoRaDec === 'function') {
+            try {
+              a.gotoRaDec(ra, dec);
+              placeSsoMarker(a, ra, dec, (label || 'Pinned sky').trim());
+              const f = isFinite(fov) && fov > 0 ? fov : (pinId === MYSTERY_ID ? MYSTERY_FOV : (pinId === M42_PIN_ID ? M42_FOV : 2));
+              setTimeout(() => { try { if (typeof a.setFov === 'function') a.setFov(f); } catch (e) {} }, 200);
+              if (nowShowing) nowShowing.textContent = (label || 'Pinned · live sky').trim();
+              saveLastAtlasView(ra, dec, f, {
+                allowM42: pinId === M42_PIN_ID || labelLooksLikeM42(label),
+              });
+              localStorage.removeItem('flyToPin');
+              return;
+            } catch (e) {
+              if (attempt < 8) setTimeout(() => applyFlyToPinIfAny(attempt + 1), 550);
+              return;
+            }
+          }
+
+          if (!label) {
+            localStorage.removeItem('flyToPin');
+            return;
+          }
+
+          const target = normalizePinTarget(label);
+          localStorage.removeItem('flyToPin');
+          flyToDeepSky(a, target, { label: label, pinId: pinId, fov: fov });
+        } catch (e) {}
+      }
+
+      // Boot Aladin immediately (only lens now)
+      bootAladin();
+
+      // Try pin handoff shortly after boot, plus a safety net
+      setTimeout(() => applyFlyToPinIfAny(0), 900);
+      setTimeout(() => applyFlyToPinIfAny(0), 2200);
+
+      // --- Pin this Atlas view (P key / Pin button) ---------------------------------
+      // Saves to the same localStorage.personalPins console My Pins reads. Stores
+      // exact RA/Dec + FOV so mysterious unlabeled blooms can be revisited.
+      function degToHms(raDeg) {
+        var x = ((Number(raDeg) % 360) + 360) % 360 / 15;
+        var h = Math.floor(x);
+        var mFloat = (x - h) * 60;
+        var m = Math.floor(mFloat);
+        var s = (mFloat - m) * 60;
+        return String(h).padStart(2, '0') + ' ' + String(m).padStart(2, '0') + ' ' + s.toFixed(2).padStart(5, '0');
+      }
+      function degToDms(decDeg) {
+        var sign = Number(decDeg) < 0 ? '-' : '+';
+        var x = Math.abs(Number(decDeg));
+        var d = Math.floor(x);
+        var mFloat = (x - d) * 60;
+        var m = Math.floor(mFloat);
+        var s = (mFloat - m) * 60;
+        return sign + String(d).padStart(2, '0') + ' ' + String(m).padStart(2, '0') + ' ' + s.toFixed(1).padStart(4, '0');
+      }
+
+      function toastPin(msg, ok) {
+        var toast = document.createElement('div');
+        toast.style.cssText = 'position:fixed;bottom:28px;left:50%;transform:translateX(-50%);z-index:2000;background:#0f1420;border:1px solid ' + (ok ? '#36415a' : '#5c3a3a') + ';color:#e9edf5;padding:10px 20px;border-radius:9999px;font-size:13px;';
+        toast.textContent = msg;
+        document.body.appendChild(toast);
+        setTimeout(function () { toast.remove(); }, 2800);
+      }
+
+      function captureObservatoryPin() {
+        var a = window.__aladin;
+        if (!a || typeof a.getRaDec !== 'function') {
+          toastPin('Atlas is still waking up — try again in a moment', false);
+          return;
+        }
+        var radec = a.getRaDec();
+        if (!radec || radec.length < 2) {
+          toastPin('Could not read sky position', false);
+          return;
+        }
+        var ra = Number(radec[0]);
+        var dec = Number(radec[1]);
+        var fovArr = typeof a.getFov === 'function' ? a.getFov() : null;
+        var fov = fovArr && isFinite(fovArr[0]) ? Number(fovArr[0]) : 2;
+        var coordStr = degToHms(ra) + '  ' + degToDms(dec);
+
+        var defaultLabel = (nowShowing && nowShowing.textContent && nowShowing.textContent.trim() && nowShowing.textContent.trim() !== 'Atlas')
+          ? nowShowing.textContent.trim()
+          : ('Atlas · ' + coordStr);
+
+        var label = window.prompt('Name this pin', defaultLabel);
+        if (label === null) return; // cancelled
+        label = String(label).trim() || defaultLabel;
+        var note = window.prompt('Optional note (coords kept either way)', coordStr);
+        if (note === null) note = coordStr;
+        note = String(note).trim() || coordStr;
+
+        // Shrink Aladin capture to a small JPEG so localStorage can hold many pin thumbs.
+        function shrinkPinThumb(dataUrl) {
+          return new Promise(function (resolve) {
+            if (typeof dataUrl !== 'string' || dataUrl.indexOf('data:image/') !== 0) {
+              resolve('');
+              return;
+            }
+            var img = new Image();
+            img.onload = function () {
+              try {
+                var maxW = 320;
+                var maxH = 200;
+                var scale = Math.min(maxW / img.naturalWidth, maxH / img.naturalHeight, 1);
+                var w = Math.max(1, Math.round(img.naturalWidth * scale));
+                var h = Math.max(1, Math.round(img.naturalHeight * scale));
+                var cv = document.createElement('canvas');
+                cv.width = w;
+                cv.height = h;
+                var cx = cv.getContext('2d');
+                if (!cx) { resolve(''); return; }
+                cx.drawImage(img, 0, 0, w, h);
+                resolve(cv.toDataURL('image/jpeg', 0.72));
+              } catch (e) {
+                resolve('');
+              }
+            };
+            img.onerror = function () { resolve(''); };
+            img.src = dataUrl;
+          });
+        }
+
+        function savePinWithThumb(thumb) {
+          var pin = {
+            id: Date.now().toString(36) + Math.random().toString(36).slice(2, 7),
+            createdAt: new Date().toISOString(),
+            label: label,
+            note: note,
+            source: 'observatory',
+            // Exact sky coords for Atlas re-entry (applyFlyToPinIfAny prefers these)
+            ra: ra,
+            dec: dec,
+            fov: fov,
+            // Console cards still expect viewState; map ra→lng, dec→lat, fov→altitude
+            viewState: {
+              lat: dec,
+              lng: ra,
+              altitude: fov,
+              ra: ra,
+              dec: dec,
+              fov: fov,
+              coo: coordStr,
+            },
+            thumbnailData: (typeof thumb === 'string' && thumb.indexOf('data:image/') === 0) ? thumb : '',
+            recoveryMeta: {
+              originalCoordinates: { ra: ra, dec: dec, fov: fov, coo: coordStr, frame: 'ICRS' },
+              description: 'Pinned from Observatory Atlas camera',
+            },
+          };
+
+          try {
+            var pins = [];
+            try {
+              var rawPins = localStorage.getItem('personalPins');
+              if (rawPins && rawPins !== 'undefined' && rawPins !== 'null') {
+                var parsedPins = JSON.parse(rawPins);
+                if (Array.isArray(parsedPins)) pins = parsedPins.filter(Boolean);
+                else if (parsedPins && typeof parsedPins === 'object') {
+                  pins = Object.values(parsedPins).filter(function (p) { return p && typeof p === 'object'; });
+                }
+              }
+            } catch (eParse) { pins = []; }
+            if (!pins.length) {
+              try {
+                var bakPins = localStorage.getItem('personalPins:backup');
+                if (bakPins) {
+                  var bpins = JSON.parse(bakPins);
+                  if (Array.isArray(bpins) && bpins.length) pins = bpins.filter(Boolean);
+                }
+              } catch (eBak) {}
+            }
+            try {
+              if (pins.length) localStorage.setItem('personalPins:backup', JSON.stringify(pins));
+            } catch (eBak2) {}
+            pins.unshift(pin);
+            try {
+              localStorage.setItem('personalPins', JSON.stringify(pins));
+            } catch (quotaErr) {
+              // Quota: drop the thumb and retry once so the pin itself still lands.
+              pin.thumbnailData = '';
+              pins[0] = pin;
+              localStorage.setItem('personalPins', JSON.stringify(pins));
+            }
+            toastPin('Pinned · ' + label, true);
+            if (nowShowing) nowShowing.textContent = label;
+          } catch (e) {
+            toastPin('Pin did not save', false);
+          }
+        }
+
+        function finishPinCapture(rawUrl) {
+          shrinkPinThumb(rawUrl).then(function (small) {
+            savePinWithThumb(small || '');
+          });
+        }
+
+        try {
+          if (typeof a.getViewDataURL === 'function') {
+            var res = a.getViewDataURL({ format: 'image/jpeg' });
+            if (res && typeof res.then === 'function') {
+              res.then(function (u) { finishPinCapture(u); }).catch(function () { savePinWithThumb(''); });
+              return;
+            }
+            if (typeof res === 'string') { finishPinCapture(res); return; }
+          }
+        } catch (e) {}
+        savePinWithThumb('');
+      }
+
+      var pinBtn = document.getElementById('sky-pin');
+      if (pinBtn) pinBtn.addEventListener('click', captureObservatoryPin);
+
+      var mysteryBtn = document.getElementById('sky-mystery');
+      if (mysteryBtn) {
+        mysteryBtn.addEventListener('click', function () {
+          ensureMysteryGlowPin();
+          flyToMysteryGlow(0);
+        });
+      }
+
+      document.addEventListener('keydown', function (e) {
+        if (e.key !== 'p' && e.key !== 'P') return;
+        var tag = (e.target && e.target.tagName) || '';
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || (e.target && e.target.isContentEditable)) return;
+        if (e.metaKey || e.ctrlKey || e.altKey) return;
+        e.preventDefault();
+        captureObservatoryPin();
       });
-
-      let initial = 'wwt';
-      try { initial = localStorage.getItem(STORAGE_KEY) || 'wwt'; } catch (e) {}
-      if (!LABELS[initial]) initial = 'wwt';
-      show(initial);
-
-      // --- Expand to full window ---------------------------------------------------
-      // Fullscreen the whole stage so each engine fills the viewport. The engines render
-      // their control rails at the screen edges; inside the boxed column those edges fall
-      // outside the visible area and clip. Fullscreening the stage gives them the full width.
-      var stage = document.getElementById('sky-stage');
-      var expandBtn = document.getElementById('sky-expand');
-      var expandIcon = document.getElementById('sky-expand-icon');
-      var expandLabel = document.getElementById('sky-expand-label');
-
-      function isFs() {
-        return document.fullscreenElement === stage || document.webkitFullscreenElement === stage;
-      }
-
-      function enterFs() {
-        if (!stage) return;
-        var req = stage.requestFullscreen || stage.webkitRequestFullscreen;
-        if (req) { try { req.call(stage); } catch (e) {} }
-      }
-      function exitFs() {
-        var exit = document.exitFullscreen || document.webkitExitFullscreen;
-        if (exit) { try { exit.call(document); } catch (e) {} }
-      }
-
-      if (expandBtn) {
-        expandBtn.addEventListener('click', function () { isFs() ? exitFs() : enterFs(); });
-      }
-
-      function onFsChange() {
-        var on = isFs();
-        if (expandIcon) expandIcon.textContent = on ? '⤢' : '⛶';
-        if (expandLabel) expandLabel.textContent = on ? 'Exit full screen' : 'Full screen';
-        // Engines size to their container — nudge them to re-measure after the box changes.
-        try { window.dispatchEvent(new Event('resize')); } catch (e) {}
-        if (window.__aladin && typeof window.__aladin.requestRedraw === 'function') {
-          try { window.__aladin.requestRedraw(); } catch (e) {}
-        }
-      }
-      document.addEventListener('fullscreenchange', onFsChange);
-      document.addEventListener('webkitfullscreenchange', onFsChange);
 
       // --- One-tap snapshot (Atlas / Aladin only) ----------------------------------
       // getViewDataURL renders ONLY the sky canvas — so it bakes in the reticle and misses HTML
@@ -370,7 +1186,7 @@ const VIEWS = [
       // Reuses the locked assets + corner rules from the home share-card (index.astro):
       //   dragon (bottom-left): /watermarks/dragon-watermark.png  (fallback .webp)
       //   Dragon Lady (top-right): /watermarks/dragon-lady-mark.jpg  (brightened 1.15x)
-      // Preloaded once on page load; stamped onto both Atlas and Explore snapshots before save.
+      // Preloaded once on page load; stamped onto Atlas snapshots.
       var wmDragon = null, wmLady = null;
 
       function loadImg(src) {
@@ -428,26 +1244,23 @@ const VIEWS = [
           .then(function (l) { if (l) prepareWatermarkForDarkBg(l, 1.15).then(function (p) { wmLady = p; }); });
       })();
 
-      // Stamp both marks in their corners, sized proportional to the image so they look right at any
-      // capture resolution. Alphas match the home card (dragon 0.40, lady 0.45). Dragon is always
-      // bottom-left; the Dragon Lady mark is top-right by default, but ladyBottomRight drops it to the
-      // bottom-right for Explore — WWT's own zoom/settings controls sit top-right and get baked into
-      // that capture, so the mark would otherwise collide with them.
-      function stampWatermarks(cx, w, h, ladyBottomRight) {
+      // Stamp both marks in their corners, sized proportional to the image.
+      // Quieter than the home share-card — Atlas snaps are sky-first; brand stays a whisper.
+      // Dragon bottom-left, Lady top-right. (Share cards on index keep their stronger alphas.)
+      function stampWatermarks(cx, w, h) {
         var margin = Math.round(w * 0.012);
         if (wmDragon && wmDragon.complete && wmDragon.naturalWidth > 0) {
-          var dw = Math.round(w * 0.11), dh = Math.round(dw * (100 / 135));
+          var dw = Math.round(w * 0.085), dh = Math.round(dw * (100 / 135));
           cx.save();
-          cx.globalAlpha = 0.40;
+          cx.globalAlpha = 0.24;
           cx.drawImage(wmDragon, margin, h - dh - margin, dw, dh);
           cx.restore();
         }
         if (wmLady && wmLady.complete && wmLady.naturalWidth > 0) {
-          var lw = Math.round(w * 0.095), lh = Math.round(lw * (95 / 115));
-          var ly = ladyBottomRight ? (h - lh - margin) : margin;
+          var lw = Math.round(w * 0.07), lh = Math.round(lw * (95 / 115));
           cx.save();
-          cx.globalAlpha = 0.45;
-          cx.drawImage(wmLady, w - lw - margin, ly, lw, lh);
+          cx.globalAlpha = 0.26;
+          cx.drawImage(wmLady, w - lw - margin, margin, lw, lh);
           cx.restore();
         }
       }
@@ -500,78 +1313,190 @@ const VIEWS = [
         }, 120);
       }
 
-      // Explore (WorldWide Telescope): cross-origin iframe — pixels can't be read with a canvas grab.
-      // Use the browser's screen-capture API (one permission prompt), then crop to the sky view and save.
-      function captureExplore() {
-        if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
-          alert('This browser can’t capture the Explore view directly. Use Windows Snip (Win+Shift+S) for now.');
-          return;
-        }
-        var controls = document.getElementById('sky-controls');
-        var chip = document.getElementById('now-chip');
-        // cursor: 'never' asks the browser to leave the mouse pointer out of the captured frame.
-        navigator.mediaDevices.getDisplayMedia({ video: { displaySurface: 'browser', cursor: 'never' }, audio: false, preferCurrentTab: true })
-          .then(function (stream) {
-            // Second attempt at dropping the pointer — some browsers honor it at the track level.
-            try {
-              var vtrack = stream.getVideoTracks()[0];
-              if (vtrack && vtrack.applyConstraints) vtrack.applyConstraints({ cursor: 'never' });
-            } catch (e) {}
-            var video = document.createElement('video');
-            video.srcObject = stream;
-            video.muted = true;
-            video.play();
-            video.addEventListener('loadedmetadata', function () {
-              // Hide our own overlay UI + the page cursor so neither is baked into the shot.
-              if (controls) controls.style.visibility = 'hidden';
-              if (chip) chip.style.visibility = 'hidden';
-              var prevCursor = document.documentElement.style.cursor;
-              document.documentElement.style.cursor = 'none';
-              // Settle so the first captured frame is painted with our UI already hidden.
-              setTimeout(function () {
-                try {
-                  // Crop to WWT's sky iframe (falls back to the stage). Works whether or not full screen
-                  // survived the share prompt — we map page coords to the captured frame and CLAMP to its
-                  // bounds so we never sample past the edge (that overflow is what saved out as a white block).
-                  var target = document.getElementById('wwt-frame') || stage;
-                  var rect = target.getBoundingClientRect();
-                  var sx = video.videoWidth / window.innerWidth;
-                  var sy = video.videoHeight / window.innerHeight;
-                  var srcX = Math.max(0, Math.round(rect.left * sx));
-                  var srcY = Math.max(0, Math.round(rect.top * sy));
-                  var srcW = Math.max(1, Math.min(video.videoWidth - srcX, Math.round(rect.width * sx)));
-                  var srcH = Math.max(1, Math.min(video.videoHeight - srcY, Math.round(rect.height * sy)));
-                  var cv = document.createElement('canvas');
-                  cv.width = srcW;
-                  cv.height = srcH;
-                  var cx = cv.getContext('2d');
-                  cx.drawImage(video, srcX, srcY, srcW, srcH, 0, 0, srcW, srcH);
-                  // ladyBottomRight: WWT's controls live top-right in this capture, so move the mark clear.
-                  try { stampWatermarks(cx, cv.width, cv.height, true); } catch (e) {}
-                  saveSnap(cv.toDataURL('image/png'));
-                } catch (e) {
-                  alert('Capture failed: ' + (e && e.message ? e.message : 'unknown error'));
-                } finally {
-                  if (controls) controls.style.visibility = '';
-                  if (chip) chip.style.visibility = '';
-                  document.documentElement.style.cursor = prevCursor;
-                  stream.getTracks().forEach(function (t) { t.stop(); });
-                }
-              }, 300);
-            });
-          })
-          .catch(function (e) {
-            if (e && e.name === 'NotAllowedError') return; // user cancelled the share prompt
-            alert('Could not start screen capture: ' + (e && e.message ? e.message : 'unknown error'));
-          });
-      }
+      // WWT/Explore capture removed. Only Atlas native capture remains.
 
       if (snapshotBtn) {
         snapshotBtn.addEventListener('click', function () {
-          if (currentView === 'aladin') captureAladin();
-          else captureExplore();
+          captureAladin();
         });
       }
+
+      // Wide Sky / Globe mode: Aladin zoomed way out acts like a draggable sky globe.
+      // Lets you see what's "above" different parts of the Earth by panning the all-sky view.
+      const wideBtn = document.getElementById('wide-sky-btn');
+      if (wideBtn) {
+        wideBtn.addEventListener('click', function () {
+          const a = window.__aladin;
+          if (!a) return;
+          try {
+            // Very wide field for the globe effect (user discovered this by zooming out)
+            if (typeof a.setFov === 'function') a.setFov(160);
+          } catch (e) {}
+          // When going wide (globe-ish), ensure header is gone and our custom buttons are moved
+          // to a stable corner so they don't fight Aladin's layout.
+          const header = document.querySelector('header');
+          if (header) {
+            header.style.setProperty('display', 'none', 'important');
+            header.style.setProperty('visibility', 'hidden', 'important');
+            header.style.setProperty('height', '0px', 'important');
+          }
+          setTimeout(forceHideHeaderIfImmersive, 30);
+        });
+      }
+
+      // === CAMERA CHROME LAYOUT ===
+      // Aladin's fullscreen (default) is NOT the browser Fullscreen API — it toggles
+      // class "aladin-fullscreen" → position:fixed; inset 0 on #aladin-lite-div.
+      // Chrome lives outside #sky-stage and is pinned with getBoundingClientRect so it
+      // cannot sit mid-sky when the canvas goes immersive.
+      function aladinIsFullscreen() {
+        var a = window.__aladin;
+        if (a && a.isInFullscreen) return true;
+        var div = document.getElementById('aladin-lite-div');
+        if (div && div.classList.contains('aladin-fullscreen')) return true;
+        var fs = document.fullscreenElement || document.webkitFullscreenElement;
+        if (fs && div && (fs === div || fs.contains(div) || (div.contains && div.contains(fs)))) return true;
+        if (fs && (fs.id === 'sky-stage' || fs.id === 'aladin-lite-div')) return true;
+        return false;
+      }
+
+      function layoutCamChrome() {
+        var stage = document.getElementById('sky-stage');
+        var controls = document.getElementById('sky-controls');
+        var survey = document.getElementById('survey-toggle');
+        var chip = document.getElementById('now-chip');
+        if (!controls || !survey) return;
+
+        var fs = aladinIsFullscreen();
+        var pad = 12;
+
+        if (fs) {
+          // Aladin .aladin-fullscreen covers the viewport — pin to the real screen edges.
+          controls.style.left = 'auto';
+          controls.style.right = pad + 'px';
+          controls.style.top = 'auto';
+          controls.style.bottom = pad + 'px';
+          controls.style.transform = 'none';
+          controls.style.display = 'flex';
+
+          survey.style.left = '50%';
+          survey.style.right = 'auto';
+          survey.style.top = 'auto';
+          survey.style.bottom = pad + 'px';
+          survey.style.transform = 'translateX(-50%)';
+          survey.style.display = 'flex';
+
+          if (chip) chip.classList.add('dlo-cam-chrome-hide');
+          return;
+        }
+
+        var rect = stage ? stage.getBoundingClientRect() : null;
+        if (!rect) return;
+
+        // Bottom-right: Mystery / Pin / Snapshot / Wide
+        controls.style.left = 'auto';
+        controls.style.right = Math.max(pad, window.innerWidth - rect.right + pad) + 'px';
+        controls.style.top = 'auto';
+        controls.style.bottom = Math.max(pad, window.innerHeight - rect.bottom + pad) + 'px';
+        controls.style.transform = 'none';
+        controls.style.display = 'flex';
+
+        // Bottom-center: Deep Sky / Milky Way
+        survey.style.left = (rect.left + rect.width / 2) + 'px';
+        survey.style.right = 'auto';
+        survey.style.top = 'auto';
+        survey.style.bottom = Math.max(pad, window.innerHeight - rect.bottom + pad) + 'px';
+        survey.style.transform = 'translateX(-50%)';
+        survey.style.display = 'flex';
+
+        // Bottom-left: now-showing chip
+        if (chip) {
+          chip.classList.remove('dlo-cam-chrome-hide');
+          chip.style.left = Math.max(pad, rect.left + pad) + 'px';
+          chip.style.right = 'auto';
+          chip.style.top = 'auto';
+          chip.style.bottom = Math.max(pad, window.innerHeight - rect.bottom + pad) + 'px';
+          chip.style.transform = 'none';
+        }
+      }
+
+      function forceHideHeaderIfImmersive() {
+        // Kept name for Wide-button callers; now just reflows chrome.
+        var header = document.querySelector('header');
+        if (header && aladinIsFullscreen()) {
+          header.style.setProperty('display', 'none', 'important');
+        } else if (header) {
+          header.style.removeProperty('display');
+        }
+        layoutCamChrome();
+      }
+
+      function bindAladinFullscreenHook() {
+        var a = window.__aladin;
+        if (!a || a.__dloFsHooked) return;
+        a.__dloFsHooked = true;
+        try {
+          if (typeof a.on === 'function') {
+            a.on('fullScreenToggled', function () {
+              setTimeout(layoutCamChrome, 0);
+              setTimeout(layoutCamChrome, 50);
+              setTimeout(layoutCamChrome, 200);
+            });
+          }
+        } catch (e) {}
+        var div = document.getElementById('aladin-lite-div');
+        if (div && typeof div.addEventListener === 'function') {
+          div.addEventListener('AL:fullscreen.toggled', function () {
+            setTimeout(layoutCamChrome, 0);
+            setTimeout(layoutCamChrome, 50);
+          });
+        }
+      }
+
+      ['fullscreenchange', 'webkitfullscreenchange', 'mozfullscreenchange', 'MSFullscreenChange']
+        .forEach(function (evt) { document.addEventListener(evt, layoutCamChrome); });
+      window.addEventListener('resize', layoutCamChrome);
+      window.addEventListener('scroll', layoutCamChrome, true);
+
+      var stageObs = document.getElementById('sky-stage');
+      if (stageObs && typeof ResizeObserver !== 'undefined') {
+        new ResizeObserver(layoutCamChrome).observe(stageObs);
+      }
+      var aladinDiv = document.getElementById('aladin-lite-div');
+      if (aladinDiv) {
+        if (typeof ResizeObserver !== 'undefined') {
+          new ResizeObserver(layoutCamChrome).observe(aladinDiv);
+        }
+        if (typeof MutationObserver !== 'undefined') {
+          new MutationObserver(function () {
+            bindAladinFullscreenHook();
+            layoutCamChrome();
+          }).observe(aladinDiv, { attributes: true, attributeFilter: ['style', 'class'] });
+        }
+        aladinDiv.addEventListener('click', function () {
+          setTimeout(layoutCamChrome, 30);
+          setTimeout(layoutCamChrome, 150);
+        }, true);
+      }
+
+      setInterval(function () {
+        bindAladinFullscreenHook();
+        layoutCamChrome();
+      }, 200);
+
+      setTimeout(layoutCamChrome, 50);
+      setTimeout(layoutCamChrome, 250);
+      setTimeout(layoutCamChrome, 700);
+      setTimeout(layoutCamChrome, 1400);
+      setTimeout(bindAladinFullscreenHook, 800);
+      setTimeout(bindAladinFullscreenHook, 1600);
+
+      document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') {
+          setTimeout(layoutCamChrome, 50);
+          setTimeout(layoutCamChrome, 200);
+        }
+      });
     })();
   </script>
 </Base>

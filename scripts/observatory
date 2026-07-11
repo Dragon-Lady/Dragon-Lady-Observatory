@@ -1,0 +1,65 @@
+#!/usr/bin/env bash
+# Chuck's Observatory launcher — keep it simple.
+# Port 4331 (Oracle/Cosmic usually owns 4321).
+#
+# In Cosmic Terminal, from the repo:
+#   ./scripts/observatory
+# Wait until you see:  Local  http://127.0.0.1:4331/
+# THEN open that URL in the browser (+ /observatory).
+#
+# 127.0.0.1 = THIS computer. Not Cursor Cloud.
+
+set -u
+
+PORT="${DLO_PORT:-4331}"
+HOST="${DLO_HOST:-127.0.0.1}"
+BRANCH="${DLO_BRANCH:-cursor/console-pins-cleanup-27c8}"
+
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$ROOT/viewer" || { echo "✗ no viewer/ under $ROOT"; exit 1; }
+
+echo "=== Chuck Observatory ==="
+echo "folder: $ROOT/viewer"
+echo "wait for:  Local    http://${HOST}:${PORT}/"
+echo "then open: http://127.0.0.1:${PORT}/observatory"
+echo ""
+
+# Best-effort branch (don't die if git is weird)
+if command -v git >/dev/null 2>&1; then
+  cd "$ROOT"
+  cur="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo '?')"
+  echo "git: $cur @ $(git rev-parse --short HEAD 2>/dev/null || echo '?')"
+  if [[ "$cur" != "$BRANCH" ]]; then
+    echo "→ trying checkout $BRANCH …"
+    git fetch origin "$BRANCH" 2>/dev/null || true
+    git checkout "$BRANCH" 2>/dev/null || echo "⚠ checkout failed — starting anyway"
+  fi
+  git pull --ff-only origin "$BRANCH" 2>/dev/null || true
+  cd "$ROOT/viewer"
+fi
+
+if [[ ! -d node_modules/astro ]]; then
+  echo "→ npm install …"
+  npm install || { echo "✗ npm install failed"; exit 1; }
+fi
+
+# Free only our port
+if command -v lsof >/dev/null 2>&1; then
+  pids="$(lsof -tiTCP:"$PORT" -sTCP:LISTEN 2>/dev/null || true)"
+  if [[ -n "$pids" ]]; then
+    echo "→ freeing :$PORT ($pids)"
+    kill $pids 2>/dev/null || true
+    sleep 1
+  fi
+fi
+
+echo ""
+echo "Starting… (leave this window open)"
+echo ""
+
+# Prefer local binary; fall back to npx
+if [[ -x node_modules/.bin/astro ]]; then
+  exec node_modules/.bin/astro dev --host "$HOST" --port "$PORT"
+else
+  exec npx astro dev --host "$HOST" --port "$PORT"
+fi

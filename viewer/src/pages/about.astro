@@ -2,10 +2,12 @@
 import Base from '@/layouts/Base.astro';
 import { stats } from '@/lib/store';
 const s = stats();
+const base = import.meta.env.BASE_URL;
 ---
 <Base title="About">
   <div class="prose-text space-y-5">
-    <h1 class="text-2xl font-semibold text-mist-100">About Dragon Lady Observatory</h1>
+    <a href={base} class="text-lg font-semibold tracking-tight text-mist-100 hover:text-signal-300 hover:no-underline" title="Back to console home">The Observatory</a>
+    <h1 class="text-2xl font-semibold text-mist-100">About</h1>
     <p class="text-mist-300">
       Dragon Lady Observatory is a beautiful way to explore space from home — and a quiet
       anomaly watch underneath. It brings four domains onto one calm surface: orbital objects

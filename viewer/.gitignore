@@ -3,4 +3,12 @@ dist/
 .astro/
 # generated catalog snapshot staged for the globe — regenerable, never commit
 public/catalog/
+# Ambient audio: ship Nebula Drift with the public build so the music button works.
+# Other local drops stay machine-only.
+public/audio/*.mp3
+public/audio/*.wav
+public/audio/*.ogg
+public/audio/*.m4a
+!public/audio/README.md
+!public/audio/nebula-drift.mp3
 *.log
