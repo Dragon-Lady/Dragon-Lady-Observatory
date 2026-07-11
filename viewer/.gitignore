@@ -9,4 +9,5 @@ public/audio/*.wav
 public/audio/*.ogg
 public/audio/*.m4a
 !public/audio/README.md
+!public/audio/nebula-drift.mp3
 *.log

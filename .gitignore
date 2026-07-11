@@ -36,6 +36,7 @@ viewer/public/audio/*.wav
 viewer/public/audio/*.ogg
 viewer/public/audio/*.m4a
 !viewer/public/audio/README.md
+!viewer/public/audio/nebula-drift.mp3
 data/cache/
 data/snapshots/
 data/.*/
