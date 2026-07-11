@@ -30,7 +30,7 @@ dist/
 viewer/dist/
 .astro/
 viewer/.astro/
-# Local ambient drop (Suno / Nebula Drift) — machine-local, not committed
+# Ambient: Nebula Drift ships with the public build; other drops stay local
 viewer/public/audio/*.mp3
 viewer/public/audio/*.wav
 viewer/public/audio/*.ogg

@@ -3,7 +3,8 @@ dist/
 .astro/
 # generated catalog snapshot staged for the globe — regenerable, never commit
 public/catalog/
-# Local ambient drop (Suno / Nebula Drift) — keep on the machine, not in git
+# Ambient audio: ship Nebula Drift with the public build so the music button works.
+# Other local drops stay machine-only.
 public/audio/*.mp3
 public/audio/*.wav
 public/audio/*.ogg
