@@ -5,7 +5,7 @@
 | Wrapper | How you start it | Port | Code |
 |---|---|---|---|
 | **Oracle / Cosmic** | whatever Cosmic Terminal runs (`observatory` cheat) | usually **4321** | often old → boots **M42 / Orion** |
-| **Chuck** | `./scripts/observatory` in this repo | **4331** | `cursor/console-pins-cleanup-27c8` → **pinfix 8** |
+| **Chuck** | `./scripts/observatory` in this repo | **4331** | `cursor/console-pins-cleanup-27c8` → **pinfix 16** |
 
 They are **different processes**. Fixing one does not change the other until Cosmic points at this script.
 
@@ -28,7 +28,7 @@ Leave it running. Open:
 
 (not 4321 — that’s still Oracle’s)
 
-Bottom-left must show **`· pinfix 8`**.
+Bottom-left must show **`· pinfix 16`**.
 
 ## If “cannot be reached”
 

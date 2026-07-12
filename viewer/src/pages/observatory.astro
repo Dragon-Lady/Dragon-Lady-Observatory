@@ -16,7 +16,7 @@ const LENS = { id: 'aladin', label: 'Atlas', icon: '🔭' };
       <a href={import.meta.env.BASE_URL} class="text-lg font-semibold tracking-tight text-mist-100 hover:text-signal-300 hover:no-underline" title="Back to console home">The Observatory</a>
       <p class="text-xs text-mist-400">
         Atlas — real sky. Zoom way out for the sky-globe view.
-        <span class="text-mist-500">Planets &amp; Moon: live ephemeris (Miriade). Press <kbd class="text-mist-300">P</kbd> (or Pin) to save this view. Snapshot for PNG.</span>
+        <span class="text-mist-500">Planets &amp; Moon: live sky position (Miriade) — survey photos won’t show the disk, so we park a gold plus on tonight’s spot. Press <kbd class="text-mist-300">P</kbd> to pin. Snapshot for PNG.</span>
       </p>
     </div>
 
@@ -38,7 +38,7 @@ const LENS = { id: 'aladin', label: 'Atlas', icon: '🔭' };
       <div id="now-chip" class="dlo-cam-chrome pointer-events-none rounded-full border border-white/10 bg-black/60 px-3 py-1 text-xs text-mist-300 backdrop-blur">
         <span class="mr-1.5 inline-block h-2 w-2 animate-pulse rounded-full bg-emerald-400"></span>
         <span id="now-showing">Atlas</span>
-        <span class="ml-2 text-[10px] text-signal-300" id="atlas-build" title="Build stamp — external browser must show pinfix 12 or it’s an old tab/port">· pinfix 12</span>
+        <span class="ml-2 text-[10px] text-signal-300" id="atlas-build" title="Build stamp — external browser must show pinfix 16 or it’s an old tab/port">· pinfix 16</span>
       </div>
 
       <!-- Bottom-right control group: Snapshot + Wide.
@@ -46,6 +46,17 @@ const LENS = { id: 'aladin', label: 'Atlas', icon: '🔭' };
            so they don't drift into the middle or cover native controls, but remain usable for
            watermarked snapshots. In normal view they sit bottom-right out of the way. -->
       <div id="sky-controls" class="dlo-cam-chrome flex items-center gap-2">
+        <button
+          id="sky-inspect"
+          type="button"
+          title="SIMBAD inspect — click a star/galaxy for its description. Click again to exit."
+          aria-label="Toggle SIMBAD inspect mode"
+          aria-pressed="false"
+          class="flex items-center gap-1.5 rounded-full border border-white/10 bg-black/60 px-3 py-1 text-xs text-mist-300 backdrop-blur transition-colors hover:border-signal-400/50 hover:text-mist-100"
+        >
+          <span class="text-sm leading-none">🔎</span>
+          <span>Inspect</span>
+        </button>
         <button
           id="sky-mystery"
           type="button"
@@ -88,7 +99,7 @@ const LENS = { id: 'aladin', label: 'Atlas', icon: '🔭' };
       </div>
 
     <p class="text-xs text-mist-500">
-      Atlas — Aladin Lite v3 (CDS). Real survey imagery. Click objects for info. Observation only.
+      Atlas — Aladin Lite v3 (CDS). Use <strong class="font-medium text-mist-400">Inspect</strong> to click an object for its SIMBAD description (click Inspect again to exit). Observation only.
     </p>
     <!-- Location handoff notes from the retired globe are no longer injected here.
          Pins and Sky Events now open the Observatory directly for free glide. -->
@@ -393,7 +404,9 @@ const LENS = { id: 'aladin', label: 'Atlas', icon: '🔭' };
             target: SAFE_BOOT_TARGET, // placeholder only — immediately overridden below
             cooFrame: 'equatorial',
             projection: 'SIN',
-            showReticle: true,
+            // Center reticle covers tiny SSO finds — keep off. SIMBAD pointer is opt-in via
+            // Aladin's toolbar button and our Inspect control (fire('simbad')), not always-on.
+            showReticle: false,
             showZoomControl: true,
             showFullscreenControl: true,
             showLayersControl: true,
@@ -416,6 +429,8 @@ const LENS = { id: 'aladin', label: 'Atlas', icon: '🔭' };
             try {
               if (allowM42AsLastView) return;
               if (localStorage.getItem('flyToPin')) return;
+              // Don't yank the eye during a live planet/Moon lock.
+              if (window.__ssoLock && Date.now() < window.__ssoLock.until) return;
               var a = window.__aladin;
               if (!a || typeof a.getRaDec !== 'function') return;
               var rd = a.getRaDec();
@@ -693,15 +708,39 @@ const LENS = { id: 'aladin', label: 'Atlas', icon: '🔭' };
         return { start: 40, mid: 35, final: 30 }; // other planets: start wider
       }
 
-      function placeSsoMarker(a, raDeg, decDeg, name) {
+      function clearSsoMarker(a) {
         try {
-          if (typeof A === 'undefined' || typeof A.catalog !== 'function' || typeof A.marker !== 'function') return;
-          if (window.__ssoMarkerCat && typeof a.removeOverlay === 'function') {
+          if (window.__ssoMarkerFadeTimer) {
+            clearTimeout(window.__ssoMarkerFadeTimer);
+            window.__ssoMarkerFadeTimer = null;
+          }
+          if (!window.__ssoMarkerCat || !a) return;
+          if (typeof a.removeOverlay === 'function') {
             try { a.removeOverlay(window.__ssoMarkerCat); } catch (e) {}
-          } else if (window.__ssoMarkerCat && typeof a.removeLayer === 'function') {
+          } else if (typeof a.removeLayer === 'function') {
             try { a.removeLayer(window.__ssoMarkerCat); } catch (e) {}
           }
-          const cat = A.catalog({ name: name + ' (now)', sourceSize: 18, color: '#f5c542' });
+          window.__ssoMarkerCat = null;
+        } catch (e) {}
+      }
+
+      // Reticle, not a lid: plus leaves the center open so tiny planets stay visible.
+      // SSO markers auto-fade so the spark isn't permanently under chrome.
+      function placeSsoMarker(a, raDeg, decDeg, name, opts) {
+        opts = opts || {};
+        try {
+          if (typeof A === 'undefined' || typeof A.catalog !== 'function' || typeof A.marker !== 'function') return;
+          clearSsoMarker(a);
+          var size = opts.size != null ? opts.size : 12;
+          var shape = opts.shape || 'plus';
+          var fadeMs = opts.fadeMs != null ? opts.fadeMs : 0;
+          const cat = A.catalog({
+            name: name + ' (now)',
+            sourceSize: size,
+            shape: shape,
+            color: '#f5c542',
+            hoverColor: '#ffe08a',
+          });
           const marker = A.marker(raDeg, decDeg, {
             popupTitle: name,
             popupDesc: 'Live sky position · Miriade ephemeris (now)',
@@ -709,6 +748,16 @@ const LENS = { id: 'aladin', label: 'Atlas', icon: '🔭' };
           cat.addSources([marker]);
           a.addCatalog(cat);
           window.__ssoMarkerCat = cat;
+          // Drop any hard selection box Aladin draws on the active source.
+          try {
+            if (typeof marker.deselect === 'function') marker.deselect();
+            if (typeof a.selectObjects === 'function') a.selectObjects([]);
+          } catch (e) {}
+          if (fadeMs > 0) {
+            window.__ssoMarkerFadeTimer = setTimeout(function () {
+              clearSsoMarker(a);
+            }, fadeMs);
+          }
         } catch (e) {}
       }
 
@@ -735,8 +784,18 @@ const LENS = { id: 'aladin', label: 'Atlas', icon: '🔭' };
             if (!isFinite(raDeg) || !isFinite(decDeg)) throw new Error('bad RA/Dec');
             if (typeof a.gotoRaDec === 'function') a.gotoRaDec(raDeg, decDeg);
             else if (typeof a.gotoObject === 'function') a.gotoObject(raDeg + ' ' + decDeg);
-            placeSsoMarker(a, raDeg, decDeg, ssoName);
+            // Persistent plus (open center). Do NOT fade — DSS/Mellinger plates do not contain
+            // tonight's planet/Moon, so the reticle *is* the find. Fade made them "disappear."
+            placeSsoMarker(a, raDeg, decDeg, ssoName, { shape: 'plus', size: 16, fadeMs: 0 });
             applyFovSchedule(a, ssoDesiredFov(ssoName));
+            // Re-assert lock after FOV steps in case Aladin's boot target animation tries to wander.
+            window.__ssoLock = { name: ssoName, ra: raDeg, dec: decDeg, until: Date.now() + 8000 };
+            setTimeout(function () {
+              try {
+                if (!window.__ssoLock || window.__ssoLock.name !== ssoName) return;
+                if (typeof a.gotoRaDec === 'function') a.gotoRaDec(raDeg, decDeg);
+              } catch (e) {}
+            }, 900);
             if (nowShowing) {
               nowShowing.textContent = ssoName + ' · live sky';
             }
@@ -1091,6 +1150,38 @@ const LENS = { id: 'aladin', label: 'Atlas', icon: '🔭' };
         });
       }
 
+      // SIMBAD inspect — opt-in. Same tool as Aladin's pointer control; off until you ask.
+      var inspectBtn = document.getElementById('sky-inspect');
+      var SIMBAD_MODE = 2; // Aladin view.TOOL_SIMBAD_POINTER
+      function simbadIsOn() {
+        try {
+          var a = window.__aladin;
+          return !!(a && a.view && a.view.mode === SIMBAD_MODE);
+        } catch (e) { return false; }
+      }
+      function styleInspectBtn(on) {
+        if (!inspectBtn) return;
+        inspectBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
+        inspectBtn.classList.toggle('border-signal-400/70', on);
+        inspectBtn.classList.toggle('text-signal-300', on);
+        inspectBtn.classList.toggle('bg-signal-400/15', on);
+        inspectBtn.classList.toggle('border-white/10', !on);
+        inspectBtn.classList.toggle('text-mist-300', !on);
+      }
+      function setSimbadMode(on) {
+        var a = window.__aladin;
+        if (!a || typeof a.fire !== 'function') return;
+        a.fire(on ? 'simbad' : 'default');
+        styleInspectBtn(!!on);
+      }
+      if (inspectBtn) {
+        inspectBtn.addEventListener('click', function () {
+          setSimbadMode(!simbadIsOn());
+        });
+        // Keep our button in sync if she uses Aladin's native SIMBAD icon instead.
+        setInterval(function () { styleInspectBtn(simbadIsOn()); }, 800);
+      }
+
       document.addEventListener('keydown', function (e) {
         if (e.key !== 'p' && e.key !== 'P') return;
         var tag = (e.target && e.target.tagName) || '';
@@ -1369,9 +1460,16 @@ const LENS = { id: 'aladin', label: 'Atlas', icon: '🔭' };
 
         var fs = aladinIsFullscreen();
         var pad = 12;
+        // Keep the control row from colliding with Aladin's native stack / survey toggle.
+        controls.style.flexWrap = 'wrap';
+        controls.style.justifyContent = 'flex-end';
+        controls.style.maxWidth = 'min(92vw, 28rem)';
+        controls.style.gap = '0.5rem';
 
         if (fs) {
-          // Aladin .aladin-fullscreen covers the viewport — pin to the real screen edges.
+          // Aladin .aladin-fullscreen covers the viewport — pin to real screen edges.
+          // Controls bottom-right; survey sits a step above so they don't stack-fight;
+          // chip stays visible (litmus + "Venus · live sky") bottom-left.
           controls.style.left = 'auto';
           controls.style.right = pad + 'px';
           controls.style.top = 'auto';
@@ -1382,18 +1480,25 @@ const LENS = { id: 'aladin', label: 'Atlas', icon: '🔭' };
           survey.style.left = '50%';
           survey.style.right = 'auto';
           survey.style.top = 'auto';
-          survey.style.bottom = pad + 'px';
+          survey.style.bottom = (pad + 48) + 'px';
           survey.style.transform = 'translateX(-50%)';
           survey.style.display = 'flex';
 
-          if (chip) chip.classList.add('dlo-cam-chrome-hide');
+          if (chip) {
+            chip.classList.remove('dlo-cam-chrome-hide');
+            chip.style.left = pad + 'px';
+            chip.style.right = 'auto';
+            chip.style.top = 'auto';
+            chip.style.bottom = pad + 'px';
+            chip.style.transform = 'none';
+          }
           return;
         }
 
         var rect = stage ? stage.getBoundingClientRect() : null;
         if (!rect) return;
 
-        // Bottom-right: Mystery / Pin / Snapshot / Wide
+        // Bottom-right: Inspect / Mystery / Pin / Snapshot / Wide
         controls.style.left = 'auto';
         controls.style.right = Math.max(pad, window.innerWidth - rect.right + pad) + 'px';
         controls.style.top = 'auto';
@@ -1401,11 +1506,11 @@ const LENS = { id: 'aladin', label: 'Atlas', icon: '🔭' };
         controls.style.transform = 'none';
         controls.style.display = 'flex';
 
-        // Bottom-center: Deep Sky / Milky Way
+        // Bottom-center: Deep Sky / Milky Way (slightly above controls on short stages)
         survey.style.left = (rect.left + rect.width / 2) + 'px';
         survey.style.right = 'auto';
         survey.style.top = 'auto';
-        survey.style.bottom = Math.max(pad, window.innerHeight - rect.bottom + pad) + 'px';
+        survey.style.bottom = Math.max(pad + 44, window.innerHeight - rect.bottom + pad + 44) + 'px';
         survey.style.transform = 'translateX(-50%)';
         survey.style.display = 'flex';
 
