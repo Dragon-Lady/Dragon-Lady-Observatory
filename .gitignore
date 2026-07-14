@@ -55,3 +55,6 @@ desktop.ini
 # Local vault / runtime private data (never commit)
 .local/
 .local
+
+# Personal someday sketches (Petal & the Dragon, etc.)
+future-builds/
