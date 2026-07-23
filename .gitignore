@@ -58,3 +58,6 @@ desktop.ini
 
 # Personal someday sketches (Petal & the Dragon, etc.)
 future-builds/
+
+# Local-only breadcrumb (TV bridge path — keep off public Observatory)
+JAMES_PRESENCE_MOVED.md
