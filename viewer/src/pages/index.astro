@@ -3,6 +3,8 @@ import Base from '@/layouts/Base.astro';
 import RecordCard from '@/components/RecordCard.astro';
 import { allRecords, domainsPresent, loadCatalog } from '@/lib/store';
 import { DOMAIN_LABEL } from '@/lib/display';
+import { hasSeeding, getSeeding } from '@/lib/seeding';
+import { primaryName } from '@/types';
 import type { Domain } from '@/types';
 
 const records = allRecords();
@@ -10,6 +12,7 @@ const present = domainsPresent();
 const allDomains: Domain[] = ['orbital', 'neo', 'space_weather', 'launch_reentry'];
 const base = import.meta.env.BASE_URL;
 const catalogCount = loadCatalog().length;
+const seedingRecords = records.filter(hasSeeding);
 
 const skyEvents = [
   { id: 'moon', name: 'Moon', desc: 'Our nearest neighbor — always a good test target for the camera.' },
@@ -209,6 +212,41 @@ const skyConstellations = [
       </ul>
     </details>
   </section>
+
+  <!-- Research: seeding hypothesis layer (small, optional) -->
+  {seedingRecords.length > 0 && (
+    <section class="mb-6">
+      <div class="mb-3 flex flex-wrap items-end justify-between gap-2">
+        <div>
+          <h2 class="text-lg font-semibold text-mist-100">Research</h2>
+          <p class="text-xs text-mist-500">Seeding hypothesis · crosswalk with IT3 / Harvard MPC claims · not engine confirmation</p>
+        </div>
+      </div>
+      <div class="space-y-2">
+        {seedingRecords.map((r) => {
+          const s = getSeeding(r);
+          const eIon = (r.location as any)?.research_metrics?.it3_e_ion;
+          const supported = s?.match_flags?.filter((f) => f.status === 'supported').length ?? 0;
+          const claims = s?.match_flags?.filter((f) => f.status === 'it3_claim').length ?? 0;
+          return (
+            <a
+              href={`${base}record/${r.id}`}
+              class="flex flex-col gap-1 rounded-lg border border-indigo-900/40 bg-void-900/80 px-4 py-3 hover:border-indigo-700/50 hover:!no-underline sm:flex-row sm:items-center sm:justify-between"
+            >
+              <div class="min-w-0">
+                <div class="text-sm font-medium text-mist-100">{primaryName(r)}</div>
+                <div class="mt-0.5 text-xs text-mist-400">
+                  {typeof eIon === 'number' ? `E_ion +${eIon} · ` : ''}
+                  {supported} supported · {claims} IT3 claims · open on intent
+                </div>
+              </div>
+              <span class="shrink-0 text-xs text-signal-400">Seeding analysis →</span>
+            </a>
+          );
+        })}
+      </div>
+    </section>
+  )}
 
   <!-- Everything overhead (optional, noisy catalog) — heavily de-emphasized; focus is on the personal Observatory -->
   <details class="mb-6 opacity-75">

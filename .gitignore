@@ -46,6 +46,11 @@ data/.*/
 data/records/*.json
 data/catalog/*.json
 
+# Research artifact binaries (Zenodo PDFs) — keep local; re-download via FILES.md checksums.
+# Committed under data/artifacts/<name>/: record.json, notes, small suite code (mp.py).
+data/artifacts/**/*.pdf
+data/artifacts/**/*.PDF
+
 # logs / OS
 *.log
 .DS_Store

@@ -17,6 +17,7 @@ const DATA_ROOT = process.env.DATA_ROOT
   : path.join(REPO_ROOT, 'data');
 
 const RECORDS_DIR = path.join(DATA_ROOT, 'records');
+const ARTIFACTS_DIR = path.join(DATA_ROOT, 'artifacts');
 const FIXTURES_FILE = path.join(DATA_ROOT, 'fixtures', 'records.json');
 const CATALOG_FILE = path.join(DATA_ROOT, 'catalog', 'tle.json');
 
@@ -57,35 +58,57 @@ function valid(r: any, where: string): r is StarRecord {
 
 let _cache: StarRecord[] | null = null;
 
+/** Load committed research dossiers: data/artifacts/<name>/record.json */
+function loadArtifactRecords(): StarRecord[] {
+  const out: StarRecord[] = [];
+  if (!fs.existsSync(ARTIFACTS_DIR)) return out;
+  for (const name of fs.readdirSync(ARTIFACTS_DIR)) {
+    const full = path.join(ARTIFACTS_DIR, name, 'record.json');
+    if (!fs.existsSync(full)) continue;
+    try {
+      const r = JSON.parse(fs.readFileSync(full, 'utf8'));
+      if (valid(r, full)) out.push(r);
+    } catch (e) {
+      console.warn(`[stars] unreadable artifact ${full}: ${(e as Error).message}`);
+    }
+  }
+  return out;
+}
+
 function load(): StarRecord[] {
   if (_cache) return _cache;
-  const out: StarRecord[] = [];
+  const byId = new Map<string, StarRecord>();
 
-  // Primary: the engine's live store (one JSON per record).
+  // Committed research artifacts (e.g. IT3 / seeding dossiers) — survive clones.
+  for (const r of loadArtifactRecords()) byId.set(r.id, r);
+
+  // Engine live store (one JSON per record). Wins on id collision.
   if (fs.existsSync(RECORDS_DIR)) {
     for (const f of fs.readdirSync(RECORDS_DIR)) {
       if (!f.endsWith('.json')) continue;
       const full = path.join(RECORDS_DIR, f);
       try {
         const r = JSON.parse(fs.readFileSync(full, 'utf8'));
-        if (valid(r, full)) out.push(r);
+        if (valid(r, full)) byId.set(r.id, r);
       } catch (e) {
         console.warn(`[stars] unreadable ${full}: ${(e as Error).message}`);
       }
     }
   }
 
-  // Fallback: fixtures, only if the live store produced nothing.
+  let out = Array.from(byId.values());
+
+  // Fallback: fixtures, only if nothing else loaded.
   if (out.length === 0 && fs.existsSync(FIXTURES_FILE)) {
     try {
       const arr = JSON.parse(fs.readFileSync(FIXTURES_FILE, 'utf8'));
       if (Array.isArray(arr)) for (const r of arr) if (valid(r, FIXTURES_FILE)) out.push(r);
-      console.log(`[stars] no engine records yet — rendering ${out.length} fixtures`);
+      console.log(`[stars] no engine/artifact records yet — rendering ${out.length} fixtures`);
     } catch (e) {
       console.warn(`[stars] unreadable fixtures: ${(e as Error).message}`);
     }
   } else if (out.length) {
-    console.log(`[stars] loaded ${out.length} live record(s) from ${RECORDS_DIR}`);
+    console.log(`[stars] loaded ${out.length} record(s) (engine + artifacts)`);
   }
 
   // Sort: tier (T1 first), then most-recently-updated freshness.

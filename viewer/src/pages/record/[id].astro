@@ -1,8 +1,9 @@
 ---
 import Base from '@/layouts/Base.astro';
-import { allRecords, recordById } from '@/lib/store';
+import { allRecords } from '@/lib/store';
 import { primaryName } from '@/types';
 import { tierClass, tierDot, TIER_LABEL, DOMAIN_LABEL, placeLabel } from '@/lib/display';
+import { getSeeding, statusClass, statusLabel } from '@/lib/seeding';
 
 export const prerender = true;
 
@@ -14,6 +15,8 @@ const base = import.meta.env.BASE_URL;
 const loc = r.location as Record<string, any>;
 const locEntries = Object.entries(loc).filter(([, v]) => v !== null && v !== '' && typeof v !== 'object');
 const staleClass = r.freshness.staleness_risk === 'high' ? 'tier-t1' : r.freshness.staleness_risk === 'medium' ? 'tier-t2' : 'text-mist-300';
+const seeding = getSeeding(r);
+const eIon = loc?.research_metrics?.it3_e_ion ?? loc?.artifact?.it3_e_ion_table?.['3I_ATLAS'];
 ---
 <Base title={primaryName(r)} description={r.description}>
   <nav class="mb-4 text-sm text-mist-400"><a href={base}>Sky</a> / {DOMAIN_LABEL[r.domain]} / <span class="text-mist-300">{primaryName(r)}</span></nav>
@@ -25,6 +28,11 @@ const staleClass = r.freshness.staleness_risk === 'high' ? 'tier-t1' : r.freshne
         <span class={tierClass(r.tier)}>{TIER_LABEL[r.tier]}</span>
       </span>
       <span class="text-mist-400">{DOMAIN_LABEL[r.domain]} · {placeLabel(r)}</span>
+      {seeding && (
+        <span class="rounded-full border border-indigo-800/60 bg-indigo-950/40 px-2 py-0.5 text-[11px] font-medium text-signal-300">
+          Seeding research
+        </span>
+      )}
     </div>
     <h1 class="text-2xl font-semibold leading-tight text-mist-100">{primaryName(r)}</h1>
     <p class="mt-1 text-mist-300">{r.description}</p>
@@ -38,6 +46,101 @@ const staleClass = r.freshness.staleness_risk === 'high' ? 'tier-t1' : r.freshne
 
   <div class="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_19rem]">
     <div class="space-y-6">
+      {seeding && (
+        <section class="rounded-lg border border-indigo-900/40 bg-void-900/80 p-4 sm:p-5">
+          <div class="mb-3 flex flex-wrap items-end justify-between gap-2">
+            <h2 class="text-sm font-semibold uppercase tracking-wide text-signal-300">Seeding analysis</h2>
+            <span class="text-[11px] text-mist-400">{seeding.status?.replace(/_/g, ' ') ?? 'research'}</span>
+          </div>
+          {seeding.posture && (
+            <p class="mb-4 text-xs leading-relaxed text-mist-400">{seeding.posture}</p>
+          )}
+
+          {/* Crosswalk: Medium × IT3 */}
+          <div class="mb-5 grid gap-3 sm:grid-cols-2">
+            <div class="rounded-md border border-void-800 bg-void-950/50 p-3">
+              <h3 class="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-mist-400">Medium hypothesis</h3>
+              {seeding.medium?.title && <p class="text-sm font-medium text-mist-100">{seeding.medium.title}</p>}
+              {seeding.medium?.thesis && <p class="mt-1.5 text-xs leading-relaxed text-mist-300">{seeding.medium.thesis}</p>}
+              {seeding.medium?.url ? (
+                <a class="mt-2 inline-block text-xs text-signal-400" href={seeding.medium.url} target="_blank" rel="noopener noreferrer">Open Medium ↗</a>
+              ) : (
+                <p class="mt-2 text-[11px] text-mist-500">{seeding.medium?.url_note ?? 'Add Medium URL when public.'}</p>
+              )}
+            </div>
+            <div class="rounded-md border border-void-800 bg-void-950/50 p-3">
+              <h3 class="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-mist-400">Harvard MPC / IT3</h3>
+              {seeding.it3_harvard_mpc?.label && <p class="text-sm font-medium text-mist-100">{seeding.it3_harvard_mpc.label}</p>}
+              {seeding.it3_harvard_mpc?.meaning && <p class="mt-1.5 text-xs leading-relaxed text-mist-300">{seeding.it3_harvard_mpc.meaning}</p>}
+              <div class="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs">
+                {seeding.it3_harvard_mpc?.x_post && (
+                  <a class="text-signal-400" href={seeding.it3_harvard_mpc.x_post} target="_blank" rel="noopener noreferrer">X live-run ↗</a>
+                )}
+                {seeding.it3_harvard_mpc?.zenodo && (
+                  <a class="text-signal-400" href={seeding.it3_harvard_mpc.zenodo} target="_blank" rel="noopener noreferrer">Zenodo ↗</a>
+                )}
+              </div>
+              {typeof eIon === 'number' && (
+                <p class="mt-2 text-xs text-mist-200">3I E_ion <span class="font-medium text-signal-300">+{eIon}</span> <span class="text-mist-500">(IT3 claim)</span></p>
+              )}
+            </div>
+          </div>
+
+          {/* Scoreboard */}
+          {seeding.scoreboard && seeding.scoreboard.length > 0 && (
+            <div class="mb-5">
+              <h3 class="mb-2 text-[11px] font-semibold uppercase tracking-wide text-mist-400">Scoreboard</h3>
+              <div class="overflow-hidden rounded-md border border-void-800">
+                <table class="w-full text-left text-xs">
+                  <tbody>
+                    {seeding.scoreboard.map((row) => (
+                      <tr class="border-t border-void-800 first:border-t-0">
+                        <td class="px-3 py-2 text-mist-400">{row.axis}</td>
+                        <td class="px-3 py-2 font-medium text-mist-100">{row.value}</td>
+                        <td class="px-3 py-2 text-mist-500">{row.basis ?? ''}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* Match flags */}
+          {seeding.match_flags && seeding.match_flags.length > 0 && (
+            <div class="mb-2">
+              <h3 class="mb-2 text-[11px] font-semibold uppercase tracking-wide text-mist-400">Match flags · Medium × IT3</h3>
+              <ul class="space-y-2">
+                {seeding.match_flags.map((f) => (
+                  <li class="rounded-md border border-void-800 bg-void-950/40 p-3">
+                    <div class="mb-1.5 flex flex-wrap items-center gap-2">
+                      <span class={`rounded-full border px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide ${statusClass(f.status)}`}>
+                        {statusLabel(f.status)}
+                      </span>
+                      <span class="text-sm font-medium text-mist-100">{f.label}</span>
+                    </div>
+                    <div class="grid gap-1 text-[11px] leading-relaxed text-mist-400 sm:grid-cols-2">
+                      {f.medium_side && <p><span class="text-mist-500">Medium · </span>{f.medium_side}</p>}
+                      {f.it3_side && <p><span class="text-mist-500">IT3 · </span>{f.it3_side}</p>}
+                    </div>
+                    {f.note && <p class="mt-1.5 text-[11px] text-mist-500">{f.note}</p>}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {seeding.next_watch && seeding.next_watch.length > 0 && (
+            <div class="mt-4 border-t border-void-800 pt-3">
+              <h3 class="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-mist-400">Watch next</h3>
+              <ul class="list-inside list-disc text-[11px] text-mist-400">
+                {seeding.next_watch.map((w) => <li>{w}</li>)}
+              </ul>
+            </div>
+          )}
+        </section>
+      )}
+
       {r.anomalies.length > 0 ? (
         <section>
           <h2 class="mb-2 text-sm font-semibold uppercase tracking-wide text-mist-400">Anomalies</h2>
@@ -86,11 +189,32 @@ const staleClass = r.freshness.staleness_risk === 'high' ? 'tier-t1' : r.freshne
           {r.sources.map((src) => (
             <div>
               <dt class="text-mist-400">Source</dt>
-              <dd><a href={src.url} target="_blank" rel="noopener noreferrer">{src.name} ↗</a> <span class="text-mist-400 text-xs">{src.retrieved_at}</span></dd>
+              <dd>
+                {src.url.startsWith('http') ? (
+                  <a href={src.url} target="_blank" rel="noopener noreferrer">{src.name} ↗</a>
+                ) : (
+                  <span class="text-mist-200">{src.name}</span>
+                )}
+                <span class="text-mist-400 text-xs"> {src.retrieved_at}</span>
+              </dd>
             </div>
           ))}
         </dl>
       </section>
+      {seeding?.files && seeding.files.length > 0 && (
+        <section class="rounded-lg border border-void-800 bg-void-900 p-4">
+          <h2 class="mb-2 text-sm font-semibold uppercase tracking-wide text-mist-400">Artifact files</h2>
+          <ul class="space-y-1.5 text-xs text-mist-300">
+            {seeding.files.map((f) => (
+              <li>
+                <span class="font-medium text-mist-100">{f.name}</span>
+                {f.role && <span class="text-mist-500"> — {f.role}</span>}
+              </li>
+            ))}
+          </ul>
+          <p class="mt-2 text-[11px] text-mist-500">On disk under data/artifacts/it3_atlas/</p>
+        </section>
+      )}
     </aside>
   </div>
 

@@ -1,0 +1,246 @@
+{
+  "schema_version": 1,
+  "id": "artifact-it3-atlas",
+  "domain": "neo",
+  "type": "comet",
+  "names": [
+    "3I/ATLAS · seeding research",
+    "artifacts/it3_atlas",
+    "IT3_Atlas",
+    "3I/ATLAS",
+    "C/2025 N1 (ATLAS)"
+  ],
+  "description": "Research intake: 3I/ATLAS seeding hypothesis cross-referenced with IT3 / Harvard–Smithsonian MPC live-audit claims (@dr_logvinovich). Author lattice math treats 3I as free macro-electron with highest E_ion (+9.43) among known ISOs — interesting alignment with a seeding / carrier narrative, not proof of intent. Files: Solar_v16.pdf, Hardware.pdf, mp.py under data/artifacts/it3_atlas/.",
+  "topics": [
+    "seeding_hypothesis",
+    "research",
+    "artifact",
+    "it3_atlas",
+    "harvard_mpc",
+    "interstellar",
+    "iso",
+    "3i_atlas",
+    "watchlist"
+  ],
+  "sources": [
+    {
+      "name": "james-bridge-packet",
+      "url": "file:///home/tanyanichols/dragoneye/james-io/CHAT_TO_JAMES_20260809_162838_IT3---3I-ATLAS-Observatory-intake.md",
+      "retrieved_at": "2026-08-09T22:30:00Z"
+    },
+    {
+      "name": "x-dr_logvinovich-mpc-live",
+      "url": "https://x.com/dr_logvinovich/status/2086386984897917248",
+      "retrieved_at": "2026-08-09T22:30:00Z"
+    },
+    {
+      "name": "x-dr_logvinovich-iso-e-ion",
+      "url": "https://x.com/dr_logvinovich/status/2085037477610303532",
+      "retrieved_at": "2026-08-09T22:30:00Z"
+    },
+    {
+      "name": "zenodo-it3",
+      "url": "https://zenodo.org/records/21792530",
+      "retrieved_at": "2026-08-09T22:30:00Z"
+    },
+    {
+      "name": "harvard-smithsonian-mpc",
+      "url": "https://www.minorplanetcenter.net/",
+      "retrieved_at": "2026-08-09T22:30:00Z"
+    },
+    {
+      "name": "medium-seeding-hypothesis",
+      "url": "local:user-medium-3i-atlas-seeding",
+      "retrieved_at": "2026-08-09T22:30:00Z"
+    }
+  ],
+  "freshness": {
+    "last_update": "2026-08-09T22:30:00Z",
+    "staleness_risk": "low"
+  },
+  "related_ids": [],
+  "location": {
+    "designation": "3I/ATLAS",
+    "orbit": {
+      "a_au": -0.26384,
+      "e": 6.14135,
+      "i_deg": 175.12,
+      "epoch": "2025-05-05T00:00:00Z",
+      "q_au": 1.35645,
+      "perihelion": "2025-10-29T11:45:00Z"
+    },
+    "moid_au": 0.365,
+    "is_pha": false,
+    "seeding_hypothesis": {
+      "layer": "seeding_hypothesis",
+      "status": "open_research",
+      "posture": "Hypothesis alignment only — IT3 claims are author assertions; MPC is a public catalog; neither proves intentional seeding.",
+      "medium": {
+        "title": "3I/ATLAS seeding hypothesis (user Medium)",
+        "author": "user",
+        "url": null,
+        "url_note": "Paste public Medium URL when ready; bridge noted Tanya–Avi seeding thread (~50 claps).",
+        "related_discourse": "Avi Loeb Medium / public seeding–gardener framing for interstellar traffic",
+        "thesis": "3I/ATLAS may act as (or exemplify) interstellar seeding traffic — an unbound carrier moving life-relevant material or intent across systems, not merely a random rock. Sparked while watching Project Hail Mary; cross-read with Avi’s interstellar-gardener discourse.",
+        "questions": [
+          "If ISOs can carry or seed, what geometric channels favor entry?",
+          "Is 3I special among known ISOs, or one of a class?",
+          "What would falsify intentional seeding vs natural free scattering?"
+        ]
+      },
+      "it3_harvard_mpc": {
+        "label": "Harvard MPC live-audit (IT3 / @dr_logvinovich)",
+        "meaning": "Public Harvard–Smithsonian MPC catalog pull (~1.55M orbits) + K-PHAM — not a cybercrime dump",
+        "x_post": "https://x.com/dr_logvinovich/status/2086386984897917248",
+        "zenodo": "https://zenodo.org/records/21792530",
+        "bridge_packet": "CHAT_TO_JAMES_20260809_162838_IT3---3I-ATLAS-Observatory-intake"
+      },
+      "match_flags": [
+        {
+          "id": "unbound_iso",
+          "label": "3I is interstellar / unbound",
+          "status": "supported",
+          "medium_side": "Needs a free interstellar carrier",
+          "it3_side": "Hyperbolic ISO; free macro-electron class (e ≥ 1)",
+          "note": "Public ephemeris + IT3 class agree on unbound status"
+        },
+        {
+          "id": "e_ion_rank",
+          "label": "3I highest E_ion among known ISOs",
+          "status": "it3_claim",
+          "medium_side": "Why this object feels special / high-energy visitor",
+          "it3_side": "E_ion +9.43 vs 1I +6.55, 2I +7.29",
+          "note": "Strongest free-electron score under IT3’s ruler — alignment, not proof of intent"
+        },
+        {
+          "id": "free_channel",
+          "label": "Free spectrum / residual channel",
+          "status": "it3_claim",
+          "medium_side": "Seeding needs a path that is not locked in bound crystal",
+          "it3_side": "Evaporative tail >48 AU; free comet H=3.81 vs bound 1.68 bits",
+          "note": "Supports a ‘highway for free objects’ story under their lattice map"
+        },
+        {
+          "id": "mass_trap_contrast",
+          "label": "Bound mass trap vs free scatterers",
+          "status": "it3_claim",
+          "medium_side": "Most mass is settled; rare visitors matter",
+          "it3_side": "99.51% mass claimed in Sn=0 isthmus; free electrons are the exception",
+          "note": "Makes rare high-E_ion ISOs narratively salient"
+        },
+        {
+          "id": "kuiper_cliff",
+          "label": "Kuiper Cliff as ionization edge",
+          "status": "it3_claim",
+          "medium_side": "Where bound system ends and free continuum begins",
+          "it3_side": "Cliff at 46.77 AU = claimed E_ion=0 peak",
+          "note": "Useful map boundary for seeding-entry discussion"
+        },
+        {
+          "id": "injection_nodes",
+          "label": "Lattice injection / trapping nodes",
+          "status": "hypothesis_only",
+          "medium_side": "Where would a seeder enter or leave material?",
+          "it3_side": "Node E-5 RA 60.5° Dec +43.2° (a≈520 AU, e≈0.85) pre-registered claim",
+          "note": "Sky pin candidate — not a confirmed object"
+        },
+        {
+          "id": "intentional_seeding",
+          "label": "Intentional seeding / gardener agenda",
+          "status": "open",
+          "medium_side": "Core hypothesis under consideration",
+          "it3_side": "Does not claim intent; geometry + free electrons only",
+          "note": "IT3 does not confirm purpose — leave open"
+        }
+      ],
+      "scoreboard": [
+        { "axis": "Unbound / interstellar orbit", "value": "yes", "basis": "public ephemeris" },
+        { "axis": "IT3 E_ion rank (1I/2I/3I)", "value": "3 of 3 (highest)", "basis": "author claim" },
+        { "axis": "E_ion (3I)", "value": "+9.43", "basis": "author claim" },
+        { "axis": "Lattice node proximity", "value": "not evaluated", "basis": "needs operator run" },
+        { "axis": "Medium thesis linked", "value": "yes (local intake)", "basis": "user" },
+        { "axis": "Intentional seeding", "value": "open", "basis": "hypothesis" }
+      ],
+      "files": [
+        { "name": "Solar_v16.pdf", "role": "main manuscript", "path": "data/artifacts/it3_atlas/Solar_v16.pdf" },
+        { "name": "Hardware.pdf", "role": "hardware paper", "path": "data/artifacts/it3_atlas/Hardware.pdf" },
+        { "name": "mp.py", "role": "11-front validation suite", "path": "data/artifacts/it3_atlas/mp.py" }
+      ],
+      "next_watch": [
+        "Zenodo 21792530 version bump",
+        "New @dr_logvinovich ISO / MPC posts",
+        "Paste public Medium URL into medium.url",
+        "Optional: Node E-5 Atlas research pin"
+      ]
+    },
+    "artifact": {
+      "name": "artifacts/it3_atlas",
+      "alias": "IT3_Atlas",
+      "bridge_packet": {
+        "id": "CHAT_TO_JAMES_20260809_162838_IT3---3I-ATLAS-Observatory-intake",
+        "path": "/home/tanyanichols/dragoneye/james-io/CHAT_TO_JAMES_20260809_162838_IT3---3I-ATLAS-Observatory-intake.md",
+        "confirmed": true,
+        "sha256": "ac3cd5d126b898d10fec750b20802ea18afc0cd1c5f0789fbd97b47716574326"
+      },
+      "local_dir": "data/artifacts/it3_atlas",
+      "it3_e_ion_table": {
+        "1I_Oumuamua": 6.55,
+        "2I_Borisov": 7.29,
+        "3I_ATLAS": 9.43
+      },
+      "harvard_mpc_audit": {
+        "kind": "public_mpc_live_download",
+        "objects_claimed": 1550000,
+        "operator": "K-PHAM v2.2",
+        "kuiper_cliff_au": 46.77,
+        "mass_in_sn0_pct": 99.51
+      }
+    },
+    "research_metrics": {
+      "it3_e_ion": 9.43,
+      "it3_class": "free_macro_electron",
+      "artifact_id": "artifacts/it3_atlas",
+      "seeding_layer": true
+    }
+  },
+  "tier": "T2",
+  "watchlist": true,
+  "anomalies": [
+    {
+      "kind": "research_seeding_alignment",
+      "confidence": 0.55,
+      "evidence": [
+        {
+          "reason": "User Medium seeding hypothesis on 3I/ATLAS cross-referenced with IT3 free-macro-electron map",
+          "metric": "seeding_layer",
+          "value": 1,
+          "source_ref": "medium-seeding-hypothesis",
+          "observed_at": "2026-08-09T22:30:00Z"
+        },
+        {
+          "reason": "IT3 claims 3I has highest E_ion (+9.43) among 1I/2I/3I — free-channel salience under their lattice",
+          "metric": "it3_e_ion",
+          "value": 9.43,
+          "source_ref": "x-dr_logvinovich-iso-e-ion",
+          "observed_at": "2026-08-05T16:17:27Z"
+        },
+        {
+          "reason": "Harvard–Smithsonian MPC live-audit (public catalog) logged under artifacts/it3_atlas; not institutional endorsement of seeding",
+          "metric": "objects_audited",
+          "value": 1550000,
+          "source_ref": "x-dr_logvinovich-mpc-live",
+          "observed_at": "2026-08-09T09:39:55Z"
+        }
+      ],
+      "delta": {
+        "e_ion": 9.43,
+        "match_flags_supported": 1,
+        "match_flags_it3_claim": 4,
+        "match_flags_open": 1
+      },
+      "state": "watch",
+      "first_flagged": "2026-08-09T22:30:00Z",
+      "last_updated": "2026-08-09T22:30:00Z"
+    }
+  ]
+}
