@@ -47,9 +47,18 @@ data/records/*.json
 data/catalog/*.json
 
 # Research artifact binaries (Zenodo PDFs) — keep local; re-download via FILES.md checksums.
-# Committed under data/artifacts/<name>/: record.json, notes, small suite code (mp.py).
+# Committed under data/artifacts/<name>/: public record.json, data-point notes, mp.py.
 data/artifacts/**/*.pdf
 data/artifacts/**/*.PDF
+# Private operator notes / bridge packets — never commit under artifacts
+data/artifacts/**/provenance/
+data/artifacts/**/*private*
+data/artifacts/**/PROPOSALS*
+data/artifacts/**/FULL_*AUDIT*
+data/artifacts/**/BRIDGE_*
+data/artifacts/**/CHAT_TO_*
+data/artifacts/**/SEEDING_LAYER.md
+data/artifacts/**/MANIFEST.md
 
 # logs / OS
 *.log

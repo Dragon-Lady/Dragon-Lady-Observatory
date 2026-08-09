@@ -10,7 +10,7 @@
     "3I/ATLAS",
     "C/2025 N1 (ATLAS)"
   ],
-  "description": "Research intake: 3I/ATLAS seeding hypothesis cross-referenced with IT3 / Harvard–Smithsonian MPC live-audit claims (@dr_logvinovich). Author lattice math treats 3I as free macro-electron with highest E_ion (+9.43) among known ISOs — interesting alignment with a seeding / carrier narrative, not proof of intent. Files: Solar_v16.pdf, Hardware.pdf, mp.py under data/artifacts/it3_atlas/.",
+  "description": "Public research dossier: 3I/ATLAS seeding hypothesis frame cross-referenced with IT3 Framework claims from a public Harvard–Smithsonian MPC catalog audit (@dr_logvinovich). 3I is scored as free macro-electron with E_ion +9.43 (highest among known ISOs) under IT3 — interesting alignment with a seeding/carrier narrative, not proof of intent. Author claims only; not peer-reviewed or engine-confirmed.",
   "topics": [
     "seeding_hypothesis",
     "research",
@@ -23,11 +23,6 @@
     "watchlist"
   ],
   "sources": [
-    {
-      "name": "james-bridge-packet",
-      "url": "file:///home/tanyanichols/dragoneye/james-io/CHAT_TO_JAMES_20260809_162838_IT3---3I-ATLAS-Observatory-intake.md",
-      "retrieved_at": "2026-08-09T22:30:00Z"
-    },
     {
       "name": "x-dr_logvinovich-mpc-live",
       "url": "https://x.com/dr_logvinovich/status/2086386984897917248",
@@ -47,15 +42,10 @@
       "name": "harvard-smithsonian-mpc",
       "url": "https://www.minorplanetcenter.net/",
       "retrieved_at": "2026-08-09T22:30:00Z"
-    },
-    {
-      "name": "medium-seeding-hypothesis",
-      "url": "local:user-medium-3i-atlas-seeding",
-      "retrieved_at": "2026-08-09T22:30:00Z"
     }
   ],
   "freshness": {
-    "last_update": "2026-08-09T22:30:00Z",
+    "last_update": "2026-08-09T23:00:00Z",
     "staleness_risk": "low"
   },
   "related_ids": [],
@@ -74,14 +64,14 @@
     "seeding_hypothesis": {
       "layer": "seeding_hypothesis",
       "status": "open_research",
-      "posture": "Hypothesis alignment only — IT3 claims are author assertions; MPC is a public catalog; neither proves intentional seeding.",
+      "posture": "Hypothesis alignment only. IT3 claims are author assertions; MPC is a public catalog. Neither proves intentional seeding.",
       "medium": {
-        "title": "3I/ATLAS seeding hypothesis (user Medium)",
-        "author": "user",
+        "title": "3I/ATLAS seeding hypothesis (operator Medium essay)",
+        "author": "operator",
         "url": null,
-        "url_note": "Paste public Medium URL when ready; bridge noted Tanya–Avi seeding thread (~50 claps).",
-        "related_discourse": "Avi Loeb Medium / public seeding–gardener framing for interstellar traffic",
-        "thesis": "3I/ATLAS may act as (or exemplify) interstellar seeding traffic — an unbound carrier moving life-relevant material or intent across systems, not merely a random rock. Sparked while watching Project Hail Mary; cross-read with Avi’s interstellar-gardener discourse.",
+        "url_note": "Optional: set public Medium URL when published.",
+        "related_discourse": "Public Avi Loeb Medium discourse on interstellar traffic and possible gardener/seeding framing",
+        "thesis": "3I/ATLAS may exemplify interstellar seeding traffic — an unbound carrier moving life-relevant material across systems, not merely a random rock. Open research question, not a claim of confirmation.",
         "questions": [
           "If ISOs can carry or seed, what geometric channels favor entry?",
           "Is 3I special among known ISOs, or one of a class?",
@@ -89,11 +79,10 @@
         ]
       },
       "it3_harvard_mpc": {
-        "label": "Harvard MPC live-audit (IT3 / @dr_logvinovich)",
-        "meaning": "Public Harvard–Smithsonian MPC catalog pull (~1.55M orbits) + K-PHAM — not a cybercrime dump",
+        "label": "Harvard–Smithsonian MPC live-audit (IT3 / @dr_logvinovich)",
+        "meaning": "Public Minor Planet Center catalog pull (~1.55M orbits) + K-PHAM operator — not a cybercrime dump",
         "x_post": "https://x.com/dr_logvinovich/status/2086386984897917248",
-        "zenodo": "https://zenodo.org/records/21792530",
-        "bridge_packet": "CHAT_TO_JAMES_20260809_162838_IT3---3I-ATLAS-Observatory-intake"
+        "zenodo": "https://zenodo.org/records/21792530"
       },
       "match_flags": [
         {
@@ -102,13 +91,13 @@
           "status": "supported",
           "medium_side": "Needs a free interstellar carrier",
           "it3_side": "Hyperbolic ISO; free macro-electron class (e ≥ 1)",
-          "note": "Public ephemeris + IT3 class agree on unbound status"
+          "note": "Public ephemeris and IT3 class agree on unbound status"
         },
         {
           "id": "e_ion_rank",
           "label": "3I highest E_ion among known ISOs",
           "status": "it3_claim",
-          "medium_side": "Why this object feels special / high-energy visitor",
+          "medium_side": "Why this object is high-energy / special in a seeding frame",
           "it3_side": "E_ion +9.43 vs 1I +6.55, 2I +7.29",
           "note": "Strongest free-electron score under IT3’s ruler — alignment, not proof of intent"
         },
@@ -116,9 +105,9 @@
           "id": "free_channel",
           "label": "Free spectrum / residual channel",
           "status": "it3_claim",
-          "medium_side": "Seeding needs a path that is not locked in bound crystal",
+          "medium_side": "Seeding needs a path not locked in bound crystal",
           "it3_side": "Evaporative tail >48 AU; free comet H=3.81 vs bound 1.68 bits",
-          "note": "Supports a ‘highway for free objects’ story under their lattice map"
+          "note": "Supports a free-object highway story under their lattice map"
         },
         {
           "id": "mass_trap_contrast",
@@ -134,7 +123,7 @@
           "status": "it3_claim",
           "medium_side": "Where bound system ends and free continuum begins",
           "it3_side": "Cliff at 46.77 AU = claimed E_ion=0 peak",
-          "note": "Useful map boundary for seeding-entry discussion"
+          "note": "Map boundary useful for seeding-entry discussion"
         },
         {
           "id": "injection_nodes",
@@ -157,31 +146,48 @@
         { "axis": "Unbound / interstellar orbit", "value": "yes", "basis": "public ephemeris" },
         { "axis": "IT3 E_ion rank (1I/2I/3I)", "value": "3 of 3 (highest)", "basis": "author claim" },
         { "axis": "E_ion (3I)", "value": "+9.43", "basis": "author claim" },
-        { "axis": "Lattice node proximity", "value": "not evaluated", "basis": "needs operator run" },
-        { "axis": "Medium thesis linked", "value": "yes (local intake)", "basis": "user" },
+        { "axis": "Lattice node proximity", "value": "not evaluated", "basis": "needs independent check" },
+        { "axis": "Medium thesis linked", "value": "local intake", "basis": "operator" },
         { "axis": "Intentional seeding", "value": "open", "basis": "hypothesis" }
       ],
+      "public_data_points": {
+        "mpc_objects_claimed": 1550000,
+        "operator": "K-PHAM v2.2 (zero free parameters; author claim)",
+        "mass_in_sn0_isthmus_pct": 99.51,
+        "valence_shell_integer_rigidity_pct": 100.0,
+        "valence_shell_au": "27-48",
+        "kuiper_cliff_au": 46.77,
+        "evaporative_tail_beyond_au": 48,
+        "comet_entropy_bound_bits": 1.68,
+        "comet_entropy_free_bits": 3.81,
+        "comets_n": 951,
+        "iso_e_ion": {
+          "1I_Oumuamua": 6.55,
+          "2I_Borisov": 7.29,
+          "3I_ATLAS": 9.43
+        },
+        "node_e5": {
+          "ra_deg": 60.5,
+          "dec_deg": 43.2,
+          "a_au": 520,
+          "e": 0.85,
+          "status": "author_prediction"
+        }
+      },
       "files": [
-        { "name": "Solar_v16.pdf", "role": "main manuscript", "path": "data/artifacts/it3_atlas/Solar_v16.pdf" },
-        { "name": "Hardware.pdf", "role": "hardware paper", "path": "data/artifacts/it3_atlas/Hardware.pdf" },
-        { "name": "mp.py", "role": "11-front validation suite", "path": "data/artifacts/it3_atlas/mp.py" }
+        { "name": "mp.py", "role": "11-front validation suite (Zenodo)", "path": "data/artifacts/it3_atlas/mp.py" },
+        { "name": "Solar_v16.pdf", "role": "main manuscript (Zenodo; not in git)", "path": "local/optional" },
+        { "name": "Hardware.pdf", "role": "hardware paper (Zenodo; not in git)", "path": "local/optional" }
       ],
       "next_watch": [
         "Zenodo 21792530 version bump",
-        "New @dr_logvinovich ISO / MPC posts",
-        "Paste public Medium URL into medium.url",
-        "Optional: Node E-5 Atlas research pin"
+        "New public ISO / MPC posts from the IT3 authors",
+        "Optional public Medium URL on medium.url"
       ]
     },
     "artifact": {
       "name": "artifacts/it3_atlas",
       "alias": "IT3_Atlas",
-      "bridge_packet": {
-        "id": "CHAT_TO_JAMES_20260809_162838_IT3---3I-ATLAS-Observatory-intake",
-        "path": "/home/tanyanichols/dragoneye/james-io/CHAT_TO_JAMES_20260809_162838_IT3---3I-ATLAS-Observatory-intake.md",
-        "confirmed": true,
-        "sha256": "ac3cd5d126b898d10fec750b20802ea18afc0cd1c5f0789fbd97b47716574326"
-      },
       "local_dir": "data/artifacts/it3_atlas",
       "it3_e_ion_table": {
         "1I_Oumuamua": 6.55,
@@ -211,21 +217,21 @@
       "confidence": 0.55,
       "evidence": [
         {
-          "reason": "User Medium seeding hypothesis on 3I/ATLAS cross-referenced with IT3 free-macro-electron map",
+          "reason": "Seeding hypothesis frame cross-referenced with IT3 free-macro-electron map for 3I/ATLAS",
           "metric": "seeding_layer",
           "value": 1,
-          "source_ref": "medium-seeding-hypothesis",
+          "source_ref": "zenodo-it3",
           "observed_at": "2026-08-09T22:30:00Z"
         },
         {
-          "reason": "IT3 claims 3I has highest E_ion (+9.43) among 1I/2I/3I — free-channel salience under their lattice",
+          "reason": "IT3 claims 3I has highest E_ion (+9.43) among 1I/2I/3I",
           "metric": "it3_e_ion",
           "value": 9.43,
           "source_ref": "x-dr_logvinovich-iso-e-ion",
           "observed_at": "2026-08-05T16:17:27Z"
         },
         {
-          "reason": "Harvard–Smithsonian MPC live-audit (public catalog) logged under artifacts/it3_atlas; not institutional endorsement of seeding",
+          "reason": "Public Harvard–Smithsonian MPC live-audit narrative (~1.55M orbits); not institutional endorsement of seeding",
           "metric": "objects_audited",
           "value": 1550000,
           "source_ref": "x-dr_logvinovich-mpc-live",
@@ -240,7 +246,7 @@
       },
       "state": "watch",
       "first_flagged": "2026-08-09T22:30:00Z",
-      "last_updated": "2026-08-09T22:30:00Z"
+      "last_updated": "2026-08-09T23:00:00Z"
     }
   ]
 }
